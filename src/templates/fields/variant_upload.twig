@@ -1,0 +1,262 @@
+
+<input type="file" id="{{ id }}" name="{{ name }}" style="display: none;" >
+<button type="button" class="btn" data-icon="upload" style="position: relative; overflow: hidden;" id="{{ id }}-btn">{{ 'Upload Product'|t }}</button>
+
+<span id="{{ id }}-progress"></span>
+
+<div id="upload-modal" class="modal-shade" style="">
+
+	<div class="modal-wrapper">
+
+		<div id="modal" class="modal fitted" style="">
+
+			<div class="body">
+
+				<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden; margin-right: 1rem" id="{{ id }}-confirm-btn"></button>
+
+				<span class="message" id="{{ id }}-message"></span>
+
+			</div>
+
+		</div>
+
+	</div>
+
+	<button type="button" class="btn icon remove" data-icon="remove" style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;" id="{{id}}-close-btn"></button>
+
+</div>
+
+<script type="text/javascript">
+
+	let field = document.getElementById('{{ namespacedId }}');
+	let btn = document.getElementById('{{ namespacedId }}-btn');
+
+	let message = document.getElementById('{{ namespacedId }}-message');
+	let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
+	let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
+
+	let form = field.closest('form');
+
+	btn.addEventListener('click', openFileDialog);
+	confirmBtn.addEventListener('click', confirmChanges);
+	closeBtn.addEventListener('click', closeModal);
+	field.addEventListener('change', onSelectedFile);
+
+	form.addEventListener('submit', (e) => {
+
+		e.preventDefault();
+
+		const payload = new FormData(form);
+
+		const f = payload.get("variant-uploads");
+
+		payload.set(
+			"variant-uploads", 
+			new File([f], f.name, {type: "text/csv"})
+		);
+
+		fetch('/api/product-variants/upload', {
+
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json',
+				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+				'X-Requested-With': 'XMLHttpRequest',
+			},
+			body: payload,
+
+		}).then(async (response) => {
+
+			if (!response.ok) {
+
+				let payload = JSON.stringify(await response.json());
+
+				let error;
+				try {
+					error = JSON.parse(payload.message);
+				} catch (E) {
+					error = payload
+				}
+
+				if (error.statusText) {
+					
+					throw Error(error.statusText);
+
+				} else {
+
+					throw Error(error);
+
+				}
+
+			}
+
+			return response.json()
+
+		}).then((response) => {
+
+			return response;
+
+		}).then((result) => {
+
+			if (result.payload.products[0].isNew) {
+
+				confirmBtn.innerHTML = "Create Product";
+				confirmBtn.classList.remove("edit", "hidden");
+				confirmBtn.classList.add("add");
+
+				message.innerHTML =
+					`Are you sure you want to create a new product named <strong>"${result.payload.products[0].title}"</strong>?`;
+
+			} else {
+
+				confirmBtn.innerHTML = "Edit Product" ;
+				confirmBtn.classList.remove("add", "hidden");
+				confirmBtn.classList.add("edit");
+
+				message.innerHTML =
+					`Are you sure you want to edit an existing product named <strong>"${result.payload.products[0].title}"</strong>?`;
+				
+			}
+
+			modal.show();
+
+			confirmationToken = result.payload.token;
+
+		}).catch((error) => {
+
+			try {
+				error = JSON.parse(error.message);
+			} catch (E) {
+				error = error;
+			}
+
+			confirmBtn.classList.add("hidden");
+
+			if (error.statusText) {
+
+				message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;
+
+			} else if (error.message) {
+
+				message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
+
+			}
+
+			modal.show();
+
+		});
+
+		return true;
+
+	});
+
+	function closeModal(event) {
+
+		modal.hide();
+		
+		form.reset();
+
+	}
+
+	function openFileDialog(event) {
+
+		field.click();
+
+	}
+
+	function onSelectedFile(event) {
+
+		const files = event.target.files;
+
+		parseFile(files[0]);
+
+	}
+
+	function confirmChanges(event) {
+
+		try {
+
+			fetch('/api/product-variants/apply-upload', {
+
+				method: "POST",
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+					'X-Requested-With': 'XMLHttpRequest',
+				},
+				body: JSON.stringify({
+					"token": confirmationToken
+				}),
+
+			}).then(async (response) => {
+						
+				if (!response.ok) {
+
+					if (response.statusText) {
+						
+						throw Error(response.statusText);
+
+					} else {
+
+						throw Error(JSON.stringify(await response.json()));
+
+					}
+
+				}
+
+				return response.json();
+
+			}).then((result) => {
+
+				modal.hide();
+
+			}).catch((error) => {
+
+				try {
+					error = JSON.parse(error.message);
+				} catch (E) {
+					error = error;
+				}
+
+				confirmBtn.classList.add("hidden");
+
+				if (error.statusText) {
+
+					message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;
+
+				} else if (error.message) {
+
+					message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
+
+				}
+
+			})
+
+		} catch (E) {
+
+			console.log(E);
+
+		}
+
+	}
+
+	function parseFile(file) {
+
+		// Using "form.submit() isn't consistent so we have to rely on dispatching the submit event manually."
+
+		form.dispatchEvent(new Event('submit', {'cancelable': true}));
+
+	}
+
+</script>
+
+{% js %}
+
+confirmationToken = null;
+
+let modal = new Garnish.Modal($('#upload-modal'));
+
+modal.quickHide();
+
+{% endjs %}

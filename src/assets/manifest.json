@@ -1,0 +1,12 @@
+{
+  "plugins/variant-manager/src/assets/js/main-legacy.js": {
+    "file": "js/main-legacy.min.js",
+    "isEntry": true,
+    "src": "plugins/variant-manager/src/assets/js/main-legacy.js"
+  },
+  "plugins/variant-manager/src/assets/js/main.js": {
+    "file": "js/main.min.js",
+    "isEntry": true,
+    "src": "plugins/variant-manager/src/assets/js/main.js"
+  }
+}
