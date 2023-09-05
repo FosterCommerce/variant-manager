@@ -13,6 +13,7 @@
         "craftcms/commerce": "^4.2"
     },
     "require-dev": {
+        "craftcms/ecs": "dev-main",
         "craftcms/phpstan": "dev-main",
         "roave/security-advisories": "dev-latest"
     },
