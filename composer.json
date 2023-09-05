@@ -9,10 +9,12 @@
     },
     "require": {
         "php": ">=8.0.2",
-        "craftcms/cms": "^4.4.6"
+        "craftcms/cms": "^4.4.6",
+        "craftcms/commerce": "^4.2"
     },
     "require-dev": {
-      "roave/security-advisories": "dev-latest"
+        "craftcms/phpstan": "dev-main",
+        "roave/security-advisories": "dev-latest"
     },
     "autoload": {
         "psr-4": {
@@ -35,6 +37,7 @@
             "yiisoft/yii2-composer": true,
             "craftcms/plugin-installer": true
         }
-    }
+    },
+    "prefer-stable": true,
+    "minimum-stability": "dev"
 }
-
