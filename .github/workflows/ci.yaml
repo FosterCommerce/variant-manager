@@ -22,7 +22,7 @@ jobs:
       - run: composer install --prefer-dist --no-progress
       - name: Run ecs check
         run: |
-          composer run-script ecs-check
+          vendor/bin/ecs --memory-limit=1G --no-progress-bar
   rector:
     name: Rector dry-run
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
       - run: composer install --prefer-dist --no-progress
       - name: Run rector --dry-run
         run: |
-          composer run-script rector-dry-run
+          vendor/bin/rector --memory-limit=1G --no-progress-bar
   phpstan:
     name: PHPStan
     runs-on: ubuntu-latest
@@ -50,4 +50,4 @@ jobs:
       - run: composer install --prefer-dist --no-progress
       - name: Run phpstan
         run: |
-          composer run-script phpstan
+          vendor/bin/phpstan --memory-limit=1G
