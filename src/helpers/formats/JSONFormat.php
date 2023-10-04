@@ -34,7 +34,7 @@ class JSONFormat extends BaseFormat
         'crossReferenceNumber' => 'crossReferenceNumber',
     ];
 
-    public function read($file)
+    public function read($file): never
     {
         throw new \RuntimeException('Importing using a JSON format has not been implemented yet.');
     }

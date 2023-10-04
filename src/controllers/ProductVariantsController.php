@@ -12,7 +12,11 @@ use fostercommerce\variantmanager\helpers\BaseController;
 use fostercommerce\variantmanager\helpers\formats\CSVFormat;
 
 use fostercommerce\variantmanager\helpers\formats\JSONFormat;
+use fostercommerce\variantmanager\services\ProductVariants;
 
+/**
+ * @property-read ProductVariants $service
+ */
 class ProductVariantsController extends BaseController
 {
     public $service_name = 'productVariants';
@@ -39,12 +43,13 @@ class ProductVariantsController extends BaseController
 
     public function actionExport(): void
     {
-        $payload = $this->handleExport();
+        // $payload = $this->handleExport();
+        $this->handleExport(); // TODO return type
 
-        $this->respond($payload);
+        $this->respond([]);
     }
 
-    public function throwInvalidSKUsError($product, array $items)
+    public function throwInvalidSKUsError($product, array $items): void
     {
         $message = "Sorry, but the following SKUs already exist for the given product IDs:\n\n";
 
@@ -61,7 +66,7 @@ class ProductVariantsController extends BaseController
         throw new BaseVariantManagerException(nl2br($message));
     }
 
-    public function handleExport()
+    public function handleExport(): void
     {
         $id = $this->parameter('id');
         $format = $this->parameter('format') ?? 'json';
@@ -69,10 +74,12 @@ class ProductVariantsController extends BaseController
 
         [$product, $variants] = $this->resolveFilters($this->service->getProduct($id));
 
-        return match ($format) {
-            'csv' => (new CSVFormat($this->service))->export($product, $variants, $download),
-            default => (new JSONFormat($this->service))->export($product, $variants, $download),
-        };
+        // TODO export return type?
+        if ($format === 'csv') {
+            (new CSVFormat($this->service))->export($product, $variants, $download);
+        } else {
+            (new JSONFormat($this->service))->export($product, $variants, $download);
+        }
     }
 
     protected function handleUpload()
@@ -103,11 +110,9 @@ class ProductVariantsController extends BaseController
         foreach ($payload as $productData) {
             $product = $csvFormat->resolveProductModelFromCache($productData);
 
-            // Will clean this shit up later.
-
             $variants = [];
             foreach ($productData['variants'] as $id => $value) {
-                if (str_starts_with($id, 'new')) {
+                if (str_starts_with((string) $id, 'new')) {
                     $variants[$id] = $value;
                 } else {
                     $variants[(int) $id] = $value;
@@ -134,7 +139,7 @@ class ProductVariantsController extends BaseController
         $filterOptions = $this->parameter('filter-option');
 
         if ($filterOptions) {
-            $options = array_map(static fn($option): array => explode('=', urldecode($option)), $filterOptions);
+            $options = array_map(static fn($option): array => explode('=', urldecode((string) $option)), $filterOptions);
 
             $variants = $this->service->getVariantsByOptions($product, $options);
         } else {

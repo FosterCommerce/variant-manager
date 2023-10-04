@@ -23,6 +23,9 @@ use yii\base\Event;
  * @author Foster Commerce <support@fostercomerce.com>
  * @copyright Foster Commerce
  * @license MIT
+ *
+ * @property-read Settings $settings
+ * @property-read null|array $cpNavItem
  */
 class VariantManager extends Plugin
 {
@@ -31,15 +34,6 @@ class VariantManager extends Plugin
     public bool $hasCpSettings = false;
 
     public bool $hasCpSection = true;
-
-    public static function config(): array
-    {
-        return [
-            'components' => [
-
-            ],
-        ];
-    }
 
     public function init(): void
     {

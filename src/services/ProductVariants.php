@@ -44,7 +44,7 @@ class ProductVariants extends BaseService
                     continue;
                 }
 
-                if (! str_contains($variant->variantAttributes[$map[$option[0]]]['attributeValue'], $option[1])) {
+                if (! str_contains((string) $variant->variantAttributes[$map[$option[0]]]['attributeValue'], (string) $option[1])) {
                     continue;
                 }
 
