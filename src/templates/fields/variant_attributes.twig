@@ -1,17 +1,17 @@
-
 <table class="table data" style="width: 100%; margin-top: 1rem">
 
 	<thead>
-		<tr>
-			<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 75%;">Name</th>
-			<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 25%;">Value</th>
-		</tr>
+	<tr>
+		<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 75%;">Name</th>
+		<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 25%;">Value</th>
+	</tr>
 	</thead>
 
 	<tbody>
 	{% for attribute in attributes %}
 		<tr>
-			<td class="singleline-cell textual" style="background-color: #FFFFFF; text-align: right;">{{ attribute['attributeName'] }}</td>
+			<td class="singleline-cell textual"
+					style="background-color: #FFFFFF; text-align: right;">{{ attribute['attributeName'] }}</td>
 			<td class="singleline-cell textual" style="background-color: #FFFFFF">{{ attribute['attributeValue'] }}</td>
 		</tr>
 	{% endfor %}

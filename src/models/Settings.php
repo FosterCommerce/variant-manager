@@ -2,7 +2,6 @@
 
 namespace fostercommerce\variantmanager\models;
 
-use Craft;
 use craft\base\Model;
 
 /**

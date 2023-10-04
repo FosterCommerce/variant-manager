@@ -1,24 +1,32 @@
-
-
 #upload-modal {
-
 	background-color: rgba(123, 135, 147, 0.7) !important;
-
 }
 
+#upload-modal .body {
+	display: flex;
+	flex-direction: column;
+}
+
+#upload-modal .body .actions {
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-end;
+	margin-top: 0.75rem;
+}
+
+#upload-modal .body .actions .btn.text {
+	border: none;
+}
 
 .modal-wrapper {
-
 	display: grid;
 	place-items: center;
-	min-height: 100vh; height: 100vh; max-height: 100vh;
-
+	min-height: 100vh;
+	height: 100vh;
+	max-height: 100vh;
 }
 
 #modal {
-
 	position: relative;
 	height: auto;
-	
-
 }

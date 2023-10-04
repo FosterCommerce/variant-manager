@@ -1,6 +1,6 @@
-
-<input type="file" id="{{ id }}" name="{{ name }}" style="display: none;" >
-<button type="button" class="btn" data-icon="upload" style="position: relative; overflow: hidden;" id="{{ id }}-btn">{{ 'Upload Product'|t }}</button>
+<input type="file" id="{{ id }}" name="{{ name }}" style="display: none;">
+<button type="button" class="btn" data-icon="upload" style="position: relative; overflow: hidden;"
+				id="{{ id }}-btn">{{ 'Upload Product'|t }}</button>
 
 <span id="{{ id }}-progress"></span>
 
@@ -11,10 +11,14 @@
 		<div id="modal" class="modal fitted" style="">
 
 			<div class="body">
+				<div class="message" id="{{ id }}-message"></div>
 
-				<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden; margin-right: 1rem" id="{{ id }}-confirm-btn"></button>
+				<div class="actions">
+					<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden;"
+									id="{{ id }}-confirm-btn"></button>
+					<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden; margin-left: 1rem">Cancel</button>
+				</div>
 
-				<span class="message" id="{{ id }}-message"></span>
 
 			</div>
 
@@ -22,7 +26,8 @@
 
 	</div>
 
-	<button type="button" class="btn icon remove" data-icon="remove" style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;" id="{{id}}-close-btn"></button>
+	<button type="button" class="btn icon remove {{ id }}-close-btn" data-icon="remove"
+					style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;"></button>
 
 </div>
 
@@ -34,12 +39,14 @@
 	let message = document.getElementById('{{ namespacedId }}-message');
 	let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
 	let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
+	for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
+		el.addEventListener('click', closeModal);
+	}
 
 	let form = field.closest('form');
 
 	btn.addEventListener('click', openFileDialog);
 	confirmBtn.addEventListener('click', confirmChanges);
-	closeBtn.addEventListener('click', closeModal);
 	field.addEventListener('change', onSelectedFile);
 
 	form.addEventListener('submit', (e) => {
@@ -51,7 +58,7 @@
 		const f = payload.get("variant-uploads");
 
 		payload.set(
-			"variant-uploads", 
+			"variant-uploads",
 			new File([f], f.name, {type: "text/csv"})
 		);
 
@@ -79,7 +86,7 @@
 				}
 
 				if (error.statusText) {
-					
+
 					throw Error(error.statusText);
 
 				} else {
@@ -109,13 +116,13 @@
 
 			} else {
 
-				confirmBtn.innerHTML = "Edit Product" ;
+				confirmBtn.innerHTML = "Edit Product";
 				confirmBtn.classList.remove("add", "hidden");
 				confirmBtn.classList.add("edit");
 
 				message.innerHTML =
 					`Are you sure you want to edit an existing product named <strong>"${result.payload.products[0].title}"</strong>?`;
-				
+
 			}
 
 			modal.show();
@@ -153,7 +160,7 @@
 	function closeModal(event) {
 
 		modal.hide();
-		
+
 		form.reset();
 
 	}
@@ -190,11 +197,11 @@
 				}),
 
 			}).then(async (response) => {
-						
+
 				if (!response.ok) {
 
 					if (response.statusText) {
-						
+
 						throw Error(response.statusText);
 
 					} else {
@@ -253,10 +260,10 @@
 
 {% js %}
 
-confirmationToken = null;
+	confirmationToken = null;
 
-let modal = new Garnish.Modal($('#upload-modal'));
+	let modal = new Garnish.Modal($('#upload-modal'));
 
-modal.quickHide();
+	modal.quickHide();
 
 {% endjs %}

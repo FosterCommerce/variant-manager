@@ -2,8 +2,6 @@
 
 namespace fostercommerce\variantmanager\exceptions;
 
-class BaseVariantManagerException extends \Exception {
-
-
-
+class BaseVariantManagerException extends \Exception
+{
 }

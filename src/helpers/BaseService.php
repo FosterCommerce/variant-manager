@@ -5,109 +5,94 @@ namespace fostercommerce\variantmanager\helpers;
 use Craft;
 
 use craft\base\Component;
-use craft\web\Request;
 
-use craft\web\UrlManager;
 use craft\events\RegisterUrlRulesEvent;
+use craft\web\UrlManager;
 
 use yii\base\Event;
 
-trait BaseServiceTrait {
+trait BaseServiceTrait
+{
+    use \fostercommerce\variantmanager\helpers\BaseHelper;
 
-	use \fostercommerce\variantmanager\helpers\BaseHelper;
+    // Public Methods
+    // =========================================================================
 
-	// Public Methods
-	// =========================================================================
+    protected function strap(
+        object $plugin,
+    ) {
+        $this->plugin = $plugin;
 
-	protected function strap(
-		object $plugin
-	) {	
+        $this->setupPaths();
+        $this->setupEvents();
+    }
 
-		$this->plugin = $plugin;
+    protected function setupPaths(
+        $paths = null,
+    ) {
+        $paths ??= $this->paths;
 
-		$this->setupPaths();
-		$this->setupEvents();
+        Event::on(
 
-	}
+            UrlManager::class,
+            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
 
-	protected function setupPaths(
-		$paths = null
-	) {
+            static function(RegisterUrlRulesEvent $registerUrlRulesEvent) use ($paths): void {
+                foreach ($paths as $path => $action) {
+                    $registerUrlRulesEvent->rules[$path] = $action;
+                }
+            }
 
-		$paths = $paths ?? $this->paths;
+        );
+    }
 
-		Event::on(
-			
-			UrlManager::class,
-			UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-			
-			function (RegisterUrlRulesEvent $event) use ($paths) {
+    protected function setupEvents()
+    {
+    }
 
-				foreach ($paths as $path => $action) $event->rules[$path] = $action;
+    protected function getBodyParams()
+    {
+        return Craft::$app->request->getBodyParams();
+    }
 
-			}
-	
-		);
+    protected function getUser(
+        $id = null,
+    ) {
 
-	}
+        // This needs to be completed if ID exists.
 
-	protected function setupEvents() {
+        return ($id !== null) ? null : Craft::$app->getUser()->getIdentity();
+    }
 
+    protected function getCfg()
+    {
+        return $this->plugin->settings;
+    }
 
-	}
+    protected function getRequest()
+    {
+        return Craft::$app->getRequest();
+    }
 
-	protected function getBodyParams() {
+    protected function getResponse()
+    {
+        return $this->controller->response;
+    }
 
-		return Craft::$app->request->getBodyParams();
+    protected function getController()
+    {
+        return Craft::$app->controller;
+    }
 
-	}
-
-	protected function getUser(
-		$id = null
-	) {
-
-		// This needs to be completed if ID exists.
-
-		return ($id !== null) ? null : Craft::$app->getUser()->getIdentity();
-
-	}
-
-	protected function getCfg() {
-
-		return $this->plugin->settings;
-
-	}
-
-	protected function getRequest() {
-
-		return Craft::$app->getRequest();
-
-	}
-
-	protected function getResponse() {
-
-		return $this->controller->response;
-
-	}
-
-	protected function getController() {
-
-		return Craft::$app->controller;
-
-	}
-
-	protected function parameter($name) {
-
-		return $this->controller->parameter($name);
-
-	}
-
+    protected function parameter($name)
+    {
+        return $this->controller->parameter($name);
+    }
 }
 
-class BaseService extends Component {
+class BaseService extends Component
+{
+    use BaseServiceTrait;
 
-	use BaseServiceTrait;
-
-	public $paths = [];
-
+    public $paths = [];
 }

@@ -2,134 +2,119 @@
 
 namespace fostercommerce\variantmanager\helpers\formats;
 
-use \fostercommerce\variantmanager\helpers\formats\BaseFormat;
+use craft\commerce\elements\Product;
 
-use Craft;
-use \craft\commerce\elements\Product;
+class JSONFormat extends BaseFormat
+{
+    public $ext = 'json';
 
-class JSONFormat extends BaseFormat {
+    public $mimetype = 'application/json';
 
-	public $ext = 'json';
-	public $mimetype = 'application/json';
-	public $returnType = 'application/json';
+    public $returnType = 'application/json';
 
-	public $variantHeadings = [
-		'id' => 'id',
+    public $variantHeadings = [
+        'id' => 'id',
         'title' => 'title',
-		'sku' => 'sku',
-		'stock' => 'stock',
+        'sku' => 'sku',
+        'stock' => 'stock',
         'minQty' => 'minQty',
         'maxQty' => 'maxQty',
         'onSale' => 'onSale',
-		'price' => 'price',
+        'price' => 'price',
         'priceAsCurrency' => 'priceAsCurrency',
         'salePrice' => 'salePrice',
         'salePriceAsCurrency' => 'salePriceAsCurrency',
-		'height' => 'height',
-		'width' => 'width',
-		'length' => 'length',
-		'weight' => 'weight',
+        'height' => 'height',
+        'width' => 'width',
+        'length' => 'length',
+        'weight' => 'weight',
+        'isAvailable' => 'isAvailable',
         // TODO : Hard-coding these in for now, we should pull these from the plugins config file
-        'partNumber' => 'partNumber',
-        'crossReferenceNumber' => 'crossReferenceNumber'
-	];
+        'mpn' => 'mpn',
+        'crossReferenceNumber' => 'crossReferenceNumber',
+    ];
 
-	public function read($file) {
+    public function read($file)
+    {
+        throw new \RuntimeException('Importing using a JSON format has not been implemented yet.');
+    }
 
-		throw Exception("Importing using a JSON format has not been implemented yet.");
+    public function normalizeVariants($variants, array $mapping = null): array
+    {
+        return array_map(fn($variant) => $this->normalizeVariant($variant, $mapping), $variants);
+    }
 
-	}
+    public function normalizeVariant($variant, array $mapping = null)
+    {
+        if ($mapping === null || $mapping === []) {
+            $mapping = $this->resolveVariantExportMapping($variant)[0];
+        }
 
-	public function normalizeExportPayload(Product $product, $variants) { 
+        $payload = [];
 
-		$payload = [];
+        foreach ($mapping['variant'] as [$from, $to]) {
+            $payload[$to] = $variant->{$from};
+        }
 
-		if (!$variants || !count($variants)) return $payload;
+        if ($this->findMapping($mapping['variant'], 'stock') && $variant->hasUnlimitedStock) {
+            $payload[$this->findMapping($mapping['variant'], 'stock')] = '';
+        }
 
-		[$mapping] = $this->resolveVariantExportMapping($variants[0]);
+        $payload['attributes'] = [];
 
-		foreach ($variants as $variant) {
-
-			$payload[] = $this->normalizeVariant($variant, $mapping);
-
-		}
-
-		return $payload;
-		
-	}
-
-	public function normalizeVariants($variants, $mapping = null) {
-
-		return array_map(function($variant) use ($mapping) {
-			
-			return $this->normalizeVariant($variant, $mapping);
-		
-		}, $variants);
-
-	}
-
-	public function normalizeVariant($variant, $mapping = null) {
-
-		if (!$mapping) $mapping = $this->resolveVariantExportMapping($variant)[0];
-
-		$payload = [];
-
-		foreach ($mapping['variant'] as [$from, $to]) {
-
-			$payload[$to] = $variant->$from;
-
-		}
-
-		if ($this->findMapping($mapping['variant'], 'stock') && $variant->hasUnlimitedStock) {
-			
-			$payload[$this->findMapping($mapping['variant'], 'stock')] = '';
-
-		}
-
-		$payload['attributes'] = [];
-
-		if ($variant->variantAttributes) {
+        if ($variant->variantAttributes) {
             foreach ($variant->variantAttributes as $attribute) {
-
                 $payload['attributes'][] = [
 
                     'name' => $attribute['attributeName'],
-                    'value' => $attribute['attributeValue']
+                    'value' => $attribute['attributeValue'],
 
                 ];
-
             }
         }
 
-		return $payload;
+        return $payload;
+    }
 
-	}
+    public function resolveVariantExportMapping(&$variant): array
+    {
+        $variantMap = [];
+        foreach (array_keys($this->variantHeadings) as $i => $heading) {
+            $variantMap[$i] = [$this->variantHeadings[$heading], $heading];
+        }
 
-	public function resolveVariantExportMapping(&$variant) {
+        return [
+            [
+                'variant' => $variantMap,
+            ],
+        ];
+    }
 
-		$variantMap = [];
-		foreach (array_keys($this->variantHeadings) as $i => $heading) {
+    public function findMapping($mapping, $predicate)
+    {
+        foreach ($mapping as [$from, $to]) {
+            if ($from === $predicate) {
+                return $to;
+            }
+        }
 
-			$variantMap[$i] = [$this->variantHeadings[$heading], $heading];
+        return null;
+    }
 
-		}
+    protected function normalizeExportPayload(Product $product, $variants)
+    {
+        $payload = [];
 
-		return [
-			['variant' => $variantMap]
-		];
+        if (! $variants || (is_countable($variants) ? count($variants) : 0) === 0) {
+            return $payload;
+        }
 
-	}
+        [$mapping] = $this->resolveVariantExportMapping($variants[0]);
 
-	public function findMapping($mapping, $predicate) {
+        foreach ($variants as $variant) {
+            $payload[] = $this->normalizeVariant($variant, $mapping);
+        }
 
-		foreach ($mapping as [$from, $to]) {
-
-			if ($from === $predicate) return $to;
-			
-		}
-
-		return null;
-
-	}
-
+        return $payload;
+    }
 }

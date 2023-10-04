@@ -3,90 +3,83 @@
 namespace fostercommerce\variantmanager\services;
 
 use Craft;
-use GuzzleHttp;
+use craft\base\PluginInterface;
+use craft\commerce\elements\Product;
 use fostercommerce\variantmanager\helpers\BaseService;
 
-use \craft\commerce\elements\Product;
-use \craft\commerce\elements\Variant;
+use GuzzleHttp;
 
 /**
  * ProductVariants
  */
-class ProductVariants extends BaseService {
+class ProductVariants extends BaseService
+{
+    public function init(): void
+    {
+    }
 
-	private $client;
+    public function getVariants($product)
+    {
+        if (! ($product instanceof Product)) {
+            $product = $this->getProduct($product);
+        }
 
-	public function init() : void {
-		$this->client = $this->createClient();
-	}
+        return $product->variants;
+    }
 
-	public function getVariants($product) {
+    public function getVariantsByOptions($product, $options): array
+    {
+        if (! ($product instanceof Product)) {
+            $product = $this->getProduct($product);
+        }
 
-		if (!($product instanceof Product)) $product = $this->getProduct($product);
+        $map = [];
+        foreach ($product->variants[0]->variantAttributes as $key => $value) {
+            $map[$value['attributeName']] = $key;
+        }
 
-		return $product->variants;
+        $variants = array_filter($product->variants, static function($variant) use ($map, $options): bool {
+            foreach ($options as $option) {
+                if (! array_key_exists($option[0], $map)) {
+                    continue;
+                }
 
-	}
+                if (! str_contains($variant->variantAttributes[$map[$option[0]]]['attributeValue'], $option[1])) {
+                    continue;
+                }
 
-	public function getVariantsByOptions($product, $options) {
+                return true;
+            }
 
-		if (!($product instanceof Product)) $product = $this->getProduct($product);
+            return false;
+        });
 
-		$map = [];
-		foreach ($product->variants[0]->variantAttributes as $key => $value) $map[$value['attributeName']] = $key;
+        return array_values($variants);
+    }
 
-		$variants = array_filter($product->variants, function($variant) use ($map, $options) {
+    public function getProduct($product)
+    {
+        return Product::find()
+            ->id((string) $product)
+            ->one();
+    }
 
-			foreach ($options as $option) {
+    protected function normalizeVariant($variant)
+    {
+    }
 
-				if (
-					array_key_exists($option[0], $map) &&
-					str_contains($variant->variantAttributes[$map[$option[0]]]['attributeValue'], $option[1])
-				) return true;
+    /**
+     * createClient
+     *
+     * Creates a Guzzle Client.
+     */
+    protected function createClient(): GuzzleHttp\Client
+    {
+        return new GuzzleHttp\Client();
+    }
 
-			}
-
-			return false;
-
-		});
-
-		return array_values($variants);
-
-	}
-
-	public function getProduct($product) {
-
-		$product = Product::find()
-			->id(strval($product))
-			->one();
-
-		return $product;
-
-	}
-
-
-	protected function normalizeVariant($variant) {
-
-
-
-	}
-
-	/**
-	 * createClient
-	 * 
-	 * Creates a Guzzle Client.
-	 *
-	 * @return void
-	 */
-	protected function createClient() {
-		return new GuzzleHttp\Client();
-	}
-
-	protected function getCommercePlugin() {
-
-		return Craft::$app->plugins->getPlugin('commerce');
-
-	}
-	
-
+    protected function getCommercePlugin(): PluginInterface
+    {
+        return Craft::$app->plugins->getPlugin('commerce');
+    }
 }

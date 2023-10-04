@@ -1,4 +1,3 @@
-
 {# https://github.com/craftcms/cms/blob/develop/src/templates/_layouts/cp.twig #}
 
 {% extends 'variant-manager/_layouts/cp' %}
@@ -7,22 +6,15 @@
 {% set title = "Dashboard"|t('variant-manager') %}
 
 {% set additionalButtons %}
-
-
-<form method="POST">
-
-	{{ csrfInput() }}
-
-	{% include 'variant-manager/fields/variant_upload' with {
-		"id": "variant-uploads",
-		"namespacedId": "variant-uploads",
-		"name": "variant-uploads"
-	} %}
-
-</form>
-
+	<form method="POST">
+		{{ csrfInput() }}
+		{% include 'variant-manager/fields/variant_upload' with {
+			"id": "variant-uploads",
+			"namespacedId": "variant-uploads",
+			"name": "variant-uploads"
+		} %}
+	</form>
 {% endset %}
 
 {% set content %}
-
 {% endset %}

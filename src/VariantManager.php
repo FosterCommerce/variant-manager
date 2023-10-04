@@ -6,13 +6,12 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\events\RegisterComponentTypesEvent;
-use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterTemplateRootsEvent;
+use craft\events\RegisterUrlRulesEvent;
 use craft\services\Fields;
+use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\View;
-use craft\web\twig\variables\CraftVariable;
-use fostercommerce\variantmanager\fields\Variants;
 use fostercommerce\variantmanager\models\Settings;
 use yii\base\Event;
 
@@ -30,6 +29,7 @@ class VariantManager extends Plugin
     public string $schemaVersion = '1.0.0';
 
     public bool $hasCpSettings = false;
+
     public bool $hasCpSection = true;
 
     public static function config(): array
@@ -41,14 +41,28 @@ class VariantManager extends Plugin
         ];
     }
 
-    public function init()
+    public function init(): void
     {
         parent::init();
 
-        Craft::$app->onInit(function() {
+        Craft::$app->onInit(function(): void {
             $this->registerComponents();
             $this->attachEventHandlers();
         });
+    }
+
+    public function getCpNavItem(): ?array
+    {
+        $cpNavItem = parent::getCpNavItem();
+
+        $cpNavItem['subnav'] = [
+            'dashboard' => [
+                'label' => 'Dashboard',
+                'url' => 'plugin-handle',
+            ],
+        ];
+
+        return $cpNavItem;
     }
 
     protected function createSettingsModel(): ?Model
@@ -66,96 +80,74 @@ class VariantManager extends Plugin
 
     private function attachEventHandlers(): void
     {
-
         $this->registerRoutes();
 
-        if (!Craft::$app->getRequest()->getIsConsoleRequest()) {
-
-            Event::on(View::class, View::EVENT_REGISTER_SITE_TEMPLATE_ROOTS, function (RegisterTemplateRootsEvent $event) {
-                $event->roots['variant-manager'] = __DIR__ . '/templates';
+        if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
+            Event::on(View::class, View::EVENT_REGISTER_SITE_TEMPLATE_ROOTS, static function(RegisterTemplateRootsEvent $registerTemplateRootsEvent): void {
+                $registerTemplateRootsEvent->roots['variant-manager'] = __DIR__ . '/templates';
             });
 
             $this->registerTwig();
             $this->registerCPRoutes();
             $this->registerFields();
             $this->registerViewHooks();
-
         }
-
     }
 
-    private function registerTwig() : void 
+    private function registerTwig(): void
     {
-
         Event::on(
             CraftVariable::class,
             CraftVariable::EVENT_INIT,
-            function(Event $e) {
-
-                $variable = $e->sender;
-    
+            static function(Event $event): void {
+                $variable = $event->sender;
                 $variable->set('variantManager', \fostercommerce\variantmanager\services\ProductVariants::class);
-
             }
         );
-
     }
 
-    private function registerRoutes() : void 
+    private function registerRoutes(): void
     {
-
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
-
-                $event->rules['api/product-variants/upload'] = 'variant-manager/product-variants/upload';
-                $event->rules['api/product-variants/apply-upload'] = 'variant-manager/product-variants/apply-upload';
-
-                $event->rules['api/product-variants/export/<id:[0-9]+>'] = 'variant-manager/product-variants/export';
-
-                $event->rules['variant-manager/examples/test/<slug>'] = 'variant-manager/examples/test';
-
+            static function(RegisterUrlRulesEvent $registerUrlRulesEvent): void {
+                $registerUrlRulesEvent->rules['api/product-variants/upload'] = 'variant-manager/product-variants/upload';
+                $registerUrlRulesEvent->rules['api/product-variants/apply-upload'] = 'variant-manager/product-variants/apply-upload';
+                $registerUrlRulesEvent->rules['api/product-variants/export/<id:[0-9]+>'] = 'variant-manager/product-variants/export';
+                $registerUrlRulesEvent->rules['variant-manager/examples/test/<slug>'] = 'variant-manager/examples/test';
             }
         );
-
     }
 
-    private function registerCPRoutes() : void 
+    private function registerCPRoutes(): void
     {
-
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
-
-                $event->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
-
+            static function(RegisterUrlRulesEvent $registerUrlRulesEvent): void {
+                $registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
             }
         );
-
     }
 
-    private function registerFields() : void
+    private function registerFields(): void
     {
-
         Event::on(
             Fields::class,
             Fields::EVENT_REGISTER_FIELD_TYPES,
-            function (RegisterComponentTypesEvent $event) {
+            static function(RegisterComponentTypesEvent $registerComponentTypesEvent): void {
                 Craft::debug(
                     'Fields::EVENT_REGISTER_FIELD_TYPES',
                     __METHOD__
                 );
-                $event->types[] = \fostercommerce\variantmanager\fields\VariantAttributesField::class;
+                $registerComponentTypesEvent->types[] = \fostercommerce\variantmanager\fields\VariantAttributesField::class;
             }
         );
-
     }
 
     private function registerComponents(): void
     {
-
         if (Craft::$app->getRequest()->getIsConsoleRequest()) {
             $this->controllerNamespace = 'fostercommerce\\variantmanager\\console\\controllers';
         } else {
@@ -165,40 +157,17 @@ class VariantManager extends Plugin
         $this->setComponents([
             'productVariants' => \fostercommerce\variantmanager\services\ProductVariants::class,
         ]);
-
     }
 
-    private function registerViewHooks() : void
+    private function registerViewHooks(): void
     {
-
-        Craft::$app->view->hook('cp.commerce.product.edit.details', function(array &$context) {
-
-            return Craft::$app->getView()->renderTemplate(
-                'variant-manager/fields/product_export', [
-                        "id" => "product-export",
-                        "namespacedId" => "product-export",
-                        "name" => "product-export",
-                        "product" => $context['product']
-                ]
-            );
-
-        });
-
+        Craft::$app->view->hook('cp.commerce.product.edit.details', static fn(array &$context) => Craft::$app->getView()->renderTemplate(
+            'variant-manager/fields/product_export', [
+                'id' => 'product-export',
+                'namespacedId' => 'product-export',
+                'name' => 'product-export',
+                'product' => $context['product'],
+            ]
+        ));
     }
-
-    public function getCpNavItem() : ?array
-    {
-        
-        $item = parent::getCpNavItem();
-
-        $item['subnav'] = [
-            'dashboard' => ['label' => 'Dashboard', 'url' => 'plugin-handle'],
-        ];
-
-        return $item;
-
-    }
-
-
-
 }

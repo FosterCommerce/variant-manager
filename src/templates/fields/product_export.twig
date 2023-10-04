@@ -1,14 +1,13 @@
-
-
 <div class="meta">
 
-	<button type="button" class="btn download icon" data-icon="download" id="{{ id }}-btn" style='margin-bottom: 2rem;'>{{ 'Export Product'|t }}</button>
+	<button type="button" class="btn download icon" data-icon="download" id="{{ id }}-btn"
+					style='margin-bottom: 2rem;'>{{ 'Export Product'|t }}</button>
 
 </div>
 
 <script type="text/javascript">
 
-	var btn = document.getElementById('{{ namespacedId}}-btn');
+	var btn = document.getElementById('{{ namespacedId }}-btn');
 
 	btn.addEventListener('click', exportFile);
 

@@ -1,4 +1,3 @@
-
 {% extends 'variant-manager/_layouts/examples' %}
 
 {% set productId = craft.app.request.getSegment(4) %}
@@ -7,59 +6,59 @@
 
 body {
 
-	background-color: #f1f4ff;
+background-color: #f1f4ff;
 
 }
 
 h3 {
 
-	font-family: sans-serif;
+font-family: sans-serif;
 
 }
 
 .product {
 
-	padding: 2rem;
+padding: 2rem;
 
 }
 
 .product ul {
 
-	display: flex; align-items: center; justify-content: start; flex-direction: row;
+display: flex; align-items: center; justify-content: start; flex-direction: row;
 
 }
 
 .product ul > li {
 
-	list-style-type: none; margin: 0.5rem 0.5rem;
+list-style-type: none; margin: 0.5rem 0.5rem;
 
 }
 
 .product ul > li > div {
 
-	background-color: #FFFFFF; color: #202020; 
-	box-sizing: border-box;
-	height: 3rem; min-height: 3rem; 
-	padding: 1rem; 
-	font-family: sans-serif; font-size: 0.8rem;
+background-color: #FFFFFF; color: #202020;
+box-sizing: border-box;
+height: 3rem; min-height: 3rem;
+padding: 1rem;
+font-family: sans-serif; font-size: 0.8rem;
 
 }
 
 .product ul > li.active > div {
 
-	border: 0.2rem solid #5EA3C1;
+border: 0.2rem solid #5EA3C1;
 
 }
 
 .product ul > li.incompatible > div {
 
-	background-color: #DDDDDD; color: #AAAAAA;
+background-color: #DDDDDD; color: #AAAAAA;
 
 }
 
 .product ul > li.unavailable > div {
 
-	color: #C15E7C;
+color: #C15E7C;
 
 }
 
@@ -69,278 +68,288 @@ h3 {
 
 <script type="module">
 
-import { createApp, reactive } from 'https://unpkg.com/petite-vue?module';
+	import {createApp, reactive} from 'https://unpkg.com/petite-vue?module';
 
-const api = (type = 'get', url, payload = {}, headers = {}) => {
+	const api = (type = 'get', url, payload = {}, headers = {}) => {
 
-	const config = {
-		headers: headers ?? {
-			'Content-Type': 'application/json',
-			Accept: 'application/json',
-			'X-Requested-With': 'XMLHttpRequest',
-			HTTP_X_REQUESTED_WITH: 'XMLHttpRequest',
-		},
+		const config = {
+			headers: headers ?? {
+				'Content-Type': 'application/json',
+				Accept: 'application/json',
+				'X-Requested-With': 'XMLHttpRequest',
+				HTTP_X_REQUESTED_WITH: 'XMLHttpRequest',
+			},
+		};
+
+		if (type === 'get') {
+
+			console.log(url);
+
+			return fetch(`/${url}`, {
+				method: 'GET',
+				headers
+			}).then((response) => {
+
+				return response.json();
+
+			});
+
+		}
+
 	};
 
-	if (type === 'get') {
+	function Product(props) {
 
-		console.log(url);
+		return {
 
-		return fetch(`/${url}`, {
-			method: 'GET',
-			headers
-		}).then((response) => {
+			$template: '#product',
 
-			return response.json();
+			variants: {},
+			options: {},
 
-		});
+			active: {},
+			currentVariant: null,
 
-	}
+			mounted() {
 
-};
+				this.fetchVariants();
 
-function Product(props) {
+			},
 
-	return {
+			chooseOption(e) {
 
-		$template: '#product',
+				let el = e.target.closest('li.options.option-value');
 
-		variants: {},
-		options: {},
+				this.updateSelected(el.dataset.name, el.dataset.value);
 
-		active: {},
-		currentVariant: null,
+			},
 
-		mounted() {
+			createOptions() {
 
-			this.fetchVariants();
+				this.options = {}
 
-		},
+				for (const variantIndex in this.variants) {
 
-		chooseOption(e) {
+					let variant = this.variants[variantIndex]
 
-			let el = e.target.closest('li.options.option-value');
+					for (const option of variant['attributes']) {
 
-			this.updateSelected(el.dataset.name, el.dataset.value);
+						if (!this.options[option.name]) {
+							this.options[option.name] = {};
+						}
+						if (!this.options[option.name][option.value]) {
 
-		},
+							this.options[option.name][option.value] = {
+								'isActive': false,
+								'isUnavailable': false,
+								'isIncompatible': false,
+								'ids': [],
+								'variants': []
+							};
 
-		createOptions() {
+						}
 
-			this.options = {}
-
-			for (const variantIndex in this.variants) {
-
-				let variant = this.variants[variantIndex]
-
-				for (const option of variant['attributes']) {
-
-					if (!this.options[option.name]) this.options[option.name] = {};
-					if (!this.options[option.name][option.value]) {
-						
-						this.options[option.name][option.value] = {
-							'isActive': false, 
-							'isUnavailable': false,
-							'isIncompatible': false,
-							'ids': [],
-							'variants': []
-						};
+						this.options[option.name][option.value]['ids'].push(variant.id);
 
 					}
 
-					this.options[option.name][option.value]['ids'].push(variant.id);
+				}
+
+			},
+
+			cleanActive(ids) {
+
+				for (const optionName in this.active) {
+
+					if (!this.intersectingIds(ids, this.options[optionName][this.active[optionName]].ids).length) {
+						delete this.active[optionName];
+					}
 
 				}
 
-			}
+			},
 
-		},
+			determineActive(ids) {
 
-		cleanActive(ids) {
+				for (const optionName in this.options) {
 
-			for (const optionName in this.active) {
+					const option = this.options[optionName];
 
-				if (!this.intersectingIds(ids, this.options[optionName][this.active[optionName]].ids).length) delete this.active[optionName];
+					for (const optionValue in option) {
 
-			}
+						Object.assign(
+							this.options[optionName][optionValue], {
+								'isActive': false
+							}
+						);
 
-		},
+						let data = this.options[optionName][optionValue];
 
-		determineActive(ids) {
-
-			for (const optionName in this.options) {
-
-				const option = this.options[optionName];
-
-				for (const optionValue in option) {
-
-					Object.assign(
-						this.options[optionName][optionValue], {
-							'isActive': false
-						}
-					);
-
-					let data = this.options[optionName][optionValue];
-
-					if (optionValue === this.active[optionName]) {
-
-						this.options[optionName][optionValue]['isActive'] = true;
-
-					} else if (this.intersectingIds(ids, data['ids']).length) {
-
-						if (!this.active[optionName]) {
+						if (optionValue === this.active[optionName]) {
 
 							this.options[optionName][optionValue]['isActive'] = true;
 
-							this.active[optionName] = optionValue;
+						} else if (this.intersectingIds(ids, data['ids']).length) {
 
-						} 
+							if (!this.active[optionName]) {
 
-					}
+								this.options[optionName][optionValue]['isActive'] = true;
 
-				}
+								this.active[optionName] = optionValue;
 
-			}
-
-		},
-
-		getVariantsByIds(ids) {
-
-			const variants = [];
-			for (const variant of this.variants) {
-
-				if (ids.includes(variant.id)) variants.push(variant);
-
-			}
-
-			return variants;
-
-		},
-
-		intersectingIds(ids, predicate) {
-
-			return ids.filter(x => predicate.includes(x));
-
-		},
-
-		allIntersectingIds(data) {
-
-			return data.reduce((a, b) => a.filter(c => b.includes(c)));
-
-		},
-
-		getComparableIds(predicateOptionName) {
-
-			const data = [];
-			for (const optionName in this.active) {
-
-				if (predicateOptionName !== optionName) data.push(this.options[optionName][this.active[optionName]].ids);
-
-			}
-
-			return this.allIntersectingIds(data);
-
-		},
-
-		updateSelected(selectedOptionName, selectedOptionValue) {
-
-			const ids = this.options[selectedOptionName][selectedOptionValue].ids;
-
-			this.active[selectedOptionName] = selectedOptionValue; 
-
-			this.cleanActive(ids)
-			this.determineActive(ids);
-			this.determineUnavailable();
-			this.currentVariant = this.determineCurrentVariant();
-
-			console.log('Variant', this.currentVariant);
-
-		},
-
-		determineCurrentVariant() {
-
-			const data = [];
-			for (const optionName in this.active) {
-
-				data.push(this.options[optionName][this.active[optionName]].ids);
-
-			}
-
-			return this.getVariantsByIds(this.allIntersectingIds(data))[0];
-
-		},
-
-		determineUnavailable() {
-
-			for (const optionName in this.options) {
-
-				const option = this.options[optionName];
-
-				const ids = this.getComparableIds(optionName);
-
-				for (const optionValue in option) {
-
-					Object.assign(
-						this.options[optionName][optionValue], {
-							'isIncompatible': false,
-							'isUnavailable': false
-						}
-					);
-
-					let data = this.options[optionName][optionValue];
-
-					const intersecting = this.intersectingIds(ids, data['ids']);
-					let hasStock = false;
-
-					if (!intersecting.length) {
-
-						this.options[optionName][optionValue]['isIncompatible'] = true;
-
-					}
-
-					for (const variant of this.getVariantsByIds(intersecting)) {
-
-						console.log(optionName, optionValue, variant.stock);
-
-						if (variant.stock === '' || parseInt(variant.stock) > 0) {
-							
-							hasStock = true;
-
-							break;
+							}
 
 						}
 
 					}
 
-					if (!hasStock) this.options[optionName][optionValue]['isUnavailable'] = true;
+				}
+
+			},
+
+			getVariantsByIds(ids) {
+
+				const variants = [];
+				for (const variant of this.variants) {
+
+					if (ids.includes(variant.id)) {
+						variants.push(variant);
+					}
 
 				}
 
+				return variants;
+
+			},
+
+			intersectingIds(ids, predicate) {
+
+				return ids.filter(x => predicate.includes(x));
+
+			},
+
+			allIntersectingIds(data) {
+
+				return data.reduce((a, b) => a.filter(c => b.includes(c)));
+
+			},
+
+			getComparableIds(predicateOptionName) {
+
+				const data = [];
+				for (const optionName in this.active) {
+
+					if (predicateOptionName !== optionName) {
+						data.push(this.options[optionName][this.active[optionName]].ids);
+					}
+
+				}
+
+				return this.allIntersectingIds(data);
+
+			},
+
+			updateSelected(selectedOptionName, selectedOptionValue) {
+
+				const ids = this.options[selectedOptionName][selectedOptionValue].ids;
+
+				this.active[selectedOptionName] = selectedOptionValue;
+
+				this.cleanActive(ids)
+				this.determineActive(ids);
+				this.determineUnavailable();
+				this.currentVariant = this.determineCurrentVariant();
+
+				console.log('Variant', this.currentVariant);
+
+			},
+
+			determineCurrentVariant() {
+
+				const data = [];
+				for (const optionName in this.active) {
+
+					data.push(this.options[optionName][this.active[optionName]].ids);
+
+				}
+
+				return this.getVariantsByIds(this.allIntersectingIds(data))[0];
+
+			},
+
+			determineUnavailable() {
+
+				for (const optionName in this.options) {
+
+					const option = this.options[optionName];
+
+					const ids = this.getComparableIds(optionName);
+
+					for (const optionValue in option) {
+
+						Object.assign(
+							this.options[optionName][optionValue], {
+								'isIncompatible': false,
+								'isUnavailable': false
+							}
+						);
+
+						let data = this.options[optionName][optionValue];
+
+						const intersecting = this.intersectingIds(ids, data['ids']);
+						let hasStock = false;
+
+						if (!intersecting.length) {
+
+							this.options[optionName][optionValue]['isIncompatible'] = true;
+
+						}
+
+						for (const variant of this.getVariantsByIds(intersecting)) {
+
+							console.log(optionName, optionValue, variant.stock);
+
+							if (variant.stock === '' || parseInt(variant.stock) > 0) {
+
+								hasStock = true;
+
+								break;
+
+							}
+
+						}
+
+						if (!hasStock) {
+							this.options[optionName][optionValue]['isUnavailable'] = true;
+						}
+
+					}
+
+				}
+
+			},
+
+			async fetchVariants() {
+
+				const variants = await api('get', 'api/product-variants/export/{{ productId }}');
+
+				this.variants = variants;
+
+				this.createOptions();
+
 			}
-
-		},
-
-		async fetchVariants() {
-
-			const variants = await api('get', 'api/product-variants/export/{{ productId }}');
-
-			this.variants = variants;
-
-			this.createOptions();
 
 		}
 
 	}
 
-}
+	createApp({
 
-createApp({
-	
-	Product,
+		Product,
 
-	$delimiters: ['${', '}'],
+		$delimiters: ['${', '}'],
 
-}).mount()
+	}).mount()
 
 </script>
 
@@ -360,9 +369,9 @@ createApp({
 			<h4>${optionName}</h4>
 
 			<ul>
-				<li 
-					v-for="(optionSettings, optionValue) in option" 
-					:data-value="optionValue" 
+				<li
+					v-for="(optionSettings, optionValue) in option"
+					:data-value="optionValue"
 					:data-name="optionName"
 					@click="chooseOption"
 					class="options option-value"
