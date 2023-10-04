@@ -7,11 +7,11 @@ use fostercommerce\variantmanager\VariantManager;
 
 trait BaseHelper
 {
-    private ?VariantManager $_plugin;
+    private ?VariantManager $_plugin = null;
 
     public function getPlugin(): VariantManager
     {
-        if (! $this->_plugin) {
+        if ($this->_plugin === null) {
             $plugin = Craft::$app->plugins->getPlugin('variant-manager');
             /** @var ?VariantManager $plugin */
             $this->_plugin = $plugin;
