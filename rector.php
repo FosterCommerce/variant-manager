@@ -11,6 +11,7 @@ return static function(RectorConfig $rectorConfig): void {
     ]);
 
     $rectorConfig->sets([
+        SetList::PHP_81,
         SetList::PHP_80,
         SetList::PHP_74,
         SetList::PHP_73,

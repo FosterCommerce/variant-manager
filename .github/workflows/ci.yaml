@@ -13,13 +13,13 @@ jobs:
     name: ECS Check
     runs-on: ubuntu-latest
     env:
-      DEFAULT_COMPOSER_FLAGS: "--no-interaction --no-ansi --no-progress --no-suggest"
+      DEFAULT_COMPOSER_FLAGS: "--no-interaction --no-ansi --no-progress"
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: 8.1
-      - run: composer install --prefer-dist --no-progress --no-suggest
+      - run: composer install --prefer-dist --no-progress
       - name: Run ecs check
         run: |
           composer run-script ecs-check
@@ -27,13 +27,13 @@ jobs:
     name: Rector dry-run
     runs-on: ubuntu-latest
     env:
-      DEFAULT_COMPOSER_FLAGS: "--no-interaction --no-ansi --no-progress --no-suggest"
+      DEFAULT_COMPOSER_FLAGS: "--no-interaction --no-ansi --no-progress"
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: 8.1
-      - run: composer install --prefer-dist --no-progress --no-suggest
+      - run: composer install --prefer-dist --no-progress
       - name: Run rector --dry-run
         run: |
           composer run-script rector-dry-run
@@ -41,13 +41,13 @@ jobs:
     name: PHPStan
     runs-on: ubuntu-latest
     env:
-      DEFAULT_COMPOSER_FLAGS: "--no-interaction --no-ansi --no-progress --no-suggest"
+      DEFAULT_COMPOSER_FLAGS: "--no-interaction --no-ansi --no-progress"
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: 8.1
-      - run: composer install --prefer-dist --no-progress --no-suggest
+      - run: composer install --prefer-dist --no-progress
       - name: Run phpstan
         run: |
           composer run-script phpstan

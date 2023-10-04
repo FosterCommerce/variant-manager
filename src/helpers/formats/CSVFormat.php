@@ -108,7 +108,7 @@ class CSVFormat extends BaseFormat
         foreach ($mapping['option'] as $field) {
             $attributes[] = [
                 'attributeName' => $field[1],
-                'attributeValue' => trim($variant[$field[0]]),
+                'attributeValue' => trim((string) $variant[$field[0]]),
             ];
         }
 
@@ -195,7 +195,7 @@ class CSVFormat extends BaseFormat
 
     public function stripCurrency($amount)
     {
-        $amount = str_replace(['?', ','], '', mb_convert_encoding($amount, 'UTF-8', 'UTF-8'));
+        $amount = str_replace(['?', ','], '', mb_convert_encoding((string) $amount, 'UTF-8', 'UTF-8'));
 
         if (is_numeric($amount)) {
             return $amount;
@@ -262,7 +262,7 @@ class CSVFormat extends BaseFormat
         foreach ($resultSet->getHeader() as $i => $heading) {
             if (array_key_exists(trim($heading), $this->variantHeadings)) {
                 $variantMap[$this->variantHeadings[trim($heading)]] = $i;
-            } elseif (str_starts_with($heading, $optionSignal)) {
+            } elseif (str_starts_with($heading, (string) $optionSignal)) {
                 $optionMap[] = [$i, explode($optionSignal, $heading)[1]];
             }
         }

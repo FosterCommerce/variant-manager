@@ -8,7 +8,7 @@
     "email": "support@fostercomerce.com"
   },
   "require": {
-    "php": ">=8.0.2",
+    "php": ">=8.1.0",
     "craftcms/cms": "^4.4.6",
     "craftcms/commerce": "^4.2",
     "league/csv": "^9.8"
@@ -33,9 +33,6 @@
   },
   "config": {
     "sort-packages": true,
-    "platform": {
-      "php": "8.0.2"
-    },
     "allow-plugins": {
       "yiisoft/yii2-composer": true,
       "craftcms/plugin-installer": true
@@ -47,7 +44,7 @@
     "phpstan": "phpstan --memory-limit=1G",
     "ecs-check": "ecs check --ansi --memory-limit=1G",
     "ecs-fix": "ecs check --ansi --fix --memory-limit=1G",
-    "rector": "rector process",
-    "rector-dry-run": "rector process --dry-run"
+    "rector": "rector process --config rector.php",
+    "rector-dry-run": "rector process --dry-run --config rector.php"
   }
 }
