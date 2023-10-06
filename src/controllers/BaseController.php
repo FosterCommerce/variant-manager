@@ -56,7 +56,7 @@ class BaseController extends Controller
 
     public function hasParameter($name): bool
     {
-        return in_array($name, array_keys($this->parameters), true);
+        return array_key_exists($name, $this->parameters);
     }
 
     public function hasReturnType(): bool
@@ -134,8 +134,10 @@ class BaseController extends Controller
      * respond
      *
      * Get response for the controller
+     *
+     * @throws \JsonException
      */
-    protected function respond(mixed $payload)
+    protected function respond(mixed $payload): Response
     {
         if ($this->parameter('pretty') === 'true') {
             $this->isPretty = true;
@@ -143,13 +145,13 @@ class BaseController extends Controller
 
         if (! $this->isDownload) {
             if ($this->hasReturnType() && $this->returnType !== 'application/json') {
-                $this->respondWithType($payload);
-            } else {
-                $this->respondAsJson($payload);
+                return $this->respondWithType($payload);
             }
-        } else {
-            $this->respondAsDownload($payload);
+
+            return $this->respondAsJson($payload);
         }
+
+        return $this->respondAsDownload($payload);
     }
 
     protected function respondWithType($payload, $type = null): Response
@@ -188,13 +190,16 @@ class BaseController extends Controller
         return $this->response;
     }
 
+    /**
+     * @throws \JsonException
+     */
     protected function respondAsDownload($payload): Response
     {
         if (is_array($payload)) {
             if ($this->isPretty === false) {
                 $payload = json_encode($payload, JSON_THROW_ON_ERROR);
             } else {
-                $payload = json_encode($payload, JSON_PRETTY_PRINT);
+                $payload = json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
             }
         }
 
