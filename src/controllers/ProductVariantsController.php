@@ -43,10 +43,8 @@ class ProductVariantsController extends BaseController
 
     public function actionExport(): void
     {
-        // $payload = $this->handleExport();
-        $this->handleExport(); // TODO return type
-
-        $this->respond([]);
+        $payload = $this->handleExport();
+        $this->respond($payload);
     }
 
     public function throwInvalidSKUsError($product, array $items): void
@@ -66,7 +64,7 @@ class ProductVariantsController extends BaseController
         throw new BaseVariantManagerException(nl2br($message));
     }
 
-    public function handleExport(): void
+    public function handleExport()
     {
         $id = $this->parameter('id');
         $format = $this->parameter('format') ?? 'json';
@@ -76,9 +74,9 @@ class ProductVariantsController extends BaseController
 
         // TODO export return type?
         if ($format === 'csv') {
-            (new CSVFormat($this->service))->export($product, $variants, $download);
+            return (new CSVFormat($this->service))->export($product, $variants, $download);
         } else {
-            (new JSONFormat($this->service))->export($product, $variants, $download);
+            return (new JSONFormat($this->service))->export($product, $variants, $download);
         }
     }
 
