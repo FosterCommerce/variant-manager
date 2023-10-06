@@ -137,7 +137,7 @@ class BaseController extends Controller
      *
      * @throws \JsonException
      */
-    protected function respond(mixed $payload): Response
+    protected function respond(mixed $payload): void
     {
         if ($this->parameter('pretty') === 'true') {
             $this->isPretty = true;
@@ -145,16 +145,16 @@ class BaseController extends Controller
 
         if (! $this->isDownload) {
             if ($this->hasReturnType() && $this->returnType !== 'application/json') {
-                return $this->respondWithType($payload);
+                $this->respondWithType($payload);
             }
 
-            return $this->respondAsJson($payload);
+            $this->respondAsJson($payload);
         }
 
-        return $this->respondAsDownload($payload);
+        $this->respondAsDownload($payload);
     }
 
-    protected function respondWithType($payload, $type = null): Response
+    protected function respondWithType($payload, $type = null): void
     {
         $type ??= $this->returnType;
 
@@ -166,8 +166,6 @@ class BaseController extends Controller
             ->set('Content-Disposition', 'inline');
 
         $this->response->data = $payload;
-
-        return $this->response;
     }
 
     /**
@@ -175,7 +173,7 @@ class BaseController extends Controller
      *
      * This is a helper function intended to set the response as JSON and support formatting as pretty.
      */
-    protected function respondAsJson(mixed $payload): Response
+    protected function respondAsJson(mixed $payload): void
     {
         if ($this->isPretty) {
             $payload = json_encode($payload, JSON_PRETTY_PRINT);
@@ -186,14 +184,12 @@ class BaseController extends Controller
 
         $this->response->format = ($this->isPretty) ? \yii\web\Response::FORMAT_RAW : \yii\web\Response::FORMAT_JSON;
         $this->response->data = $payload;
-
-        return $this->response;
     }
 
     /**
      * @throws \JsonException
      */
-    protected function respondAsDownload($payload): Response
+    protected function respondAsDownload($payload): void
     {
         if (is_array($payload)) {
             if ($this->isPretty === false) {
@@ -205,7 +201,5 @@ class BaseController extends Controller
 
         $this->response->format = \yii\web\Response::FORMAT_RAW;
         $this->response->data = $payload;
-
-        return $this->response;
     }
 }
