@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager\controllers;
 use Craft;
 use craft\commerce\elements\Product;
 use craft\errors\ElementNotFoundException;
+use craft\web\Response;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
 use fostercommerce\variantmanager\helpers\formats\CSVFormat;
@@ -20,42 +21,47 @@ class ProductVariantsController extends BaseController
     public $service_name = 'productVariants';
 
     /**
-     * @throws BadRequestHttpException
+     * @throws BadRequestHttpException|\JsonException
      */
-    public function actionUpload(): void
+    public function actionUpload(): Response
     {
         $this->requirePostRequest();
 
         try {
-            $this->respond($this->handleUpload());
+            return $this->respond($this->handleUpload());
         } catch (Throwable $throwable) {
             $this->setStatus(500);
-            $this->respond($this->formatErrorResponse(null, $throwable->getMessage()));
+            return $this->respond($this->formatErrorResponse(null, $throwable->getMessage()));
         }
     }
 
     /**
-     * @throws BadRequestHttpException
+     * @throws BadRequestHttpException|\JsonException
      */
-    public function actionApplyUpload(): void
+    public function actionApplyUpload(): Response
     {
         $this->requirePostRequest();
 
         try {
-            $this->respond($this->handleApplyUpload());
+            return $this->respond($this->handleApplyUpload());
         } catch (Throwable $throwable) {
             $this->setStatus(500);
-            $this->respond($this->formatErrorResponse(null, $throwable->getMessage()));
+            return $this->respond($this->formatErrorResponse(null, $throwable->getMessage()));
         }
     }
 
-    public function actionExport(): void
+    /**
+     * @throws \JsonException
+     */
+    public function actionExport(): Response
     {
-        $payload = $this->handleExport();
-        $this->respond($payload);
+        return $this->respond($this->handleExport());
     }
 
-    public function handleExport(): void
+    /**
+     * @throws \JsonException
+     */
+    public function handleExport(): Response
     {
         $id = $this->parameter('id');
         $format = $this->parameter('format') ?? 'json';
@@ -78,7 +84,7 @@ class ProductVariantsController extends BaseController
             $this->returnType = $formatter->returnType;
         }
 
-        $this->respond($formatter->export($product, $variants));
+        return $this->respond($formatter->export($product, $variants));
     }
 
     /**
