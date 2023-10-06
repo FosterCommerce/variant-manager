@@ -3,42 +3,50 @@
 namespace fostercommerce\variantmanager\controllers;
 
 use Craft;
-
 use craft\commerce\elements\Product;
+use craft\errors\ElementNotFoundException;
 use craft\web\UploadedFile;
-
-use fostercommerce\variantmanager\exceptions\BaseVariantManagerException;
-use fostercommerce\variantmanager\helpers\BaseController;
+use fostercommerce\variantmanager\exceptions\InvalidSkusException;
 use fostercommerce\variantmanager\helpers\formats\CSVFormat;
-
 use fostercommerce\variantmanager\helpers\formats\JSONFormat;
-use fostercommerce\variantmanager\services\ProductVariants;
+use fostercommerce\variantmanager\VariantManager;
+use Throwable;
+use yii\base\Exception;
+use yii\base\InvalidConfigException;
+use yii\web\BadRequestHttpException;
 
-/**
- * @property-read ProductVariants $service
- */
 class ProductVariantsController extends BaseController
 {
     public $service_name = 'productVariants';
 
+    /**
+     * @throws BadRequestHttpException
+     */
     public function actionUpload(): void
     {
         $this->requirePostRequest();
 
         try {
             $this->respond($this->handleUpload());
-        } catch (BaseVariantManagerException $baseVariantManagerException) {
+        } catch (Throwable $throwable) {
             $this->setStatus(500);
-
-            $this->respond($this->formatErrorResponse(null, $baseVariantManagerException->getMessage()));
+            $this->respond($this->formatErrorResponse(null, $throwable->getMessage()));
         }
     }
 
+    /**
+     * @throws BadRequestHttpException
+     */
     public function actionApplyUpload(): void
     {
         $this->requirePostRequest();
 
-        $this->respond($this->handleApplyUpload());
+        try {
+            $this->respond($this->handleApplyUpload());
+        } catch (Throwable $throwable) {
+            $this->setStatus(500);
+            $this->respond($this->formatErrorResponse(null, $throwable->getMessage()));
+        }
     }
 
     public function actionExport(): void
@@ -47,53 +55,56 @@ class ProductVariantsController extends BaseController
         $this->respond($payload);
     }
 
-    public function throwInvalidSKUsError($product, array $items): void
-    {
-        $message = "Sorry, but the following SKUs already exist for the given product IDs:\n\n";
-
-        if ($product && array_key_exists($product->id, $items)) {
-            unset($items[$product->id]);
-        }
-
-        foreach ($items as $id => $skus) {
-            $normalized = implode(', ', $skus);
-
-            $message .= sprintf('<strong>%s</strong>: %s%s', $id, $normalized, PHP_EOL);
-        }
-
-        throw new BaseVariantManagerException(nl2br($message));
-    }
-
-    public function handleExport()
+    public function handleExport(): void
     {
         $id = $this->parameter('id');
         $format = $this->parameter('format') ?? 'json';
         $download = filter_var($this->parameter('download'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-        [$product, $variants] = $this->resolveFilters($this->service->getProduct($id));
+        [$product, $variants] = $this->resolveFilters(VariantManager::getInstance()->productVariants->getProduct($id));
 
         // TODO export return type?
         if ($format === 'csv') {
-            return (new CSVFormat($this->service))->export($product, $variants, $download);
+            $formatter = new CSVFormat();
         } else {
-            return (new JSONFormat($this->service))->export($product, $variants, $download);
+            $formatter = new JSONFormat();
         }
+
+        if ($download) {
+            $this->setDownloadableAs($product->title . '.' . $formatter->ext, $formatter->mimetype);
+        }
+
+        if (! $download) {
+            $this->returnType = $formatter->returnType;
+        }
+
+        $this->respond($formatter->export($product, $variants));
     }
 
-    protected function handleUpload()
+    /**
+     * @throws Exception
+     * @throws InvalidSkusException
+     */
+    protected function handleUpload(): ?array
     {
         if ($_FILES === []) {
             return null;
         }
 
         $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
-        if ($uploadedFile->type === 'text/csv') {
-            return (new CSVFormat($this->service))->import($uploadedFile);
+        if ($uploadedFile?->type === 'text/csv') {
+            return (new CSVFormat())->import($uploadedFile);
         }
 
         return null;
     }
 
+    /**
+     * @throws ElementNotFoundException
+     * @throws InvalidConfigException
+     * @throws Exception
+     * @throws Throwable
+     */
     protected function handleApplyUpload(): array
     {
         $token = $this->request->getParam('token');
@@ -103,12 +114,12 @@ class ProductVariantsController extends BaseController
 
         // This is temporary as we need to add support for other formats to import (not just export).
 
-        $csvFormat = new CSVFormat($this->service);
+        $csvFormat = new CSVFormat();
 
+        $variants = [];
         foreach ($payload as $productData) {
             $product = $csvFormat->resolveProductModelFromCache($productData);
 
-            $variants = [];
             foreach ($productData['variants'] as $id => $value) {
                 if (str_starts_with((string) $id, 'new')) {
                     $variants[$id] = $value;
@@ -128,20 +139,18 @@ class ProductVariantsController extends BaseController
         ];
     }
 
-    protected function resolveFilters($product): array
+    protected function resolveFilters(Product $product): array
     {
-        if (! ($product instanceof Product)) {
-            $product = $this->service->getProduct($product);
-        }
+        $productVariants = VariantManager::getInstance()->productVariants;
 
         $filterOptions = $this->parameter('filter-option');
 
         if ($filterOptions) {
             $options = array_map(static fn($option): array => explode('=', urldecode((string) $option)), $filterOptions);
 
-            $variants = $this->service->getVariantsByOptions($product, $options);
+            $variants = $productVariants->getVariantsByOptions($product, $options);
         } else {
-            $variants = $this->service->getVariants($product);
+            $variants = $productVariants->getVariants($product);
         }
 
         return [$product, $variants];

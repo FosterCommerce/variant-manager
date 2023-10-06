@@ -2,8 +2,6 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
-use fostercommerce\variantmanager\helpers\BaseController;
-
 class ExamplesController extends BaseController
 {
     public function actionIndex(): \craft\web\Response

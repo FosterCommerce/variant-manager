@@ -6,53 +6,33 @@ use Craft;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
 
-use fostercommerce\variantmanager\helpers\BaseService;
+use craft\web\UploadedFile;
+use fostercommerce\variantmanager\exceptions\InvalidSkusException;
+use yii\base\Exception;
 
-class BaseFormat
+abstract class BaseFormat
 {
+    public string $ext = 'txt';
+
+    public string $mimetype = 'text/plain';
+
+    public string $returnType = 'text/plain';
+
     /**
-     * @var \fostercommerce\variantmanager\helpers\BaseService
+     * @throws InvalidSkusException
+     * @throws Exception
      */
-    public $service;
-
-    public $controller;
-
-    public $ext = 'txt';
-
-    public $mimetype = 'text/plain';
-
-    public $returnType = 'text/plain';
-
-    public function __construct(BaseService $baseService)
+    public function import(\craft\web\UploadedFile $uploadedFile): array
     {
-        $this->service = $baseService;
-        $this->controller = $baseService->controller;
-    }
+        $payload = $this->normalizeImportPayload($uploadedFile);
+        $token = Craft::$app->security->generateRandomString(128);
 
-    public function read($file)
-    {
-        return null;
-    }
+        $response = [
+            'products' => $payload,
+            'token' => $token,
+        ];
 
-    public function import($file)
-    {
-        $payload = $this->read($file);
-        $response = null;
-
-        if ($payload) {
-            $payload = $this->normalizeImportPayload($file, $payload);
-            $token = Craft::$app->security->generateRandomString(128);
-
-            $response = $this->controller->formatSuccessResponse([
-                'products' => $payload,
-                'token' => $token,
-            ]);
-
-            Craft::$app->cache->set($token, $payload, 3600);
-        } else {
-            $payload = false;
-            $response = $this->controller->formatErrorResponse($payload, 'There was an unknown problem with the CSV file.');
-        }
+        Craft::$app->cache->set($token, $payload, 3600);
 
         return $response;
     }
@@ -75,18 +55,10 @@ class BaseFormat
             return null;
         }
 
-        if ($download) {
-            $this->controller->setDownloadableAs($product->title . '.' . $this->ext, $this->mimetype);
-        }
-
-        if (! $download) {
-            $this->controller->returnType = $this->returnType;
-        }
-
         return $this->normalizeExportPayload($product, $variants);
     }
 
-    public function findSKUs(mixed $items)
+    public function findSKUs(mixed $items): array
     {
         $found = Variant::find()
             ->sku($items)
@@ -104,22 +76,10 @@ class BaseFormat
         return $mapped;
     }
 
-    protected function exportMany($products)
-    {
-    }
+    /**
+     * @throws InvalidSkusException
+     */
+    abstract protected function normalizeImportPayload(UploadedFile $uploadedFile);
 
-    protected function normalizeImportPayload($file, $payload)
-    {
-        return null;
-    }
-
-    protected function normalizeExportPayload(Product $product, $variants)
-    {
-        return null;
-    }
-
-    protected function getCommercePlugin()
-    {
-        return Craft::$app->plugins->getPlugin('commerce');
-    }
+    abstract protected function normalizeExportPayload(Product $product, $variants);
 }

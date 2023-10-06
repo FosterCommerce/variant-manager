@@ -2,22 +2,16 @@
 
 namespace fostercommerce\variantmanager\services;
 
-use Craft;
-use craft\base\PluginInterface;
+use craft\base\Component;
 use craft\commerce\elements\Product;
-use fostercommerce\variantmanager\helpers\BaseService;
 
 use GuzzleHttp;
 
 /**
  * ProductVariants
  */
-class ProductVariants extends BaseService
+class ProductVariants extends Component
 {
-    public function init(): void
-    {
-    }
-
     public function getVariants($product)
     {
         if (! ($product instanceof Product)) {
@@ -57,7 +51,7 @@ class ProductVariants extends BaseService
         return array_values($variants);
     }
 
-    public function getProduct($product)
+    public function getProduct($product): ?Product
     {
         return Product::find()
             ->id((string) $product)
@@ -76,10 +70,5 @@ class ProductVariants extends BaseService
     protected function createClient(): GuzzleHttp\Client
     {
         return new GuzzleHttp\Client();
-    }
-
-    protected function getCommercePlugin(): PluginInterface
-    {
-        return Craft::$app->plugins->getPlugin('commerce');
     }
 }
