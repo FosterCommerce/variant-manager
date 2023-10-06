@@ -3,14 +3,15 @@
 namespace fostercommerce\variantmanager\helpers\formats;
 
 use craft\commerce\elements\Product;
+use craft\web\UploadedFile;
 
 class JSONFormat extends BaseFormat
 {
-    public $ext = 'json';
+    public string $ext = 'json';
 
-    public $mimetype = 'application/json';
+    public string $mimetype = 'application/json';
 
-    public $returnType = 'application/json';
+    public string $returnType = 'application/json';
 
     public $variantHeadings = [
         'id' => 'id',
@@ -116,5 +117,9 @@ class JSONFormat extends BaseFormat
         }
 
         return $payload;
+    }
+
+    protected function normalizeImportPayload(UploadedFile $uploadedFile)
+    {
     }
 }

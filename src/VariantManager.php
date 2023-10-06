@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager;
 use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
+use craft\commerce\Plugin as CommercePlugin;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
@@ -13,6 +14,7 @@ use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\View;
 use fostercommerce\variantmanager\models\Settings;
+use fostercommerce\variantmanager\services\ProductVariants;
 use yii\base\Event;
 
 /**
@@ -25,6 +27,8 @@ use yii\base\Event;
  * @license MIT
  *
  * @property-read Settings $settings
+ * @property-read CommercePlugin $commercePlugin
+ * @property-read ProductVariants $productVariants
  * @property-read null|array $cpNavItem
  */
 class VariantManager extends Plugin
@@ -57,6 +61,13 @@ class VariantManager extends Plugin
         ];
 
         return $cpNavItem;
+    }
+
+    public function getCommercePlugin(): CommercePlugin
+    {
+        /** @var CommercePlugin $plugin */
+        $plugin = Craft::$app->plugins->getPlugin('commerce');
+        return $plugin;
     }
 
     protected function createSettingsModel(): ?Model
@@ -95,7 +106,7 @@ class VariantManager extends Plugin
             CraftVariable::EVENT_INIT,
             static function(Event $event): void {
                 $variable = $event->sender;
-                $variable->set('variantManager', \fostercommerce\variantmanager\services\ProductVariants::class);
+                $variable->set('variantManager', ProductVariants::class);
             }
         );
     }
@@ -149,7 +160,7 @@ class VariantManager extends Plugin
         }
 
         $this->setComponents([
-            'productVariants' => \fostercommerce\variantmanager\services\ProductVariants::class,
+            'productVariants' => ProductVariants::class,
         ]);
     }
 

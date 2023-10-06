@@ -2,8 +2,6 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
-use fostercommerce\variantmanager\helpers\BaseController;
-
 use fostercommerce\variantmanager\VariantManagerAssetBundle;
 
 class DashboardController extends BaseController

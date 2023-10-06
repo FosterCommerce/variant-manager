@@ -3,18 +3,22 @@
 namespace fostercommerce\variantmanager\helpers\formats;
 
 use craft\commerce\elements\Product;
-
+use craft\web\UploadedFile;
+use fostercommerce\variantmanager\exceptions\InvalidSkusException;
+use fostercommerce\variantmanager\VariantManager;
+use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
-use League\Csv\ResultSet;
 use League\Csv\Statement;
+use League\Csv\TabularDataReader;
+use League\Csv\UnableToProcessCsv;
 
 class CSVFormat extends BaseFormat
 {
-    public $ext = 'csv';
+    public string $ext = 'csv';
 
-    public $mimetype = 'text/csv';
+    public string $mimetype = 'text/csv';
 
-    public $returnType = 'text/plain';
+    public string $returnType = 'text/plain';
 
     // Read as "From" => "To"
 
@@ -31,23 +35,27 @@ class CSVFormat extends BaseFormat
         'CrossRef_Num' => 'crossReferenceNumber',
     ];
 
-    public function read($file): \League\Csv\TabularDataReader
+    /**
+     * @throws CsvException
+     */
+    public function read(UploadedFile $uploadedFile): \League\Csv\TabularDataReader
     {
-        $reader = Reader::createFromPath($file->tempName, 'r');
-
+        $reader = Reader::createFromPath($uploadedFile->tempName, 'r');
         $reader->setHeaderOffset(0);
-
         return Statement::create()->process($reader);
     }
 
-    public function normalizeNewProductImport($product, $payload, array $mapping): array
+    /**
+     * @throws InvalidSkusException
+     */
+    public function normalizeNewProductImport(Product $product, $payload, array $mapping): array
     {
         $mappedSKUs = $this->findSKUs(iterator_to_array($payload->fetchColumn($mapping['variant']['sku'])));
 
         // If the SKUs already exist for a new product, throw an error because SKUs should be unique to a product.
 
         if ((is_countable($mappedSKUs) ? count($mappedSKUs) : 0) > 0) {
-            $this->controller->throwInvalidSKUsError($product, $mappedSKUs);
+            throw new InvalidSkusException($product, $mappedSKUs);
         }
 
         $variants = [];
@@ -66,6 +74,9 @@ class CSVFormat extends BaseFormat
         return [$product, $variants];
     }
 
+    /**
+     * @throws InvalidSkusException
+     */
     public function normalizeExistingProductImport($product, $payload, array $mapping): array
     {
         $mappedSKUs = $this->findSKUs(iterator_to_array($payload->fetchColumn($mapping['variant']['sku'])));
@@ -76,7 +87,7 @@ class CSVFormat extends BaseFormat
         // Similarly, if the SKUs aren't associated to current product if it exists then that's problematic too.
 
         if ((! array_key_exists($product->id, $mappedSKUs) && (is_countable($mappedSKUs) ? count($mappedSKUs) : 0) !== 0) || (is_countable($mappedSKUs) ? count($mappedSKUs) : 0) > 1) {
-            $this->controller->throwInvalidSKUsError($product, $mappedSKUs);
+            throw new InvalidSkusException($product, $mappedSKUs);
         }
 
         $variants = [];
@@ -179,14 +190,14 @@ class CSVFormat extends BaseFormat
         ];
     }
 
-    public function resolveProductModelFromFile($file)
+    public function resolveProductModelFromFile($file): Product
     {
         $name = $file->baseName;
 
         return $this->resolveProductModel($name);
     }
 
-    public function resolveProductModelFromCache(array $payload)
+    public function resolveProductModelFromCache(array $payload): Product
     {
         $name = $payload['title'];
 
@@ -209,18 +220,25 @@ class CSVFormat extends BaseFormat
         return $numberFormatter->parseCurrency(trim($amount), $currencyCode);
     }
 
-    protected function normalizeImportPayload($file, $payload): array
+    /**
+     * @throws UnableToProcessCsv
+     * @throws CsvException
+     * @throws InvalidSkusException
+     */
+    protected function normalizeImportPayload(UploadedFile $uploadedFile): array
     {
-        [$mapping] = $this->resolveVariantImportMapping($payload);
+        $tabularDataReader = $this->read($uploadedFile);
 
-        $product = $this->resolveProductModelFromFile($file);
+        [$mapping] = $this->resolveVariantImportMapping($tabularDataReader);
 
-        $this->findSKUs(iterator_to_array($payload->fetchColumn($mapping['variant']['sku'])));
+        $product = $this->resolveProductModelFromFile($uploadedFile);
+
+        $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
 
         if ($product->isNewForSite) {
-            [$product, $variants] = $this->normalizeNewProductImport($product, $payload, $mapping);
+            [$product, $variants] = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
         } else {
-            [$product, $variants] = $this->normalizeExistingProductImport($product, $payload, $mapping);
+            [$product, $variants] = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
         }
 
         return [
@@ -236,7 +254,6 @@ class CSVFormat extends BaseFormat
 
     protected function normalizeExportPayload(Product $product, $variants): string
     {
-
         //if ($variants === null || !count($variants)) return null;
 
         [$mapping, $optionSignal] = $this->resolveVariantExportMapping($product);
@@ -251,18 +268,18 @@ class CSVFormat extends BaseFormat
         return implode("\n", $payload);
     }
 
-    private function resolveVariantImportMapping(ResultSet $resultSet, $optionSignal = null): array
+    private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
     {
-        $optionSignal ??= 'Option : ';
+        $optionSignal = 'Option : ';
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
 
         $variantMap = array_fill_keys(array_values($this->variantHeadings), -1);
         $optionMap = [];
-        foreach ($resultSet->getHeader() as $i => $heading) {
+        foreach ($tabularDataReader->getHeader() as $i => $heading) {
             if (array_key_exists(trim($heading), $this->variantHeadings)) {
                 $variantMap[$this->variantHeadings[trim($heading)]] = $i;
-            } elseif (str_starts_with($heading, (string) $optionSignal)) {
+            } elseif (str_starts_with($heading, $optionSignal)) {
                 $optionMap[] = [$i, explode($optionSignal, $heading)[1]];
             }
         }
@@ -275,7 +292,7 @@ class CSVFormat extends BaseFormat
         ];
     }
 
-    private function resolveProductModel(string $name)
+    private function resolveProductModel(string $name): Product
     {
         $productQuery = Product::find()
             ->title(\craft\helpers\Db::escapeParam($name));
@@ -285,7 +302,7 @@ class CSVFormat extends BaseFormat
 
         if (! $existing) {
             $product->title = $name;
-            $product->typeId = $this->getCommercePlugin()->getProductTypes()->getAllProductTypeIds()[0];
+            $product->typeId = VariantManager::getInstance()->commercePlugin->getProductTypes()->getAllProductTypeIds()[0];
             $product->isNewForSite = true;
         }
 
