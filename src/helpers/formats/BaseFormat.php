@@ -22,19 +22,18 @@ abstract class BaseFormat
      * @throws InvalidSkusException
      * @throws Exception
      */
-    public function import(\craft\web\UploadedFile $uploadedFile): array
+    public function import(UploadedFile $uploadedFile): array
     {
         $payload = $this->normalizeImportPayload($uploadedFile);
         $token = Craft::$app->security->generateRandomString(128);
 
-        $response = [
-            'products' => $payload,
-            'token' => $token,
-        ];
-
         Craft::$app->cache->set($token, $payload, 3600);
 
-        return $response;
+        return [
+            'title' => $payload['title'],
+            'isNew' => $payload['isNew'],
+            'token' => $token,
+        ];
     }
 
     /**
@@ -66,7 +65,7 @@ abstract class BaseFormat
     /**
      * @throws InvalidSkusException
      */
-    abstract protected function normalizeImportPayload(UploadedFile $uploadedFile);
+    abstract protected function normalizeImportPayload(UploadedFile $uploadedFile): array;
 
     /**
      * @param Variant[] $variants

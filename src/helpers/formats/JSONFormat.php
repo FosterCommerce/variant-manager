@@ -82,8 +82,9 @@ class JSONFormat extends BaseFormat
         return $payload;
     }
 
-    protected function normalizeImportPayload(UploadedFile $uploadedFile)
+    protected function normalizeImportPayload(UploadedFile $uploadedFile): array
     {
+        return [];
     }
 
     private function normalizeVariant($variant, array $mapping = null): array
