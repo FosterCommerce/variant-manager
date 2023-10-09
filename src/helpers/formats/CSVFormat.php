@@ -236,13 +236,11 @@ class CSVFormat extends BaseFormat
         }
 
         return [
-            [
-                'title' => $product->title,
-                'typeId' => $product->typeId,
-                'id' => $product->id,
-                'isNew' => $product->isNewForSite,
-                'variants' => $variants,
-            ],
+            'title' => $product->title,
+            'typeId' => $product->typeId,
+            'id' => $product->id,
+            'isNew' => $product->isNewForSite,
+            'variants' => $variants,
         ];
     }
 

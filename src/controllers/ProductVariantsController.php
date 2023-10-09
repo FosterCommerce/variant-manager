@@ -42,16 +42,14 @@ class ProductVariantsController extends Controller
         $this->requireAdmin();
 
         try {
-            $this->response = $this->asJson([
-                'payload' => $this->handleUpload(),
-            ]);
+            $this->response = $this->asJson($this->handleUpload());
         } catch (Throwable $throwable) {
             throw new ServerErrorHttpException($throwable->getMessage());
         }
     }
 
     /**
-     * @throws BadRequestHttpException|\JsonException
+     * @throws BadRequestHttpException|
      * @throws ForbiddenHttpException
      * @throws ServerErrorHttpException
      */
@@ -62,9 +60,7 @@ class ProductVariantsController extends Controller
         $this->requireAdmin();
 
         try {
-            $this->response = $this->asJson([
-                'payload' => $this->handleApplyUpload(),
-            ]);
+            $this->handleApplyUpload();
         } catch (Throwable $throwable) {
             throw new ServerErrorHttpException($throwable->getMessage());
         }
@@ -125,7 +121,7 @@ class ProductVariantsController extends Controller
     private function handleUpload(): ?array
     {
         if ($_FILES === []) {
-            return null;
+            throw new BadRequestHttpException('No file was uploaded');
         }
 
         $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
@@ -142,7 +138,7 @@ class ProductVariantsController extends Controller
      * @throws Exception
      * @throws Throwable
      */
-    private function handleApplyUpload(): array
+    private function handleApplyUpload(): void
     {
         $token = $this->request->getParam('token');
         $payload = Craft::$app->cache->get($token);
@@ -154,26 +150,19 @@ class ProductVariantsController extends Controller
         $csvFormat = new CSVFormat();
 
         $variants = [];
-        foreach ($payload as $productData) {
-            $product = $csvFormat->resolveProductModelFromCache($productData);
+        $product = $csvFormat->resolveProductModelFromCache($payload);
 
-            foreach ($productData['variants'] as $id => $value) {
-                if (str_starts_with((string) $id, 'new')) {
-                    $variants[$id] = $value;
-                } else {
-                    $variants[(int) $id] = $value;
-                }
+        foreach ($payload['variants'] as $id => $value) {
+            if (str_starts_with((string) $id, 'new')) {
+                $variants[$id] = $value;
+            } else {
+                $variants[(int) $id] = $value;
             }
-
-            $product->setVariants($variants);
-
-            Craft::$app->elements->saveElement($product, false, false, true);
         }
 
-        return [
-            $variants,
-            $payload,
-        ];
+        $product->setVariants($variants);
+
+        Craft::$app->elements->saveElement($product, false, false, true);
     }
 
     /**
