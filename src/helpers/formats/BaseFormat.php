@@ -37,24 +37,11 @@ abstract class BaseFormat
         return $response;
     }
 
-    public function export($product, $variants = null, $download = false)
+    /**
+     * @param Variant[] $variants
+     */
+    public function export(Product $product, array $variants)
     {
-        if (! ($product instanceof Product)) {
-            $product = Product::find()
-                ->id((string) $product)
-                ->one();
-        }
-
-        if ($variants === null) {
-            $variants = $product->variants;
-        }
-
-        // In future, this should return an error message.
-
-        if (! $product) {
-            return null;
-        }
-
         return $this->normalizeExportPayload($product, $variants);
     }
 
@@ -81,5 +68,8 @@ abstract class BaseFormat
      */
     abstract protected function normalizeImportPayload(UploadedFile $uploadedFile);
 
-    abstract protected function normalizeExportPayload(Product $product, $variants);
+    /**
+     * @param Variant[] $variants
+     */
+    abstract protected function normalizeExportPayload(Product $product, array $variants);
 }

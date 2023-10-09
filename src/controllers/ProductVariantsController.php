@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\controllers;
 
 use Craft;
 use craft\commerce\elements\Product;
+use craft\commerce\elements\Variant;
 use craft\errors\ElementNotFoundException;
 use craft\web\Controller;
 use craft\web\UploadedFile;
@@ -16,7 +17,9 @@ use yii\base\Exception;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
+use yii\web\NotFoundHttpException;
 use yii\web\Response;
+use yii\web\ServerErrorHttpException;
 
 class ProductVariantsController extends Controller
 {
@@ -30,6 +33,7 @@ class ProductVariantsController extends Controller
     /**
      * @throws BadRequestHttpException|\JsonException
      * @throws ForbiddenHttpException
+     * @throws ServerErrorHttpException
      */
     public function actionUpload(): void
     {
@@ -42,16 +46,14 @@ class ProductVariantsController extends Controller
                 'payload' => $this->handleUpload(),
             ]);
         } catch (Throwable $throwable) {
-            $this->response->setStatusCode(500);
-            $this->response = $this->asJson([
-                'message' => $throwable->getMessage(),
-            ]);
+            throw new ServerErrorHttpException($throwable->getMessage());
         }
     }
 
     /**
      * @throws BadRequestHttpException|\JsonException
      * @throws ForbiddenHttpException
+     * @throws ServerErrorHttpException
      */
     public function actionApplyUpload(): void
     {
@@ -64,20 +66,17 @@ class ProductVariantsController extends Controller
                 'payload' => $this->handleApplyUpload(),
             ]);
         } catch (Throwable $throwable) {
-            $this->response->setStatusCode(500);
-            $this->response = $this->asJson([
-                'message' => $throwable->getMessage(),
-            ]);
+            throw new ServerErrorHttpException($throwable->getMessage());
         }
     }
 
     /**
      * @throws \JsonException
+     * @throws NotFoundHttpException
      */
-    public function actionExport(): void
+    public function actionExport(string $id): void
     {
         // TODO update to use $this->requiresPermission(..) for exporting data.
-        $id = $this->request->getQueryParam('id');
         $format = $this->request->getQueryParam('format', 'json');
         $download = filter_var(
             $this->request->getQueryParam('download', false),
@@ -85,7 +84,16 @@ class ProductVariantsController extends Controller
             FILTER_NULL_ON_FAILURE
         );
 
-        [$product, $variants] = $this->resolveFilters(VariantManager::getInstance()->productVariants->getProduct($id));
+        /** @var Product|null $product */
+        $product = Product::find()
+            ->id($id)
+            ->one();
+
+        $variants = $this->resolveFilters($product);
+
+        if (! isset($product)) {
+            throw new NotFoundHttpException("Product with ID {$id} not found");
+        }
 
         // TODO export return type?
         if ($format === 'csv') {
@@ -104,7 +112,7 @@ class ProductVariantsController extends Controller
 
             $this->response->format = Response::FORMAT_RAW;
         } else {
-            $this->response->format = \yii\web\Response::FORMAT_JSON;
+            $this->response->format = Response::FORMAT_JSON;
         }
 
         $this->response->data = $result;
@@ -168,6 +176,9 @@ class ProductVariantsController extends Controller
         ];
     }
 
+    /**
+     * @return Variant[]
+     */
     private function resolveFilters(Product $product): array
     {
         $productVariants = VariantManager::getInstance()->productVariants;
@@ -175,11 +186,9 @@ class ProductVariantsController extends Controller
         $options = $this->request->getQueryParam('filter-option');
 
         if ($options) {
-            $variants = $productVariants->getVariantsByOptions($product, $options);
-        } else {
-            $variants = $productVariants->getVariants($product);
+            return $productVariants->getVariantsByOptions($product, $options);
         }
 
-        return [$product, $variants];
+        return $product->variants;
     }
 }
