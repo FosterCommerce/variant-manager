@@ -1,11 +1,10 @@
 <?php
 
-namespace fostercommerce\variantmanager\helpers\formats;
+namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
-use craft\web\UploadedFile;
 
-class JSONFormat extends BaseFormat
+class JsonExporter extends Exporter
 {
     public string $ext = 'json';
 
@@ -34,11 +33,6 @@ class JSONFormat extends BaseFormat
         'mpn' => 'mpn',
         'crossReferenceNumber' => 'crossReferenceNumber',
     ];
-
-    public function read($file): never
-    {
-        throw new \RuntimeException('Importing using a JSON format has not been implemented yet.');
-    }
 
     public function resolveVariantExportMapping(&$variant): array
     {
@@ -80,11 +74,6 @@ class JSONFormat extends BaseFormat
         }
 
         return $payload;
-    }
-
-    protected function normalizeImportPayload(UploadedFile $uploadedFile): array
-    {
-        return [];
     }
 
     private function normalizeVariant($variant, array $mapping = null): array

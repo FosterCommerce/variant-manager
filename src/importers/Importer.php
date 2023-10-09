@@ -1,22 +1,33 @@
 <?php
 
-namespace fostercommerce\variantmanager\helpers\formats;
+namespace fostercommerce\variantmanager\importers;
 
 use Craft;
-use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
 
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
 use yii\base\Exception;
 
-abstract class BaseFormat
+abstract class Importer
 {
     public string $ext = 'txt';
 
     public string $mimetype = 'text/plain';
 
     public string $returnType = 'text/plain';
+
+    /**
+     * @throws \RuntimeException
+     */
+    public static function create(string $type): self
+    {
+        return match ($type) {
+            'text/csv' => new CsvImporter(),
+            'application/json' => new JsonImporter(),
+            default => throw new \RuntimeException('Unsupported input file type'),
+        };
+    }
 
     /**
      * @throws InvalidSkusException
@@ -27,21 +38,19 @@ abstract class BaseFormat
         $payload = $this->normalizeImportPayload($uploadedFile);
         $token = Craft::$app->security->generateRandomString(128);
 
-        Craft::$app->cache->set($token, $payload, 3600);
+        $type = $uploadedFile->type;
+
+        Craft::$app->cache->set(
+            $token,
+            compact('payload', 'type'),
+            3600
+        );
 
         return [
             'title' => $payload['title'],
             'isNew' => $payload['isNew'],
             'token' => $token,
         ];
-    }
-
-    /**
-     * @param Variant[] $variants
-     */
-    public function export(Product $product, array $variants)
-    {
-        return $this->normalizeExportPayload($product, $variants);
     }
 
     public function findSKUs(mixed $items): array
@@ -66,9 +75,4 @@ abstract class BaseFormat
      * @throws InvalidSkusException
      */
     abstract protected function normalizeImportPayload(UploadedFile $uploadedFile): array;
-
-    /**
-     * @param Variant[] $variants
-     */
-    abstract protected function normalizeExportPayload(Product $product, array $variants);
 }
