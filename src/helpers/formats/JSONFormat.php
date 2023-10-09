@@ -13,7 +13,7 @@ class JSONFormat extends BaseFormat
 
     public string $returnType = 'application/json';
 
-    public $variantHeadings = [
+    public array $variantHeadings = [
         'id' => 'id',
         'title' => 'title',
         'sku' => 'sku',
@@ -38,43 +38,6 @@ class JSONFormat extends BaseFormat
     public function read($file): never
     {
         throw new \RuntimeException('Importing using a JSON format has not been implemented yet.');
-    }
-
-    public function normalizeVariants($variants, array $mapping = null): array
-    {
-        return array_map(fn($variant) => $this->normalizeVariant($variant, $mapping), $variants);
-    }
-
-    public function normalizeVariant($variant, array $mapping = null)
-    {
-        if ($mapping === null || $mapping === []) {
-            $mapping = $this->resolveVariantExportMapping($variant)[0];
-        }
-
-        $payload = [];
-
-        foreach ($mapping['variant'] as [$from, $to]) {
-            $payload[$to] = $variant->{$from};
-        }
-
-        if ($this->findMapping($mapping['variant'], 'stock') && $variant->hasUnlimitedStock) {
-            $payload[$this->findMapping($mapping['variant'], 'stock')] = '';
-        }
-
-        $payload['attributes'] = [];
-
-        if ($variant->variantAttributes) {
-            foreach ($variant->variantAttributes as $attribute) {
-                $payload['attributes'][] = [
-
-                    'name' => $attribute['attributeName'],
-                    'value' => $attribute['attributeValue'],
-
-                ];
-            }
-        }
-
-        return $payload;
     }
 
     public function resolveVariantExportMapping(&$variant): array
@@ -102,13 +65,13 @@ class JSONFormat extends BaseFormat
         return null;
     }
 
-    protected function normalizeExportPayload(Product $product, $variants)
+    protected function normalizeExportPayload(Product $product, $variants): array
     {
-        $payload = [];
-
-        if (! $variants || (is_countable($variants) ? count($variants) : 0) === 0) {
-            return $payload;
+        if (empty($product->variants)) {
+            return [];
         }
+
+        $payload = [];
 
         [$mapping] = $this->resolveVariantExportMapping($variants[0]);
 
@@ -121,5 +84,33 @@ class JSONFormat extends BaseFormat
 
     protected function normalizeImportPayload(UploadedFile $uploadedFile)
     {
+    }
+
+    private function normalizeVariant($variant, array $mapping = null): array
+    {
+        $payload = [];
+
+        foreach ($mapping['variant'] as [$from, $to]) {
+            $payload[$to] = $variant->{$from};
+        }
+
+        if ($this->findMapping($mapping['variant'], 'stock') && $variant->hasUnlimitedStock) {
+            $payload[$this->findMapping($mapping['variant'], 'stock')] = '';
+        }
+
+        $payload['attributes'] = [];
+
+        if ($variant->variantAttributes) {
+            foreach ($variant->variantAttributes as $attribute) {
+                $payload['attributes'][] = [
+
+                    'name' => $attribute['attributeName'],
+                    'value' => $attribute['attributeValue'],
+
+                ];
+            }
+        }
+
+        return $payload;
     }
 }

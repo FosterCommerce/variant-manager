@@ -2,6 +2,7 @@
 declare(strict_types = 1);
 
 use craft\rector\SetList as CraftSetList;
+use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
 use Rector\Set\ValueObject\SetList;
 use Rector\Config\RectorConfig;
 
@@ -33,5 +34,9 @@ return static function(RectorConfig $rectorConfig): void {
         SetList::INSTANCEOF,
         CraftSetList::CRAFT_CMS_40,
         CraftSetList::CRAFT_COMMERCE_40,
+    ]);
+
+    $rectorConfig->skip([
+        EncapsedStringsToSprintfRector::class
     ]);
 };

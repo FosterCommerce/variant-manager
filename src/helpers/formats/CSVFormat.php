@@ -48,9 +48,9 @@ class CSVFormat extends BaseFormat
     /**
      * @throws InvalidSkusException
      */
-    public function normalizeNewProductImport(Product $product, $payload, array $mapping): array
+    public function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
-        $mappedSKUs = $this->findSKUs(iterator_to_array($payload->fetchColumn($mapping['variant']['sku'])));
+        $mappedSKUs = $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
 
         // If the SKUs already exist for a new product, throw an error because SKUs should be unique to a product.
 
@@ -59,16 +59,14 @@ class CSVFormat extends BaseFormat
         }
 
         $variants = [];
-        foreach ($payload->getRecords() as $i => $record) {
+        foreach ($tabularDataReader->getRecords() as $i => $record) {
             $record = array_values($record);
 
             if ($record === []) {
                 continue;
             }
 
-            $key = sprintf('new%s', $i);
-
-            $variants[$key] = $this->normalizeVariantImport($record, $mapping);
+            $variants["new{$i}"] = $this->normalizeVariantImport($record, $mapping);
         }
 
         return [$product, $variants];
@@ -77,9 +75,9 @@ class CSVFormat extends BaseFormat
     /**
      * @throws InvalidSkusException
      */
-    public function normalizeExistingProductImport($product, $payload, array $mapping): array
+    public function normalizeExistingProductImport($product, TabularDataReader $tabularDataReader, array $mapping): array
     {
-        $mappedSKUs = $this->findSKUs(iterator_to_array($payload->fetchColumn($mapping['variant']['sku'])));
+        $mappedSKUs = $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
 
         // We know in every instance if for some reason there are two product IDs mapped, something is wrong because
         // an SKU should at most be affiliated with a single (one) product.
@@ -91,7 +89,7 @@ class CSVFormat extends BaseFormat
         }
 
         $variants = [];
-        foreach ($payload->getRecords() as $i => $record) {
+        foreach ($tabularDataReader->getRecords() as $i => $record) {
             $record = array_values($record);
 
             if ($record === []) {
@@ -101,7 +99,7 @@ class CSVFormat extends BaseFormat
             // Commerce expects the key for an existing variant to be an integer, not a string.
             // So consequently, we're responsible for casting it to the correct type.
 
-            $key = (array_key_exists($record[$mapping['variant']['sku']], $mappedSKUs[$product->id])) ? (int) $product->id : sprintf('new%s', $i);
+            $key = (array_key_exists($record[$mapping['variant']['sku']], $mappedSKUs[$product->id])) ? (int) $product->id : "new{$i}";
 
             $variants[$key] = $this->normalizeVariantImport($record, $mapping);
         }
@@ -109,12 +107,8 @@ class CSVFormat extends BaseFormat
         return [$product, $variants];
     }
 
-    public function normalizeVariantImport($variant, array $mapping = null)
+    public function normalizeVariantImport($variant, array $mapping)
     {
-        if ($mapping === null || $mapping === []) {
-            $mapping = $this->resolveVariantImportMapping($variant)[0];
-        }
-
         $attributes = [];
         foreach ($mapping['option'] as $field) {
             $attributes[] = [
@@ -252,7 +246,7 @@ class CSVFormat extends BaseFormat
         ];
     }
 
-    protected function normalizeExportPayload(Product $product, $variants): string
+    protected function normalizeExportPayload(Product $product, array $variants): string
     {
         //if ($variants === null || !count($variants)) return null;
 

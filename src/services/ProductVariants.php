@@ -5,29 +5,20 @@ namespace fostercommerce\variantmanager\services;
 use craft\base\Component;
 use craft\commerce\elements\Product;
 
-use GuzzleHttp;
+use craft\commerce\elements\Variant;
 
 /**
  * ProductVariants
  */
 class ProductVariants extends Component
 {
-    public function getVariants($product)
+    /**
+     * @return Variant[]
+     */
+    public function getVariantsByOptions(Product $product, $options): array
     {
-        if (! ($product instanceof Product)) {
-            $product = $this->getProduct($product);
-        }
-
-        return $product->variants;
-    }
-
-    public function getVariantsByOptions($product, $options): array
-    {
-        if (! ($product instanceof Product)) {
-            $product = $this->getProduct($product);
-        }
-
         $map = [];
+
         foreach ($product->variants[0]->variantAttributes as $key => $value) {
             $map[$value['attributeName']] = $key;
         }
@@ -49,26 +40,5 @@ class ProductVariants extends Component
         });
 
         return array_values($variants);
-    }
-
-    public function getProduct($product): ?Product
-    {
-        return Product::find()
-            ->id((string) $product)
-            ->one();
-    }
-
-    protected function normalizeVariant($variant)
-    {
-    }
-
-    /**
-     * createClient
-     *
-     * Creates a Guzzle Client.
-     */
-    protected function createClient(): GuzzleHttp\Client
-    {
-        return new GuzzleHttp\Client();
     }
 }

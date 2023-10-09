@@ -17,7 +17,7 @@ class InvalidSkusException extends \Exception
         foreach ($items as $id => $skus) {
             $normalized = implode(', ', $skus);
 
-            $message .= sprintf('<strong>%s</strong>: %s%s', $id, $normalized, PHP_EOL);
+            $message = "{$message}<strong>{$id}</strong>: {$normalized}" . PHP_EOL;
         }
 
         parent::__construct($message);
