@@ -1,44 +1,34 @@
 <div class="meta">
-
-	<button type="button" class="btn download icon" data-icon="download" id="{{ id }}-btn"
-					style='margin-bottom: 2rem;'>{{ 'Export Product'|t }}</button>
-
+	<div class="field">
+		<button
+			type="button"
+			class="btn download icon"
+			data-icon="download" id="{{ id }}-btn">
+			{{ 'Export Product'|t }}
+		</button>
+	</div>
 </div>
 
 <script type="text/javascript">
-
-	var btn = document.getElementById('{{ namespacedId }}-btn');
-
-	btn.addEventListener('click', exportFile);
-
 	function exportFile(event) {
-
 		fetch('/api/product-variants/export/{{ product.id }}?download=true&format=csv', {
-
 			method: 'POST',
 			headers: {
 				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
 				'X-Requested-With': 'XMLHttpRequest',
 			},
-
 		}).then((response) => {
-
 			return response.blob().then((result) => {
-
 				let link = document.createElement("a");
 
 				// Note that we slice the download name because the split includes quotations which are converted to underscores
 				// when the download is initiated otherwise.
-
 				link.href = window.URL.createObjectURL(result);
 				link.download = response.headers.get('content-disposition').split('filename=')[1].split(';')[0].slice(1, -1);
 				link.click();
-
 			})
-
 		});
-
-
 	}
 
+	document.getElementById('{{ namespacedId }}-btn').addEventListener('click', exportFile);
 </script>
