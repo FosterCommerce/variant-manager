@@ -120,7 +120,6 @@ class VariantManager extends Plugin
                 $registerUrlRulesEvent->rules['api/product-variants/upload'] = 'variant-manager/product-variants/upload';
                 $registerUrlRulesEvent->rules['api/product-variants/apply-upload'] = 'variant-manager/product-variants/apply-upload';
                 $registerUrlRulesEvent->rules['api/product-variants/export/<id:[0-9]+>'] = 'variant-manager/product-variants/export';
-                $registerUrlRulesEvent->rules['variant-manager/examples/test/<slug>'] = 'variant-manager/examples/test';
             }
         );
     }
