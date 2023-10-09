@@ -9,8 +9,8 @@ use craft\errors\ElementNotFoundException;
 use craft\web\Controller;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
-use fostercommerce\variantmanager\helpers\formats\CSVFormat;
-use fostercommerce\variantmanager\helpers\formats\JSONFormat;
+use fostercommerce\variantmanager\exporters\Exporter;
+use fostercommerce\variantmanager\importers\Importer;
 use fostercommerce\variantmanager\VariantManager;
 use Throwable;
 use yii\base\Exception;
@@ -91,17 +91,12 @@ class ProductVariantsController extends Controller
             throw new NotFoundHttpException("Product with ID {$id} not found");
         }
 
-        // TODO export return type?
-        if ($format === 'csv') {
-            $formatter = new CSVFormat();
-        } else {
-            $formatter = new JSONFormat();
-        }
+        $exporter = Exporter::create($format);
 
-        $result = $formatter->export($product, $variants);
+        $result = $exporter->export($product, $variants);
 
         if ($download) {
-            $this->response->setDownloadHeaders($product->title . '.' . $formatter->ext, $formatter->mimetype);
+            $this->response->setDownloadHeaders($product->title . '.' . $exporter->ext, $exporter->mimetype);
             if (is_array($result)) {
                 $result = json_encode($result, JSON_THROW_ON_ERROR);
             }
@@ -120,16 +115,13 @@ class ProductVariantsController extends Controller
      */
     private function handleUpload(): ?array
     {
-        if ($_FILES === []) {
+        $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
+
+        if (! isset($uploadedFile)) {
             throw new BadRequestHttpException('No file was uploaded');
         }
 
-        $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
-        if ($uploadedFile?->type === 'text/csv') {
-            return (new CSVFormat())->import($uploadedFile);
-        }
-
-        return null;
+        return Importer::create($uploadedFile->type)->import($uploadedFile);
     }
 
     /**
@@ -143,14 +135,16 @@ class ProductVariantsController extends Controller
         $token = $this->request->getParam('token');
         $payload = Craft::$app->cache->get($token);
 
+        $type = $payload['type'];
+        $payload = $payload['payload'];
+
         Craft::$app->cache->delete($token);
 
         // This is temporary as we need to add support for other formats to import (not just export).
 
-        $csvFormat = new CSVFormat();
-
         $variants = [];
-        $product = $csvFormat->resolveProductModelFromCache($payload);
+        // TODO JsonImporter doesn't have a way to import files
+        $product = Importer::create($type)->resolveProductModelFromCache($payload);
 
         foreach ($payload['variants'] as $id => $value) {
             if (str_starts_with((string) $id, 'new')) {

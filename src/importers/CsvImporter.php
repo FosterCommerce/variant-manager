@@ -1,8 +1,9 @@
 <?php
 
-namespace fostercommerce\variantmanager\helpers\formats;
+namespace fostercommerce\variantmanager\importers;
 
 use craft\commerce\elements\Product;
+use craft\helpers\Db;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
 use fostercommerce\variantmanager\VariantManager;
@@ -12,7 +13,7 @@ use League\Csv\Statement;
 use League\Csv\TabularDataReader;
 use League\Csv\UnableToProcessCsv;
 
-class CSVFormat extends BaseFormat
+class CsvImporter extends Importer
 {
     public string $ext = 'csv';
 
@@ -22,7 +23,7 @@ class CSVFormat extends BaseFormat
 
     // Read as "From" => "To"
 
-    public $variantHeadings = [
+    public array $variantHeadings = [
         'SKU' => 'sku',
         'Stock' => 'stock',
         'Price' => 'price',
@@ -47,6 +48,7 @@ class CSVFormat extends BaseFormat
 
     /**
      * @throws InvalidSkusException
+     * @throws UnableToProcessCsv
      */
     public function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -74,6 +76,7 @@ class CSVFormat extends BaseFormat
 
     /**
      * @throws InvalidSkusException
+     * @throws UnableToProcessCsv
      */
     public function normalizeExistingProductImport($product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -142,48 +145,6 @@ class CSVFormat extends BaseFormat
         return $variant;
     }
 
-    public function normalizeVariantExport($variant, array $mapping = null): string
-    {
-        if ($mapping === null || $mapping === []) {
-            $mapping = $this->resolveVariantExportMapping($variant)[0];
-        }
-
-        $payload = [];
-
-        foreach ($mapping['variant'] as [$from, $to]) {
-            $payload[] = $variant->{$from};
-        }
-
-        foreach ($variant->variantAttributes as $attribute) {
-            $payload[] = $attribute['attributeValue'];
-        }
-
-        return implode(',', $payload);
-    }
-
-    public function resolveVariantExportMapping(&$product, $optionSignal = null): array
-    {
-        $optionSignal ??= 'Option : ';
-
-        $variantMap = [];
-        foreach (array_keys($this->variantHeadings) as $i => $heading) {
-            $variantMap[$i] = [$this->variantHeadings[$heading], $heading];
-        }
-
-        $optionMap = [];
-        foreach ($product->variants[0]->variantAttributes as $attribute) {
-            $optionMap[] = $optionSignal . $attribute['attributeName'];
-        }
-
-        return [
-            [
-                'variant' => $variantMap,
-                'option' => $optionMap,
-            ],
-            $optionSignal,
-        ];
-    }
-
     public function resolveProductModelFromFile($file): Product
     {
         $name = $file->baseName;
@@ -244,24 +205,9 @@ class CSVFormat extends BaseFormat
         ];
     }
 
-    protected function normalizeExportPayload(Product $product, array $variants): string
-    {
-        //if ($variants === null || !count($variants)) return null;
-
-        [$mapping, $optionSignal] = $this->resolveVariantExportMapping($product);
-
-        $payload = [
-            implode(',', array_merge(array_map(static fn($v) => $v[1], $mapping['variant']), $mapping['option'])),
-        ];
-        foreach ($variants as $variant) {
-            $payload[] = $this->normalizeVariantExport($variant, $mapping);
-        }
-
-        return implode("\n", $payload);
-    }
-
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
     {
+        // TODO what is 'Option : '?
         $optionSignal = 'Option : ';
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
@@ -286,8 +232,7 @@ class CSVFormat extends BaseFormat
 
     private function resolveProductModel(string $name): Product
     {
-        $productQuery = Product::find()
-            ->title(\craft\helpers\Db::escapeParam($name));
+        $productQuery = Product::find()->title(Db::escapeParam($name));
 
         $existing = $productQuery->one();
         $product = $existing ?? new Product();
