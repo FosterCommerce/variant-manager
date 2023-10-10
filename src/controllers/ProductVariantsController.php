@@ -95,6 +95,7 @@ class ProductVariantsController extends Controller
 
             $this->response->format = Response::FORMAT_RAW;
         } else {
+            $result = $result['export'];
             $this->response->format = Response::FORMAT_JSON;
         }
 
