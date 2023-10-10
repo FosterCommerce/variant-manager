@@ -42,49 +42,22 @@ class JsonExporter extends Exporter
 
         $payload = [];
 
-        [$mapping] = $this->resolveVariantExportMapping();
-
         foreach ($variants as $variant) {
-            $payload[] = $this->normalizeVariant($variant, $mapping);
+            $payload[] = $this->normalizeVariant($variant);
         }
 
         return $payload;
     }
 
-    private function resolveVariantExportMapping(): array
-    {
-        $variantMap = [];
-        foreach (array_keys($this->variantHeadings) as $i => $heading) {
-            $variantMap[$i] = [$this->variantHeadings[$heading], $heading];
-        }
-
-        return [
-            [
-                'variant' => $variantMap,
-            ],
-        ];
-    }
-
-    private function findStockMapping($mapping)
-    {
-        foreach ($mapping as [$from, $to]) {
-            if ($from === 'stock') {
-                return $to;
-            }
-        }
-
-        return null;
-    }
-
-    private function normalizeVariant($variant, array $mapping = null): array
+    private function normalizeVariant($variant): array
     {
         $payload = [];
 
-        foreach ($mapping['variant'] as [$from, $to]) {
-            $payload[$to] = $variant->{$from};
+        foreach ($this->variantHeadings as $key => $value) {
+            $payload[$value] = $variant->{$key};
         }
 
-        $stockMapping = $this->findStockMapping($mapping['variant']);
+        $stockMapping = $this->variantHeadings['stock'];
         if ($stockMapping && $variant->hasUnlimitedStock) {
             $payload[$stockMapping] = '';
         }
@@ -94,10 +67,8 @@ class JsonExporter extends Exporter
         if ($variant->variantAttributes) {
             foreach ($variant->variantAttributes as $attribute) {
                 $payload['attributes'][] = [
-
                     'name' => $attribute['attributeName'],
                     'value' => $attribute['attributeValue'],
-
                 ];
             }
         }

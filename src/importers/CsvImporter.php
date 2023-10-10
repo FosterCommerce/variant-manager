@@ -47,7 +47,7 @@ class CsvImporter extends Importer
     {
         $tabularDataReader = $this->read($uploadedFile);
 
-        [$mapping] = $this->resolveVariantImportMapping($tabularDataReader);
+        $mapping = $this->resolveVariantImportMapping($tabularDataReader);
 
         $product = $this->resolveProductModel($uploadedFile->baseName);
 
@@ -187,7 +187,7 @@ class CsvImporter extends Importer
 
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
     {
-        // TODO what is 'Option : '?
+        // TODO this should be a config probably. See the CSV importer implementation.
         $optionSignal = 'Option : ';
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
@@ -203,10 +203,8 @@ class CsvImporter extends Importer
         }
 
         return [
-            [
-                'variant' => $variantMap,
-                'option' => $optionMap,
-            ],
+            'variant' => $variantMap,
+            'option' => $optionMap,
         ];
     }
 
@@ -224,6 +222,7 @@ class CsvImporter extends Importer
             $product->title = $name;
             $product->isNewForSite = true;
 
+            // TODO I'm pretty sure we want to have some default config for product type IDs
             /** @var CommercePlugin $plugin */
             $plugin = Craft::$app->plugins->getPlugin('commerce');
             $product->typeId = $plugin->getProductTypes()->getAllProductTypeIds()[0];

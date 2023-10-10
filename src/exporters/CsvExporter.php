@@ -27,10 +27,7 @@ class CsvExporter extends Exporter
 
     public function exportProduct(Product $product, array $variants): string
     {
-        //if ($variants === null || !count($variants)) return null;
-
-        // TODO what is an optionSignal?
-        [$mapping, $optionSignal] = $this->resolveVariantExportMapping($product);
+        $mapping = $this->resolveVariantExportMapping($product);
 
         $payload = [
             implode(',', array_merge(array_map(static fn($v) => $v[1], $mapping['variant']), $mapping['option'])),
@@ -42,12 +39,8 @@ class CsvExporter extends Exporter
         return implode("\n", $payload);
     }
 
-    private function normalizeVariantExport($variant, array $mapping = null): string
+    private function normalizeVariantExport($variant, array $mapping): string
     {
-        if ($mapping === null || $mapping === []) {
-            $mapping = $this->resolveVariantExportMapping($variant)[0];
-        }
-
         $payload = [];
 
         foreach ($mapping['variant'] as [$from, $to]) {
@@ -61,9 +54,11 @@ class CsvExporter extends Exporter
         return implode(',', $payload);
     }
 
-    private function resolveVariantExportMapping(&$product, $optionSignal = null): array
+    private function resolveVariantExportMapping(Product $product): array
     {
-        $optionSignal ??= 'Option : ';
+        // TODO what is an optionSignal actually?
+        // TODO This should be a config probably?
+        $optionSignal = 'Option : ';
 
         $variantMap = [];
         foreach (array_keys($this->variantHeadings) as $i => $heading) {
@@ -76,11 +71,8 @@ class CsvExporter extends Exporter
         }
 
         return [
-            [
-                'variant' => $variantMap,
-                'option' => $optionMap,
-            ],
-            $optionSignal,
+            'variant' => $variantMap,
+            'option' => $optionMap,
         ];
     }
 }
