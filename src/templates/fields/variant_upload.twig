@@ -41,61 +41,36 @@
 	form.addEventListener('submit', (e) => {
 		e.preventDefault();
 
-		const payload = new FormData(form);
-		const f = payload.get("variant-uploads");
+		const file = new FormData(form).get('variant-uploads');
+		const productName = file.name.split('.').slice(0, -1).join('.');
 
-		payload.set(
-			"variant-uploads",
-			new File([f], f.name, {type: "text/csv"})
-		);
-
-		fetch('/api/product-variants/upload', {
+		fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
 			method: 'POST',
 			headers: {
 				'Accept': 'application/json',
 				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
 				'X-Requested-With': 'XMLHttpRequest',
 			},
-			body: payload,
 		}).then(async (response) => {
-			if (!response.ok) {
-				let payload = JSON.stringify(await response.json());
-
-				let error;
-				try {
-					error = JSON.parse(payload.message);
-				} catch (E) {
-					error = payload
-				}
-
-				if (error.statusText) {
-					throw Error(error.statusText);
-				} else {
-					throw Error(error);
-				}
-			}
-
 			return response.json()
 		}).then((result) => {
-			if (result.isNew) {
+			if (!result.exists) {
 				confirmBtn.innerHTML = "Create Product";
 				confirmBtn.classList.remove("edit", "hidden");
 				confirmBtn.classList.add("add");
 
 				message.innerHTML =
-					`Are you sure you want to create a new product named <strong>"${result.title}"</strong>?`;
+					`Are you sure you want to create a new product named <strong>"${productName}"</strong>?`;
 			} else {
 				confirmBtn.innerHTML = "Edit Product";
 				confirmBtn.classList.remove("add", "hidden");
 				confirmBtn.classList.add("edit");
 
 				message.innerHTML =
-					`Are you sure you want to edit an existing product named <strong>"${result.title}"</strong>?`;
+					`Are you sure you want to edit an existing product named <strong>"${productName}"</strong>?`;
 			}
 
 			modal.show();
-
-			confirmationToken = result.token;
 		}).catch((error) => {
 			try {
 				error = JSON.parse(error.message);
@@ -133,17 +108,22 @@
 
 	function confirmChanges(event) {
 		try {
-			fetch('/api/product-variants/apply-upload', {
+			const payload = new FormData(form);
+			const file = payload.get("variant-uploads");
+
+			payload.set(
+				"variant-uploads",
+				new File([file], file.name, {type: "text/csv"})
+			);
+
+			fetch('/admin/variant-manager/upload', {
 				method: "POST",
 				headers: {
 					'Accept': 'application/json',
-					'Content-Type': 'application/json',
 					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
 					'X-Requested-With': 'XMLHttpRequest',
 				},
-				body: JSON.stringify({
-					"token": confirmationToken
-				}),
+				body: payload,
 			}).then(async (response) => {
 				if (!response.ok) {
 					if (response.statusText) {

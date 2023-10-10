@@ -2,19 +2,12 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
-use Craft;
 use craft\commerce\elements\Product;
-use craft\commerce\elements\Variant;
-use craft\errors\ElementNotFoundException;
 use craft\web\Controller;
 use craft\web\UploadedFile;
-use fostercommerce\variantmanager\exceptions\InvalidSkusException;
 use fostercommerce\variantmanager\exporters\Exporter;
 use fostercommerce\variantmanager\importers\Importer;
-use fostercommerce\variantmanager\VariantManager;
 use Throwable;
-use yii\base\Exception;
-use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -24,14 +17,31 @@ use yii\web\ServerErrorHttpException;
 class ProductVariantsController extends Controller
 {
     protected array|bool|int $allowAnonymous = [
+        'product-exists' => self::ALLOW_ANONYMOUS_NEVER,
         'upload' => self::ALLOW_ANONYMOUS_NEVER,
-        'apply-upload' => self::ALLOW_ANONYMOUS_NEVER,
         // TODO this needs to be _NEVER once dependent sites have been updated to remove usage of this action.
         'export' => self::ALLOW_ANONYMOUS_LIVE,
     ];
 
     /**
-     * @throws BadRequestHttpException|\JsonException
+     * @throws ForbiddenHttpException
+     */
+    public function actionProductExists(): Response
+    {
+        // TODO update to use $this->requiresPermission(..) instead.
+        $this->requireAdmin();
+
+        $product = Product::find()
+            ->title($this->request->getQueryParam('name'))
+            ->one();
+
+        return $this->asJson([
+            'exists' => isset($product),
+        ]);
+    }
+
+    /**
+     * @throws BadRequestHttpException
      * @throws ForbiddenHttpException
      * @throws ServerErrorHttpException
      */
@@ -42,25 +52,13 @@ class ProductVariantsController extends Controller
         $this->requireAdmin();
 
         try {
-            $this->response = $this->asJson($this->handleUpload());
-        } catch (Throwable $throwable) {
-            throw new ServerErrorHttpException($throwable->getMessage());
-        }
-    }
+            $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
 
-    /**
-     * @throws BadRequestHttpException|
-     * @throws ForbiddenHttpException
-     * @throws ServerErrorHttpException
-     */
-    public function actionApplyUpload(): void
-    {
-        $this->requirePostRequest();
-        // TODO update to use $this->requiresPermission(..) instead.
-        $this->requireAdmin();
+            if (! isset($uploadedFile)) {
+                throw new BadRequestHttpException('No file was uploaded');
+            }
 
-        try {
-            $this->handleApplyUpload();
+            Importer::create($uploadedFile->type)->import($uploadedFile);
         } catch (Throwable $throwable) {
             throw new ServerErrorHttpException($throwable->getMessage());
         }
@@ -79,24 +77,18 @@ class ProductVariantsController extends Controller
             FILTER_VALIDATE_BOOLEAN,
             FILTER_NULL_ON_FAILURE
         );
+        $options = $this->request->getQueryParam('filter-option');
 
-        /** @var Product|null $product */
-        $product = Product::find()
-            ->id($id)
-            ->one();
+        $exporter = Exporter::create($format);
+        $result = $exporter->export($id, $options);
 
-        $variants = $this->resolveFilters($product);
-
-        if (! isset($product)) {
+        if ($result === false) {
             throw new NotFoundHttpException("Product with ID {$id} not found");
         }
 
-        $exporter = Exporter::create($format);
-
-        $result = $exporter->export($product, $variants);
-
         if ($download) {
-            $this->response->setDownloadHeaders($product->title . '.' . $exporter->ext, $exporter->mimetype);
+            $this->response->setDownloadHeaders($result['title'] . '.' . $exporter->ext, $exporter->mimetype);
+            $result = $result['export'];
             if (is_array($result)) {
                 $result = json_encode($result, JSON_THROW_ON_ERROR);
             }
@@ -107,71 +99,5 @@ class ProductVariantsController extends Controller
         }
 
         $this->response->data = $result;
-    }
-
-    /**
-     * @throws Exception
-     * @throws InvalidSkusException
-     */
-    private function handleUpload(): ?array
-    {
-        $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
-
-        if (! isset($uploadedFile)) {
-            throw new BadRequestHttpException('No file was uploaded');
-        }
-
-        return Importer::create($uploadedFile->type)->import($uploadedFile);
-    }
-
-    /**
-     * @throws ElementNotFoundException
-     * @throws InvalidConfigException
-     * @throws Exception
-     * @throws Throwable
-     */
-    private function handleApplyUpload(): void
-    {
-        $token = $this->request->getParam('token');
-        $payload = Craft::$app->cache->get($token);
-
-        $type = $payload['type'];
-        $payload = $payload['payload'];
-
-        Craft::$app->cache->delete($token);
-
-        // This is temporary as we need to add support for other formats to import (not just export).
-
-        $variants = [];
-        // TODO JsonImporter doesn't have a way to import files
-        $product = Importer::create($type)->resolveProductModelFromCache($payload);
-
-        foreach ($payload['variants'] as $id => $value) {
-            if (str_starts_with((string) $id, 'new')) {
-                $variants[$id] = $value;
-            } else {
-                $variants[(int) $id] = $value;
-            }
-        }
-
-        $product->setVariants($variants);
-
-        Craft::$app->elements->saveElement($product, false, false, true);
-    }
-
-    /**
-     * @return Variant[]
-     */
-    private function resolveFilters(Product $product): array
-    {
-        $productVariants = VariantManager::getInstance()->productVariants;
-
-        $options = $this->request->getQueryParam('filter-option');
-
-        if ($options) {
-            return $productVariants->getVariantsByOptions($product, $options);
-        }
-
-        return $product->variants;
     }
 }

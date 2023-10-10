@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
+use fostercommerce\variantmanager\VariantManager;
 
 abstract class Exporter
 {
@@ -25,16 +26,31 @@ abstract class Exporter
         };
     }
 
-    /**
-     * @param Variant[] $variants
-     */
-    public function export(Product $product, array $variants)
+    public function export(string $productId, ?array $options): array|bool
     {
-        return $this->normalizeExportPayload($product, $variants);
+        /** @var Product|null $product */
+        $product = Product::find()
+            ->id($productId)
+            ->one();
+
+        if (! isset($product)) {
+            return false;
+        }
+
+        if ($options !== null && $options !== []) {
+            $variants = VariantManager::getInstance()->productVariants->getVariantsByOptions($product, $options);
+        } else {
+            $variants = $product->variants;
+        }
+
+        return [
+            'title' => $product->title,
+            'export' => $this->exportProduct($product, $variants),
+        ];
     }
 
     /**
      * @param Variant[] $variants
      */
-    abstract protected function normalizeExportPayload(Product $product, array $variants);
+    abstract public function exportProduct(Product $product, array $variants): mixed;
 }

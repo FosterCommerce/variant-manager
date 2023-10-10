@@ -11,8 +11,7 @@
 
 <script type="text/javascript">
 	function exportFile(event) {
-		fetch('/api/product-variants/export/{{ product.id }}?download=true&format=csv', {
-			method: 'POST',
+		fetch('/admin/variant-manager/product-variants/export/{{ product.id }}?download=true&format=csv', {
 			headers: {
 				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
 				'X-Requested-With': 'XMLHttpRequest',
@@ -20,7 +19,6 @@
 		}).then((response) => {
 			return response.blob().then((result) => {
 				let link = document.createElement("a");
-
 				// Note that we slice the download name because the split includes quotations which are converted to underscores
 				// when the download is initiated otherwise.
 				link.href = window.URL.createObjectURL(result);
