@@ -2,7 +2,6 @@
 
 namespace fostercommerce\variantmanager\importers;
 
-use Craft;
 use craft\commerce\elements\Variant;
 
 use craft\web\UploadedFile;
@@ -11,12 +10,6 @@ use yii\base\Exception;
 
 abstract class Importer
 {
-    public string $ext = 'txt';
-
-    public string $mimetype = 'text/plain';
-
-    public string $returnType = 'text/plain';
-
     /**
      * @throws \RuntimeException
      */
@@ -33,27 +26,9 @@ abstract class Importer
      * @throws InvalidSkusException
      * @throws Exception
      */
-    public function import(UploadedFile $uploadedFile): array
-    {
-        $payload = $this->normalizeImportPayload($uploadedFile);
-        $token = Craft::$app->security->generateRandomString(128);
+    abstract public function import(UploadedFile $uploadedFile): void;
 
-        $type = $uploadedFile->type;
-
-        Craft::$app->cache->set(
-            $token,
-            compact('payload', 'type'),
-            3600
-        );
-
-        return [
-            'title' => $payload['title'],
-            'isNew' => $payload['isNew'],
-            'token' => $token,
-        ];
-    }
-
-    public function findSKUs(mixed $items): array
+    protected function findSKUs(mixed $items): array
     {
         $found = Variant::find()
             ->sku($items)
@@ -70,9 +45,4 @@ abstract class Importer
 
         return $mapped;
     }
-
-    /**
-     * @throws InvalidSkusException
-     */
-    abstract protected function normalizeImportPayload(UploadedFile $uploadedFile): array;
 }

@@ -5,7 +5,6 @@ namespace fostercommerce\variantmanager;
 use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
-use craft\commerce\Plugin as CommercePlugin;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
@@ -13,9 +12,15 @@ use craft\services\Fields;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\View;
+use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ProductVariants;
+use Twig\Error\LoaderError;
+use Twig\Error\RuntimeError;
+use Twig\Error\SyntaxError;
 use yii\base\Event;
+use yii\base\Exception;
+use yii\base\InvalidConfigException;
 
 /**
  * Variant Manager plugin
@@ -27,7 +32,6 @@ use yii\base\Event;
  * @license MIT
  *
  * @property-read Settings $settings
- * @property-read CommercePlugin $commercePlugin
  * @property-read ProductVariants $productVariants
  * @property-read null|array $cpNavItem
  */
@@ -63,18 +67,20 @@ class VariantManager extends Plugin
         return $cpNavItem;
     }
 
-    public function getCommercePlugin(): CommercePlugin
-    {
-        /** @var CommercePlugin $plugin */
-        $plugin = Craft::$app->plugins->getPlugin('commerce');
-        return $plugin;
-    }
-
+    /**
+     * @throws InvalidConfigException
+     */
     protected function createSettingsModel(): ?Model
     {
         return Craft::createObject(Settings::class);
     }
 
+    /**
+     * @throws SyntaxError
+     * @throws RuntimeError
+     * @throws Exception
+     * @throws LoaderError
+     */
     protected function settingsHtml(): ?string
     {
         return Craft::$app->getView()->renderTemplate('variantmanager/_settings', [
@@ -85,15 +91,16 @@ class VariantManager extends Plugin
 
     private function attachEventHandlers(): void
     {
-        $this->registerRoutes();
-
         if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
             Event::on(View::class, View::EVENT_REGISTER_SITE_TEMPLATE_ROOTS, static function(RegisterTemplateRootsEvent $registerTemplateRootsEvent): void {
                 $registerTemplateRootsEvent->roots['variant-manager'] = __DIR__ . '/templates';
             });
 
+            if (Craft::$app->getRequest()->getIsCpRequest()) {
+                $this->registerCpRoutes();
+            }
+
             $this->registerTwig();
-            $this->registerCPRoutes();
             $this->registerFields();
             $this->registerViewHooks();
         }
@@ -111,26 +118,16 @@ class VariantManager extends Plugin
         );
     }
 
-    private function registerRoutes(): void
-    {
-        Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-            static function(RegisterUrlRulesEvent $registerUrlRulesEvent): void {
-                $registerUrlRulesEvent->rules['api/product-variants/upload'] = 'variant-manager/product-variants/upload';
-                $registerUrlRulesEvent->rules['api/product-variants/apply-upload'] = 'variant-manager/product-variants/apply-upload';
-                $registerUrlRulesEvent->rules['api/product-variants/export/<id:[0-9]+>'] = 'variant-manager/product-variants/export';
-            }
-        );
-    }
-
-    private function registerCPRoutes(): void
+    private function registerCpRoutes(): void
     {
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
             static function(RegisterUrlRulesEvent $registerUrlRulesEvent): void {
                 $registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
+                $registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
+                $registerUrlRulesEvent->rules['variant-manager/upload'] = 'variant-manager/product-variants/upload';
+                $registerUrlRulesEvent->rules['variant-manager/export/<id:[0-9]+>'] = 'variant-manager/product-variants/export';
             }
         );
     }
@@ -145,7 +142,7 @@ class VariantManager extends Plugin
                     'Fields::EVENT_REGISTER_FIELD_TYPES',
                     __METHOD__
                 );
-                $registerComponentTypesEvent->types[] = \fostercommerce\variantmanager\fields\VariantAttributesField::class;
+                $registerComponentTypesEvent->types[] = VariantAttributesField::class;
             }
         );
     }

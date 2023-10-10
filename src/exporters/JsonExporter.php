@@ -12,7 +12,7 @@ class JsonExporter extends Exporter
 
     public string $returnType = 'application/json';
 
-    public array $variantHeadings = [
+    private array $variantHeadings = [
         'id' => 'id',
         'title' => 'title',
         'sku' => 'sku',
@@ -34,7 +34,24 @@ class JsonExporter extends Exporter
         'crossReferenceNumber' => 'crossReferenceNumber',
     ];
 
-    public function resolveVariantExportMapping(&$variant): array
+    public function exportProduct(Product $product, $variants): array
+    {
+        if (empty($product->variants)) {
+            return [];
+        }
+
+        $payload = [];
+
+        [$mapping] = $this->resolveVariantExportMapping();
+
+        foreach ($variants as $variant) {
+            $payload[] = $this->normalizeVariant($variant, $mapping);
+        }
+
+        return $payload;
+    }
+
+    private function resolveVariantExportMapping(): array
     {
         $variantMap = [];
         foreach (array_keys($this->variantHeadings) as $i => $heading) {
@@ -48,32 +65,15 @@ class JsonExporter extends Exporter
         ];
     }
 
-    public function findMapping($mapping, $predicate)
+    private function findStockMapping($mapping)
     {
         foreach ($mapping as [$from, $to]) {
-            if ($from === $predicate) {
+            if ($from === 'stock') {
                 return $to;
             }
         }
 
         return null;
-    }
-
-    protected function normalizeExportPayload(Product $product, $variants): array
-    {
-        if (empty($product->variants)) {
-            return [];
-        }
-
-        $payload = [];
-
-        [$mapping] = $this->resolveVariantExportMapping($variants[0]);
-
-        foreach ($variants as $variant) {
-            $payload[] = $this->normalizeVariant($variant, $mapping);
-        }
-
-        return $payload;
     }
 
     private function normalizeVariant($variant, array $mapping = null): array
@@ -84,8 +84,9 @@ class JsonExporter extends Exporter
             $payload[$to] = $variant->{$from};
         }
 
-        if ($this->findMapping($mapping['variant'], 'stock') && $variant->hasUnlimitedStock) {
-            $payload[$this->findMapping($mapping['variant'], 'stock')] = '';
+        $stockMapping = $this->findStockMapping($mapping['variant']);
+        if ($stockMapping && $variant->hasUnlimitedStock) {
+            $payload[$stockMapping] = '';
         }
 
         $payload['attributes'] = [];

@@ -2,28 +2,26 @@
 
 namespace fostercommerce\variantmanager\importers;
 
+use Craft;
 use craft\commerce\elements\Product;
+use craft\commerce\Plugin as CommercePlugin;
+use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
-use fostercommerce\variantmanager\VariantManager;
 use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
 use League\Csv\Statement;
 use League\Csv\TabularDataReader;
 use League\Csv\UnableToProcessCsv;
+use yii\base\Exception;
+use yii\base\InvalidConfigException;
 
 class CsvImporter extends Importer
 {
-    public string $ext = 'csv';
-
-    public string $mimetype = 'text/csv';
-
-    public string $returnType = 'text/plain';
-
     // Read as "From" => "To"
 
-    public array $variantHeadings = [
+    private array $variantHeadings = [
         'SKU' => 'sku',
         'Stock' => 'stock',
         'Price' => 'price',
@@ -38,8 +36,35 @@ class CsvImporter extends Importer
 
     /**
      * @throws CsvException
+     * @throws Exception
+     * @throws InvalidConfigException
+     * @throws InvalidSkusException
+     * @throws UnableToProcessCsv
+     * @throws ElementNotFoundException
+     * @throws \Throwable
      */
-    public function read(UploadedFile $uploadedFile): \League\Csv\TabularDataReader
+    public function import(UploadedFile $uploadedFile): void
+    {
+        $tabularDataReader = $this->read($uploadedFile);
+
+        [$mapping] = $this->resolveVariantImportMapping($tabularDataReader);
+
+        $product = $this->resolveProductModel($uploadedFile->baseName);
+
+        if ($product->isNewForSite) {
+            $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
+        } else {
+            $variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
+        }
+
+        $product->setVariants($variants);
+        Craft::$app->elements->saveElement($product, false, false, true);
+    }
+
+    /**
+     * @throws CsvException
+     */
+    private function read(UploadedFile $uploadedFile): \League\Csv\TabularDataReader
     {
         $reader = Reader::createFromPath($uploadedFile->tempName, 'r');
         $reader->setHeaderOffset(0);
@@ -50,12 +75,11 @@ class CsvImporter extends Importer
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
      */
-    public function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
+    private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
         $mappedSKUs = $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
 
         // If the SKUs already exist for a new product, throw an error because SKUs should be unique to a product.
-
         if ((is_countable($mappedSKUs) ? count($mappedSKUs) : 0) > 0) {
             throw new InvalidSkusException($product, $mappedSKUs);
         }
@@ -71,14 +95,14 @@ class CsvImporter extends Importer
             $variants["new{$i}"] = $this->normalizeVariantImport($record, $mapping);
         }
 
-        return [$product, $variants];
+        return $variants;
     }
 
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
      */
-    public function normalizeExistingProductImport($product, TabularDataReader $tabularDataReader, array $mapping): array
+    private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
         $mappedSKUs = $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
 
@@ -107,10 +131,10 @@ class CsvImporter extends Importer
             $variants[$key] = $this->normalizeVariantImport($record, $mapping);
         }
 
-        return [$product, $variants];
+        return $variants;
     }
 
-    public function normalizeVariantImport($variant, array $mapping)
+    private function normalizeVariantImport($variant, array $mapping): array
     {
         $attributes = [];
         foreach ($mapping['option'] as $field) {
@@ -145,21 +169,7 @@ class CsvImporter extends Importer
         return $variant;
     }
 
-    public function resolveProductModelFromFile($file): Product
-    {
-        $name = $file->baseName;
-
-        return $this->resolveProductModel($name);
-    }
-
-    public function resolveProductModelFromCache(array $payload): Product
-    {
-        $name = $payload['title'];
-
-        return $this->resolveProductModel($name);
-    }
-
-    public function stripCurrency($amount)
+    private function stripCurrency($amount)
     {
         $amount = str_replace(['?', ','], '', mb_convert_encoding((string) $amount, 'UTF-8', 'UTF-8'));
 
@@ -173,36 +183,6 @@ class CsvImporter extends Importer
         $numberFormatter = new \NumberFormatter($localeCode, \NumberFormatter::DECIMAL);
 
         return $numberFormatter->parseCurrency(trim($amount), $currencyCode);
-    }
-
-    /**
-     * @throws UnableToProcessCsv
-     * @throws CsvException
-     * @throws InvalidSkusException
-     */
-    protected function normalizeImportPayload(UploadedFile $uploadedFile): array
-    {
-        $tabularDataReader = $this->read($uploadedFile);
-
-        [$mapping] = $this->resolveVariantImportMapping($tabularDataReader);
-
-        $product = $this->resolveProductModelFromFile($uploadedFile);
-
-        $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
-
-        if ($product->isNewForSite) {
-            [$product, $variants] = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
-        } else {
-            [$product, $variants] = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
-        }
-
-        return [
-            'title' => $product->title,
-            'typeId' => $product->typeId,
-            'id' => $product->id,
-            'isNew' => $product->isNewForSite,
-            'variants' => $variants,
-        ];
     }
 
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
@@ -230,6 +210,9 @@ class CsvImporter extends Importer
         ];
     }
 
+    /**
+     * @throws InvalidConfigException
+     */
     private function resolveProductModel(string $name): Product
     {
         $productQuery = Product::find()->title(Db::escapeParam($name));
@@ -239,8 +222,11 @@ class CsvImporter extends Importer
 
         if (! $existing) {
             $product->title = $name;
-            $product->typeId = VariantManager::getInstance()->commercePlugin->getProductTypes()->getAllProductTypeIds()[0];
             $product->isNewForSite = true;
+
+            /** @var CommercePlugin $plugin */
+            $plugin = Craft::$app->plugins->getPlugin('commerce');
+            $product->typeId = $plugin->getProductTypes()->getAllProductTypeIds()[0];
         }
 
         return $product;

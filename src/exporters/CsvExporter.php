@@ -12,7 +12,7 @@ class CsvExporter extends Exporter
 
     // Read as "From" => "To"
 
-    public $variantHeadings = [
+    private array $variantHeadings = [
         'SKU' => 'sku',
         'Stock' => 'stock',
         'Price' => 'price',
@@ -25,7 +25,24 @@ class CsvExporter extends Exporter
         'CrossRef_Num' => 'crossReferenceNumber',
     ];
 
-    public function normalizeVariantExport($variant, array $mapping = null): string
+    public function exportProduct(Product $product, array $variants): string
+    {
+        //if ($variants === null || !count($variants)) return null;
+
+        // TODO what is an optionSignal?
+        [$mapping, $optionSignal] = $this->resolveVariantExportMapping($product);
+
+        $payload = [
+            implode(',', array_merge(array_map(static fn($v) => $v[1], $mapping['variant']), $mapping['option'])),
+        ];
+        foreach ($variants as $variant) {
+            $payload[] = $this->normalizeVariantExport($variant, $mapping);
+        }
+
+        return implode("\n", $payload);
+    }
+
+    private function normalizeVariantExport($variant, array $mapping = null): string
     {
         if ($mapping === null || $mapping === []) {
             $mapping = $this->resolveVariantExportMapping($variant)[0];
@@ -44,7 +61,7 @@ class CsvExporter extends Exporter
         return implode(',', $payload);
     }
 
-    public function resolveVariantExportMapping(&$product, $optionSignal = null): array
+    private function resolveVariantExportMapping(&$product, $optionSignal = null): array
     {
         $optionSignal ??= 'Option : ';
 
@@ -65,22 +82,5 @@ class CsvExporter extends Exporter
             ],
             $optionSignal,
         ];
-    }
-
-    protected function normalizeExportPayload(Product $product, array $variants): string
-    {
-        //if ($variants === null || !count($variants)) return null;
-
-        // TODO what is an optionSignal?
-        [$mapping, $optionSignal] = $this->resolveVariantExportMapping($product);
-
-        $payload = [
-            implode(',', array_merge(array_map(static fn($v) => $v[1], $mapping['variant']), $mapping['option'])),
-        ];
-        foreach ($variants as $variant) {
-            $payload[] = $this->normalizeVariantExport($variant, $mapping);
-        }
-
-        return implode("\n", $payload);
     }
 }
