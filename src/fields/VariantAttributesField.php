@@ -61,17 +61,27 @@ class VariantAttributesField extends Field
             return;
         }
 
+        $whereParts = [
+            'type' => 'AND',
+            'conditions' => [],
+            'params' => [],
+        ];
         if (is_array($value)) {
             if (! array_is_list($value)) {
                 // If the value is an associative array, then we need to filter out variants that don't have the combination
                 // of key/value pairs in their field.
-                $this->applyAssociativeFilter($elementQuery, $value);
+                $this->generateAssociativeFilter($value, $whereParts);
             } else {
+                $whereParts = [
+                    'type' => 'OR',
+                    'conditions' => [],
+                    'params' => [],
+                ];
                 foreach ($value as $filter) {
                     if (is_array($filter) && ! array_is_list($filter)) {
-                        $this->applyAssociativeFilter($elementQuery, $filter);
+                        $this->generateAssociativeFilter($filter, $whereParts);
                     } elseif (is_string($filter)) {
-                        $this->applyStringFilter($elementQuery, $filter);
+                        $this->generateStringFilter($filter, $whereParts);
                     } else {
                         throw new \RuntimeException('$value items must be associative arrays or strings');
                     }
@@ -79,26 +89,22 @@ class VariantAttributesField extends Field
             }
         } elseif (is_string($value)) {
             // If the value is a string, then we filter out variants that don't have that value in their fields attributeValue property.
-            $this->applyStringFilter($elementQuery, $value);
+            $this->generateStringFilter($value, $whereParts);
         } else {
             throw new \RuntimeException('$value must be either an array or a string');
         }
+
+        $condition = implode(" {$whereParts['type']} ", $whereParts['conditions']);
+        $elementQuery->subQuery->andWhere($condition)->addParams($whereParts['params']);
     }
 
-    protected function defineRules(): array
-    {
-        return array_merge(parent::defineRules(), [
-
-        ]);
-    }
-
-    private function applyAssociativeFilter(ElementQueryInterface $elementQuery, array $filter): void
+    private function generateAssociativeFilter(array $filter, array &$whereParts): void
     {
         if (array_filter(
-            $filter,
-            static fn($value, $key): bool => ! is_string($value),
-            ARRAY_FILTER_USE_BOTH
-        ) !== []) {
+                $filter,
+                static fn($value, $key): bool => ! is_string($value),
+                ARRAY_FILTER_USE_BOTH
+            ) !== []) {
             throw new \RuntimeException('filter values must be strings');
         }
 
@@ -110,21 +116,19 @@ class VariantAttributesField extends Field
                 $keyParam = ":an{$paramKey}";
                 $valueParam = ":av{$paramKey}";
                 // This query checks that the path returned by json_search on each side is the same path.
-                $elementQuery->subQuery->andWhere(<<<EOQ
+                $whereParts['conditions'][] = <<<EOQ
 json_search(json_extract(content.{$column}, "$[*].attributeName"), 'one', {$keyParam})
 = json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam})
-EOQ)
-                    ->addParams([
-                        $keyParam => $key,
-                        $valueParam => $value,
-                    ]);
+EOQ;
+                $whereParts['params'][$keyParam] = $key;
+                $whereParts['params'][$valueParam] = $value;
             } else {
                 throw new \RuntimeException('PostgreSQL not yet implemented');
             }
         }
     }
 
-    private function applyStringFilter(ElementQueryInterface $elementQuery, string $value): void
+    private function generateStringFilter(string $value, array &$whereParts): void
     {
         $column = ElementHelper::fieldColumnFromField($this);
 
@@ -132,12 +136,11 @@ EOQ)
             $paramKey = StringHelper::randomString(4);
             $valueParam = ":av{$paramKey}";
             // This query checks that the path returned by json_search on each side is the same path.
-            $elementQuery->subQuery->andWhere(<<<EOQ
+            $whereParts['conditions'][] = <<<EOQ
 json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam}) is not null
-EOQ)
-                ->addParams([
-                    $valueParam => $value,
-                ]);
+EOQ;
+
+            $whereParts['params'][$valueParam] = $value;
         } else {
             throw new \RuntimeException('PostgreSQL not yet implemented');
         }
