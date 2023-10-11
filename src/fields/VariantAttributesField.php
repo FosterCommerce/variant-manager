@@ -4,14 +4,19 @@ namespace fostercommerce\variantmanager\fields;
 
 use Craft;
 use craft\base\ElementInterface;
+use craft\base\Field;
+use craft\elements\db\ElementQueryInterface;
+use craft\helpers\ElementHelper;
 use craft\helpers\Html;
 use craft\helpers\Json;
+use craft\helpers\StringHelper;
 use yii\db\Schema;
 
-class VariantAttributesField extends \craft\base\Field
+/**
+ * @property-read string $contentColumnType
+ */
+class VariantAttributesField extends Field
 {
-    public $columnType = Schema::TYPE_TEXT;
-
     public static function displayName(): string
     {
         return Craft::t('variant-manager', 'Variant Attributes');
@@ -22,28 +27,18 @@ class VariantAttributesField extends \craft\base\Field
         return 'array|null';
     }
 
-    public static function hasContentColumn(): bool
-    {
-        return true;
-    }
-
     public function getContentColumnType(): string
     {
-        return $this->columnType;
+        return Schema::TYPE_JSON;
     }
 
-    public function normalizeValue(mixed $value, ?\craft\base\ElementInterface $element = null): mixed
+    public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed
     {
         if (is_string($value) && $value !== '') {
             return Json::decodeIfJson($value);
         }
 
         return $value;
-    }
-
-    public function getSettingsHtml(): ?string
-    {
-        return null;
     }
 
     public function getInputHtml(mixed $value, ?ElementInterface $element = null): string
@@ -60,10 +55,91 @@ class VariantAttributesField extends \craft\base\Field
         ]);
     }
 
+    public function modifyElementsQuery(ElementQueryInterface $elementQuery, mixed $value): void
+    {
+        if (! isset($value)) {
+            return;
+        }
+
+        if (is_array($value)) {
+            if (! array_is_list($value)) {
+                // If the value is an associative array, then we need to filter out variants that don't have the combination
+                // of key/value pairs in their field.
+                $this->applyAssociativeFilter($elementQuery, $value);
+            } else {
+                foreach ($value as $filter) {
+                    if (is_array($filter) && ! array_is_list($filter)) {
+                        $this->applyAssociativeFilter($elementQuery, $filter);
+                    } elseif (is_string($filter)) {
+                        $this->applyStringFilter($elementQuery, $filter);
+                    } else {
+                        throw new \RuntimeException('$value items must be associative arrays or strings');
+                    }
+                }
+            }
+        } elseif (is_string($value)) {
+            // If the value is a string, then we filter out variants that don't have that value in their fields attributeValue property.
+            $this->applyStringFilter($elementQuery, $value);
+        } else {
+            throw new \RuntimeException('$value must be either an array or a string');
+        }
+    }
+
     protected function defineRules(): array
     {
         return array_merge(parent::defineRules(), [
 
         ]);
+    }
+
+    private function applyAssociativeFilter(ElementQueryInterface $elementQuery, array $filter): void
+    {
+        if (array_filter(
+            $filter,
+            static fn($value, $key): bool => ! is_string($value),
+            ARRAY_FILTER_USE_BOTH
+        ) !== []) {
+            throw new \RuntimeException('filter values must be strings');
+        }
+
+        $column = ElementHelper::fieldColumnFromField($this);
+
+        foreach ($filter as $key => $value) {
+            if (Craft::$app->getDb()->getIsMysql()) {
+                $paramKey = StringHelper::randomString(4);
+                $keyParam = ":an{$paramKey}";
+                $valueParam = ":av{$paramKey}";
+                // This query checks that the path returned by json_search on each side is the same path.
+                $elementQuery->subQuery->andWhere(<<<EOQ
+json_search(json_extract(content.{$column}, "$[*].attributeName"), 'one', {$keyParam})
+= json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam})
+EOQ)
+                    ->addParams([
+                        $keyParam => $key,
+                        $valueParam => $value,
+                    ]);
+            } else {
+                throw new \RuntimeException('PostgreSQL not yet implemented');
+            }
+        }
+    }
+
+    private function applyStringFilter(ElementQueryInterface $elementQuery, string $value): void
+    {
+        $column = ElementHelper::fieldColumnFromField($this);
+
+        if (Craft::$app->getDb()->getIsMysql()) {
+            $paramKey = StringHelper::randomString(4);
+            $valueParam = ":av{$paramKey}";
+            // This query checks that the path returned by json_search on each side is the same path.
+            $elementQuery->subQuery->andWhere(<<<EOQ
+json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam}) is not null
+EOQ)
+                ->addParams([
+                    $valueParam => $value,
+                ]);
+        } else {
+            throw new \RuntimeException('PostgreSQL not yet implemented');
+        }
     }
 }
