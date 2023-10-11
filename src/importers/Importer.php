@@ -13,12 +13,11 @@ abstract class Importer
     /**
      * @throws \RuntimeException
      */
-    public static function create(string $type): self
+    public static function create(ImportMimeType $importMimeType): self
     {
-        return match ($type) {
-            'text/csv' => new CsvImporter(),
-            'application/json' => new JsonImporter(),
-            default => throw new \RuntimeException('Unsupported input file type'),
+        return match ($importMimeType) {
+            ImportMimeType::Csv => new CsvImporter(),
+            ImportMimeType::Json => new JsonImporter(),
         };
     }
 

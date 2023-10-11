@@ -15,7 +15,7 @@ Returns an object with keys representing available attribute names for a product
 
 ```twig
 {% set attributeOptions = craft.variantManager.getAttributeOptions(7200, 'variantAttributes') %}
-{{ attributesOptions | json_encode }}
+{{ attributeOptions | json_encode }}
 ```
 
 Will output 
