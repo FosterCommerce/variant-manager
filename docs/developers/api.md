@@ -31,7 +31,7 @@ SKU, Stock, Price, Height, Width, Length, Weight, OptionA, OptionB, OptionC
 6060AC00, 500, 144.95, 0, 0, 0, 0, 100, 200, 500
 ```
 
-#### Download Parameter `download`
+#### Download parameter `download`
 
 The download parameter is used to output the results to a downloadable file, based on the format. If the format is a CSV, the browser will download a file with the products given name and a CSV extention.
 
@@ -39,15 +39,21 @@ You can pass a format parameter using the following: `download={value}`
 
 The supported values are boolean, either truthy (**true** or **1**) or falsey (**false** or **0**).
 
-#### Filter Options Parameter `filter-option`
+#### Filter attributes parameter
 
-The filter option parameter is used to filter out variants that don't meet the given option criteria.
+Filter out variants that don't include the given criteria.
 
-You can passa a filter-option parameter using the following `filter-option[]={optionName}%3D{optionValue}`. Note that it respects multiple parameters being passed and the name and value are separated by an encoded operator (equal sign).
+Use a `POST` request with a body like 
 
-#### Input 
-
-`filter-option[]=OptionA%3D20&filter-option[]=OptionB%3D100`
+```json
+{
+  "fieldHandle": "variantAttributes",
+  "conditions": {
+    "Attribute Name": "Value A",
+    "Another Attribute": "Value B"
+  }
+}
+```
 
 #### Output
 

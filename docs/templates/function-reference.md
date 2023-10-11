@@ -9,21 +9,37 @@ There are no stand-alone variables available presently.
 
 The following functions are available:
 
-#### `craft.variantManager.getVariantsByOptions()`
+### `craft.variantManager.getAttributeOptions(product, handle)`
 
-This is available to retrieve a list of variants based on a restricted set of attributes/options. The following arguments apply:
+Returns an object with keys representing available attribute names for a product. Each keys value holds an array of possible values.
 
-1. (Required) A product ID as an `int` that identifies the given product.
-2. (Required) An array of key-value pair of options as `string`s that identify the options you want to filter by.
+```twig
+{% set attributeOptions = craft.variantManager.getAttributeOptions(7200, 'variantAttributes') %}
+{{ attributesOptions | json_encode }}
+```
 
-##### Example
+Will output 
 
 ```
-{% set variants = craft.variantManager.getVariantsByOptions(
-    6000, 
-    [
-        ["What tire pressure are your tires running at?", "65PSI"],
-        ["What tire pressure are your tires running at?", "60PSI"]
-    ],
-) %}
+{
+  "What tire pressure are your tires running at?": [
+    "60PSI",
+    "65PSI"
+  ],
+  "How many Cat’s Eye gauges to do need?": [
+    "2 UNIT PACK"
+  ],
+  "What is your tire size?": [
+    "22.5\" & 24.5\"",
+    "17.5\"",
+    "19.5\""
+  ],
+  "What type of hose material would you like?": [
+    "RUBBER HOSE"
+  ],
+  "What is your wheel type?": [
+    "DUAL TIRES",
+    "SINGLE TIRES (ONLY 1 HOSE ON CAT'S EYE)"
+  ]
+}
 ```

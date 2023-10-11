@@ -8,6 +8,7 @@ use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exporters\Exporter;
 use fostercommerce\variantmanager\importers\Importer;
 use Throwable;
+use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -67,6 +68,7 @@ class ProductVariantsController extends Controller
     /**
      * @throws \JsonException
      * @throws NotFoundHttpException
+     * @throws InvalidConfigException
      */
     public function actionExport(string $id): void
     {
@@ -77,10 +79,9 @@ class ProductVariantsController extends Controller
             FILTER_VALIDATE_BOOLEAN,
             FILTER_NULL_ON_FAILURE
         );
-        $options = $this->request->getQueryParam('filter-option');
 
         $exporter = Exporter::create($format);
-        $result = $exporter->export($id, $options);
+        $result = $exporter->export($id, $this->request->getBodyParams());
 
         if ($result === false) {
             throw new NotFoundHttpException("Product with ID {$id} not found");

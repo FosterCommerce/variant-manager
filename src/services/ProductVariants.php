@@ -5,40 +5,42 @@ namespace fostercommerce\variantmanager\services;
 use craft\base\Component;
 use craft\commerce\elements\Product;
 
-use craft\commerce\elements\Variant;
-
 /**
  * ProductVariants
  */
 class ProductVariants extends Component
 {
-    /**
-     * @return Variant[]
-     */
-    public function getVariantsByOptions(Product $product, $options): array
+    public function getAttributeOptions(Product|int $product, string $fieldHandle): array
     {
-        $map = [];
+        if (is_int($product)) {
+            $product = Product::find()->id($product)->one();
 
-        foreach ($product->variants[0]->variantAttributes as $key => $value) {
-            $map[$value['attributeName']] = $key;
+            if (! isset($product)) {
+                throw new \RuntimeException("Product not found");
+            }
         }
 
-        $variants = array_filter($product->variants, static function($variant) use ($map, $options): bool {
-            foreach ($options as $option) {
-                if (! array_key_exists($option[0], $map)) {
-                    continue;
-                }
+        $variants = [];
+        foreach ($product->variants as $variant) {
+            // Turn the attributes into associative arrays
+            $variants[] = array_reduce(
+                $variant->$fieldHandle,
+                static function ($carry, $item) {
+                    $carry[$item['attributeName']] = $item['attributeValue'];
+                    return $carry;
+                },
+                []
+            );
+        }
 
-                if (! str_contains((string) $variant->variantAttributes[$map[$option[0]]]['attributeValue'], (string) $option[1])) {
-                    continue;
-                }
-
-                return true;
+        return array_map(static function ($value) {
+            // Turn the value into an array if it isn't already one.
+            if (! is_array($value)) {
+                return [$value];
             }
 
-            return false;
-        });
-
-        return array_values($variants);
+            // Otherwise make sure the items are unique
+            return array_values(array_unique($value));
+        }, array_merge_recursive(...$variants));
     }
 }
