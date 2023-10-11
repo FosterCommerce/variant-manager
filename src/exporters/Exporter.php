@@ -4,7 +4,6 @@ namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
-use fostercommerce\variantmanager\VariantManager;
 
 abstract class Exporter
 {
@@ -17,12 +16,11 @@ abstract class Exporter
     /**
      * @throws \RuntimeException
      */
-    public static function create(string $type = 'csv'): self
+    public static function create(ExportType $exportType): self
     {
-        return match ($type) {
-            'csv' => new CsvExporter(),
-            'json' => new JsonExporter(),
-            default => throw new \RuntimeException('Invalid export type'),
+        return match ($exportType) {
+            ExportType::Csv => new CsvExporter(),
+            ExportType::Json => new JsonExporter(),
         };
     }
 
@@ -37,7 +35,7 @@ abstract class Exporter
 
         $fieldHandle = $options['fieldHandle'] ?? 'variantAttributes';
         $conditions = $options['conditions'] ?? [];
-        $variants = Variant::find()->product($product)->$fieldHandle($conditions)->all();
+        $variants = Variant::find()->product($product)->{$fieldHandle}($conditions)->all();
 
         return [
             'title' => $product->title,

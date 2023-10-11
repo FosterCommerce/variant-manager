@@ -6,7 +6,9 @@ use craft\commerce\elements\Product;
 use craft\web\Controller;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exporters\Exporter;
+use fostercommerce\variantmanager\exporters\ExportType;
 use fostercommerce\variantmanager\importers\Importer;
+use fostercommerce\variantmanager\importers\ImportMimeType;
 use Throwable;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
@@ -59,7 +61,7 @@ class ProductVariantsController extends Controller
                 throw new BadRequestHttpException('No file was uploaded');
             }
 
-            Importer::create($uploadedFile->type)->import($uploadedFile);
+            Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile);
         } catch (Throwable $throwable) {
             throw new ServerErrorHttpException($throwable->getMessage());
         }
@@ -80,7 +82,7 @@ class ProductVariantsController extends Controller
             FILTER_NULL_ON_FAILURE
         );
 
-        $exporter = Exporter::create($format);
+        $exporter = Exporter::create(ExportType::from($format));
         $result = $exporter->export($id, $this->request->getBodyParams());
 
         if ($result === false) {

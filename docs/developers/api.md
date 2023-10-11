@@ -3,13 +3,13 @@
 
 The API is an important fixture of the plugin that provides it's functionality. It is
 
-### Exporting `api/product-variants/export`
+### Exporting
 
 You can find the export API endpoint at `api/product-variants/export/{id}`. 
 
 The endpoint expects a product ID to be passed (replacing `{id}`) and supports the following query parameters.
 
-#### Format Parameter `format`
+#### Format Parameter
 
 The format parameter is used to change the format of the data output (i.e. as a CSV, XML, JSON, YAML and et cetera).
 
@@ -31,7 +31,7 @@ SKU, Stock, Price, Height, Width, Length, Weight, OptionA, OptionB, OptionC
 6060AC00, 500, 144.95, 0, 0, 0, 0, 100, 200, 500
 ```
 
-#### Download parameter `download`
+#### Download parameter
 
 The download parameter is used to output the results to a downloadable file, based on the format. If the format is a CSV, the browser will download a file with the products given name and a CSV extention.
 
