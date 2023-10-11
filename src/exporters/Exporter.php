@@ -26,22 +26,18 @@ abstract class Exporter
         };
     }
 
-    public function export(string $productId, ?array $options): array|bool
+    public function export(string $productId, array $options = []): array|bool
     {
         /** @var Product|null $product */
-        $product = Product::find()
-            ->id($productId)
-            ->one();
+        $product = Product::find()->id($productId)->one();
 
         if (! isset($product)) {
             return false;
         }
 
-        if ($options !== null && $options !== []) {
-            $variants = VariantManager::getInstance()->productVariants->getVariantsByOptions($product, $options);
-        } else {
-            $variants = $product->variants;
-        }
+        $fieldHandle = $options['fieldHandle'] ?? 'variantAttributes';
+        $conditions = $options['conditions'] ?? [];
+        $variants = Variant::find()->product($product)->$fieldHandle($conditions)->all();
 
         return [
             'title' => $product->title,
