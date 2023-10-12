@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\importers;
 
 use Craft;
 use craft\commerce\elements\Product;
+use craft\commerce\elements\Variant;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
@@ -58,7 +59,9 @@ class CsvImporter extends Importer
         }
 
         $product->setVariants($variants);
-        Craft::$app->elements->saveElement($product, false, false, true);
+        // runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
+        // See: https://github.com/craftcms/commerce/pull/3297
+        Craft::$app->elements->saveElement($product, true, false, true);
     }
 
     /**
@@ -74,6 +77,7 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
+     * @return Variant[]
      */
     private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -101,6 +105,7 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
+     * @return Variant[]
      */
     private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -134,7 +139,7 @@ class CsvImporter extends Importer
         return $variants;
     }
 
-    private function normalizeVariantImport($variant, array $mapping): array
+    private function normalizeVariantImport($variant, array $mapping): Variant
     {
         $attributes = [];
         foreach ($mapping['option'] as $field) {
@@ -166,7 +171,7 @@ class CsvImporter extends Importer
             $variant['hasUnlimitedStock'] = true;
         }
 
-        return $variant;
+        return new Variant($variant);
     }
 
     private function stripCurrency($amount)
