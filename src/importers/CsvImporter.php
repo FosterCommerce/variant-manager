@@ -77,7 +77,6 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
-     * @return Variant[]
      */
     private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -105,7 +104,6 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
-     * @return Variant[]
      */
     private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -139,7 +137,7 @@ class CsvImporter extends Importer
         return $variants;
     }
 
-    private function normalizeVariantImport($variant, array $mapping): Variant
+    private function normalizeVariantImport($variant, array $mapping): array
     {
         $attributes = [];
         foreach ($mapping['option'] as $field) {
@@ -171,7 +169,7 @@ class CsvImporter extends Importer
             $variant['hasUnlimitedStock'] = true;
         }
 
-        return new Variant($variant);
+        return $variant;
     }
 
     private function stripCurrency($amount)
