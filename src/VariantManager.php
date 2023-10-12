@@ -8,7 +8,9 @@ use craft\base\Plugin;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
+use craft\events\RegisterUserPermissionsEvent;
 use craft\services\Fields;
+use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -100,6 +102,7 @@ class VariantManager extends Plugin
                 $this->registerCpRoutes();
             }
 
+            $this->registerPermissions();
             $this->registerTwig();
             $this->registerFields();
             $this->registerViewHooks();
@@ -170,5 +173,23 @@ class VariantManager extends Plugin
                 'product' => $context['product'],
             ]
         ));
+    }
+
+    private function registerPermissions(): void
+    {
+        Event::on(UserPermissions::class, UserPermissions::EVENT_REGISTER_PERMISSIONS, static function(RegisterUserPermissionsEvent $registerUserPermissionsEvent): void {
+            $registerUserPermissionsEvent->permissions[] = [
+                'heading' => Craft::t('variant-manager', 'Variant Manager'),
+                'permissions' => [
+                    'variant-manager:import' => [
+                        'label' => Craft::t('variant-manager', 'Import products and variants'),
+                        'warning' => Craft::t('variant-manager', 'Imports can potentially overwrite existing variants.'),
+                    ],
+                    'variant-manager:export' => [
+                        'label' => Craft::t('variant-manager', 'Export products and variants'),
+                    ],
+                ],
+            ];
+        });
     }
 }

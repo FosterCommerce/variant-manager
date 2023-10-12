@@ -28,8 +28,7 @@ class ProductVariantsController extends Controller
      */
     public function actionProductExists(): Response
     {
-        // TODO update to use $this->requiresPermission(..) instead.
-        $this->requireAdmin();
+        $this->requirePermission('variant-manager:import');
 
         $product = Product::find()
             ->title($this->request->getQueryParam('name'))
@@ -48,8 +47,8 @@ class ProductVariantsController extends Controller
     public function actionUpload(): void
     {
         $this->requirePostRequest();
-        // TODO update to use $this->requiresPermission(..) instead.
-        $this->requireAdmin();
+
+        $this->requirePermission('variant-manager:import');
 
         try {
             $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
@@ -71,6 +70,8 @@ class ProductVariantsController extends Controller
     public function actionExport(string $id): void
     {
         // TODO update to use $this->requiresPermission(..) for exporting data.
+        // $this->requirePermission("variant-manager:export");
+
         $format = $this->request->getQueryParam('format', 'json');
         $download = filter_var(
             $this->request->getQueryParam('download', false),
