@@ -1,6 +1,14 @@
+{% set canImport = currentUser.can("variant-manager:import") %}
 <input type="file" id="{{ id }}" name="{{ name }}" style="display: none;">
-<button type="button" class="btn" data-icon="upload" style="position: relative; overflow: hidden;"
-				id="{{ id }}-btn">{{ 'Upload Product'|t }}</button>
+<button
+	type="button"
+	{% if not canImport %}disabled{% endif %}
+	class="btn {% if not canImport %}disabled{% endif %}"
+	data-icon="upload"
+	style="position: relative; overflow: hidden;"
+	id="{{ id }}-btn"
+>{{ 'Upload Product'|t }}
+</button>
 
 <span id="{{ id }}-progress"></span>
 
@@ -21,119 +29,57 @@
 					style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;"></button>
 </div>
 
-<script type="text/javascript">
-	let field = document.getElementById('{{ namespacedId }}');
-	let btn = document.getElementById('{{ namespacedId }}-btn');
+{% if canImport %}
+	<script type="text/javascript">
+		let field = document.getElementById('{{ namespacedId }}');
+		let btn = document.getElementById('{{ namespacedId }}-btn');
 
-	let message = document.getElementById('{{ namespacedId }}-message');
-	let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
-	let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
-	for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
-		el.addEventListener('click', closeModal);
-	}
+		let message = document.getElementById('{{ namespacedId }}-message');
+		let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
+		let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
+		for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
+			el.addEventListener('click', closeModal);
+		}
 
-	let form = field.closest('form');
+		let form = field.closest('form');
 
-	btn.addEventListener('click', openFileDialog);
-	confirmBtn.addEventListener('click', confirmChanges);
-	field.addEventListener('change', onSelectedFile);
+		btn.addEventListener('click', openFileDialog);
+		confirmBtn.addEventListener('click', confirmChanges);
+		field.addEventListener('change', onSelectedFile);
 
-	form.addEventListener('submit', (e) => {
-		e.preventDefault();
+		form.addEventListener('submit', (e) => {
+			e.preventDefault();
 
-		const file = new FormData(form).get('variant-uploads');
-		const productName = file.name.split('.').slice(0, -1).join('.');
+			const file = new FormData(form).get('variant-uploads');
+			const productName = file.name.split('.').slice(0, -1).join('.');
 
-		fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
-			method: 'POST',
-			headers: {
-				'Accept': 'application/json',
-				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-				'X-Requested-With': 'XMLHttpRequest',
-			},
-		}).then(async (response) => {
-			return response.json()
-		}).then((result) => {
-			if (!result.exists) {
-				confirmBtn.innerHTML = "Create Product";
-				confirmBtn.classList.remove("edit", "hidden");
-				confirmBtn.classList.add("add");
-
-				message.innerHTML =
-					`Are you sure you want to create a new product named <strong>"${productName}"</strong>?`;
-			} else {
-				confirmBtn.innerHTML = "Edit Product";
-				confirmBtn.classList.remove("add", "hidden");
-				confirmBtn.classList.add("edit");
-
-				message.innerHTML =
-					`Are you sure you want to edit an existing product named <strong>"${productName}"</strong>?`;
-			}
-
-			modal.show();
-		}).catch((error) => {
-			try {
-				error = JSON.parse(error.message);
-			} catch (E) {
-				error = error;
-			}
-
-			confirmBtn.classList.add("hidden");
-
-			if (error.statusText) {
-				message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;
-			} else if (error.message) {
-				message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
-			}
-
-			modal.show();
-		});
-
-		return true;
-	});
-
-	function closeModal(event) {
-		modal.hide();
-		form.reset();
-	}
-
-	function openFileDialog(event) {
-		field.click();
-	}
-
-	function onSelectedFile(event) {
-		const files = event.target.files;
-		parseFile(files[0]);
-	}
-
-	function confirmChanges(event) {
-		try {
-			const payload = new FormData(form);
-			const file = payload.get("variant-uploads");
-
-			payload.set(
-				"variant-uploads",
-				new File([file], file.name, {type: "text/csv"})
-			);
-
-			fetch('/admin/variant-manager/upload', {
-				method: "POST",
+			fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
+				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
 					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
 					'X-Requested-With': 'XMLHttpRequest',
 				},
-				body: payload,
 			}).then(async (response) => {
-				if (!response.ok) {
-					if (response.statusText) {
-						throw Error(response.statusText);
-					} else {
-						throw Error(JSON.stringify(await response.json()));
-					}
-				}
+				return response.json()
 			}).then((result) => {
-				modal.hide();
+				if (!result.exists) {
+					confirmBtn.innerHTML = "Create Product";
+					confirmBtn.classList.remove("edit", "hidden");
+					confirmBtn.classList.add("add");
+
+					message.innerHTML =
+						`Are you sure you want to create a new product named <strong>"${productName}"</strong>?`;
+				} else {
+					confirmBtn.innerHTML = "Edit Product";
+					confirmBtn.classList.remove("add", "hidden");
+					confirmBtn.classList.add("edit");
+
+					message.innerHTML =
+						`Are you sure you want to edit an existing product named <strong>"${productName}"</strong>?`;
+				}
+
+				modal.show();
 			}).catch((error) => {
 				try {
 					error = JSON.parse(error.message);
@@ -148,18 +94,82 @@
 				} else if (error.message) {
 					message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
 				}
-			})
-		} catch (E) {
-			console.log(E);
+
+				modal.show();
+			});
+
+			return true;
+		});
+
+		function closeModal(event) {
+			modal.hide();
+			form.reset();
 		}
-	}
 
-	function parseFile(file) {
-		// Using "form.submit() isn't consistent so we have to rely on dispatching the submit event manually."
-		form.dispatchEvent(new Event('submit', {'cancelable': true}));
-	}
+		function openFileDialog(event) {
+			field.click();
+		}
 
-</script>
+		function onSelectedFile(event) {
+			const files = event.target.files;
+			parseFile(files[0]);
+		}
+
+		function confirmChanges(event) {
+			try {
+				const payload = new FormData(form);
+				const file = payload.get("variant-uploads");
+
+				payload.set(
+					"variant-uploads",
+					new File([file], file.name, {type: "text/csv"})
+				);
+
+				fetch('/admin/variant-manager/upload', {
+					method: "POST",
+					headers: {
+						'Accept': 'application/json',
+						'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+						'X-Requested-With': 'XMLHttpRequest',
+					},
+					body: payload,
+				}).then(async (response) => {
+					if (!response.ok) {
+						if (response.statusText) {
+							throw Error(response.statusText);
+						} else {
+							throw Error(JSON.stringify(await response.json()));
+						}
+					}
+				}).then((result) => {
+					modal.hide();
+				}).catch((error) => {
+					try {
+						error = JSON.parse(error.message);
+					} catch (E) {
+						error = error;
+					}
+
+					confirmBtn.classList.add("hidden");
+
+					if (error.statusText) {
+						message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;
+					} else if (error.message) {
+						message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
+					}
+				})
+			} catch (E) {
+				console.log(E);
+			}
+		}
+
+		function parseFile(file) {
+			// Using "form.submit() isn't consistent so we have to rely on dispatching the submit event manually."
+			form.dispatchEvent(new Event('submit', {'cancelable': true}));
+		}
+
+	</script>
+{% endif %}
 
 {% js %}
 	confirmationToken = null;
