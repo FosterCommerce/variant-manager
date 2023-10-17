@@ -22,8 +22,7 @@ class ProductVariantsController extends Controller
     protected array|bool|int $allowAnonymous = [
         'product-exists' => self::ALLOW_ANONYMOUS_NEVER,
         'upload' => self::ALLOW_ANONYMOUS_NEVER,
-        // TODO this needs to be _NEVER once dependent sites have been updated to remove usage of this action.
-        'export' => self::ALLOW_ANONYMOUS_LIVE,
+        'export' => self::ALLOW_ANONYMOUS_NEVER,
     ];
 
     /**
@@ -73,8 +72,7 @@ class ProductVariantsController extends Controller
      */
     public function actionExport(string $id): void
     {
-        // TODO update to use $this->requiresPermission(..) for exporting data.
-        // $this->requirePermission("variant-manager:export");
+        $this->requirePermission('variant-manager:export');
 
         $format = $this->request->getQueryParam('format', 'json');
         $download = filter_var(
