@@ -3,6 +3,7 @@
 namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
+use fostercommerce\variantmanager\VariantManager;
 
 class CsvExporter extends Exporter
 {
@@ -10,44 +11,32 @@ class CsvExporter extends Exporter
 
     public string $mimetype = 'text/csv';
 
-    // Read as "From" => "To"
-
-    private array $variantHeadings = [
-        'SKU' => 'sku',
-        'Stock' => 'stock',
-        'Price' => 'price',
-        'Height' => 'height',
-        'Width' => 'width',
-        'Length' => 'length',
-        'Weight' => 'weight',
-        // TODO : Hard-coding these in for now, we should pull these from the plugins config file
-        'PART_NO' => 'mpn',
-        'CrossRef_Num' => 'crossReferenceNumber',
-    ];
-
     public function exportProduct(Product $product, array $variants): string
     {
         $mapping = $this->resolveVariantExportMapping($product);
 
-        $payload = [
-            implode(',', array_merge(array_map(static fn($v) => $v[1], $mapping['variant']), $mapping['option'])),
+        // TODO CSV generation should use League\Csv
+        $results = [
+            // Initialize with headers
+            implode(',', array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['option'])),
         ];
+
         foreach ($variants as $variant) {
-            $payload[] = $this->normalizeVariantExport($variant, $mapping);
+            $results[] = $this->normalizeVariantExport($variant, $mapping);
         }
 
-        return implode("\n", $payload);
+        return implode("\n", $results);
     }
 
     private function normalizeVariantExport($variant, array $mapping): string
     {
         $payload = [];
 
-        foreach ($mapping['variant'] as [$from, $to]) {
-            $payload[] = $variant->{$from};
+        foreach ($mapping['variant'] as [$fieldHandle, $header]) {
+            $payload[] = $variant->{$fieldHandle};
         }
 
-        foreach ($variant->variantAttributes as $attribute) {
+        foreach ($variant->variantAttributes ?? [] as $attribute) {
             $payload[] = $attribute['attributeValue'];
         }
 
@@ -60,13 +49,15 @@ class CsvExporter extends Exporter
         // TODO This should be a config probably?
         $optionSignal = 'Option : ';
 
+        $map = VariantManager::getInstance()->getSettings()->getProductTypeMapping($product->type->handle);
+
         $variantMap = [];
-        foreach (array_keys($this->variantHeadings) as $i => $heading) {
-            $variantMap[$i] = [$this->variantHeadings[$heading], $heading];
+        foreach (array_keys($map) as $i => $heading) {
+            $variantMap[$i] = [$map[$heading], $heading];
         }
 
         $optionMap = [];
-        foreach ($product->variants[0]->variantAttributes as $attribute) {
+        foreach ($product->variants[0]->variantAttributes ?? [] as $attribute) {
             $optionMap[] = $optionSignal . $attribute['attributeName'];
         }
 

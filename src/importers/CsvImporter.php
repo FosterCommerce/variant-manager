@@ -5,11 +5,13 @@ namespace fostercommerce\variantmanager\importers;
 use Craft;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
+use craft\commerce\helpers\Product as ProductHelper;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
+use fostercommerce\variantmanager\VariantManager;
 use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
 use League\Csv\Statement;
@@ -20,19 +22,19 @@ use yii\base\InvalidConfigException;
 
 class CsvImporter extends Importer
 {
-    // Read as "From" => "To"
-
-    private array $variantHeadings = [
-        'SKU' => 'sku',
-        'Stock' => 'stock',
-        'Price' => 'price',
-        'Height' => 'height',
-        'Width' => 'width',
-        'Length' => 'length',
-        'Weight' => 'weight',
-        // TODO : Hard-coding these in for now, we should pull these from the plugins config file
-        'PART_NO' => 'mpn',
-        'CrossRef_Num' => 'crossReferenceNumber',
+    private const STANDARD_VARIANT_FIELDS = [
+        'enabled',
+        'isDefault',
+        'sku',
+        'price',
+        'width',
+        'height',
+        'length',
+        'weight',
+        'stock',
+        'hasUnlimitedStock',
+        'minQty',
+        'maxQty',
     ];
 
     /**
@@ -77,6 +79,7 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
+     * @throws InvalidConfigException
      */
     private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -88,14 +91,14 @@ class CsvImporter extends Importer
         }
 
         $variants = [];
-        foreach ($tabularDataReader->getRecords() as $i => $record) {
+        foreach ($tabularDataReader->getRecords() as $record) {
             $record = array_values($record);
 
             if ($record === []) {
                 continue;
             }
 
-            $variants["new{$i}"] = $this->normalizeVariantImport($record, $mapping);
+            $variants[] = $this->normalizeVariantImport($product, $record, $mapping, false);
         }
 
         return $variants;
@@ -104,6 +107,7 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidSkusException
      * @throws UnableToProcessCsv
+     * @throws InvalidConfigException
      */
     private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
@@ -113,32 +117,31 @@ class CsvImporter extends Importer
         // an SKU should at most be affiliated with a single (one) product.
 
         // Similarly, if the SKUs aren't associated to current product if it exists then that's problematic too.
-
         if ((! array_key_exists($product->id, $mappedSKUs) && (is_countable($mappedSKUs) ? count($mappedSKUs) : 0) !== 0) || (is_countable($mappedSKUs) ? count($mappedSKUs) : 0) > 1) {
             throw new InvalidSkusException($product, $mappedSKUs);
         }
 
         $variants = [];
-        foreach ($tabularDataReader->getRecords() as $i => $record) {
+        foreach ($tabularDataReader->getRecords() as $record) {
             $record = array_values($record);
 
             if ($record === []) {
                 continue;
             }
 
-            // Commerce expects the key for an existing variant to be an integer, not a string.
-            // So consequently, we're responsible for casting it to the correct type.
-
-            $key = (array_key_exists($record[$mapping['variant']['sku']], $mappedSKUs[$product->id])) ? (int) $product->id : "new{$i}";
-
-            $variants[$key] = $this->normalizeVariantImport($record, $mapping);
+            $variantId = Variant::find()->product($product)->sku($record[$mapping['variant']['sku']])->one()->id;
+            $variants[] = $this->normalizeVariantImport($product, $record, $mapping, $variantId);
         }
 
         return $variants;
     }
 
-    private function normalizeVariantImport($variant, array $mapping): array
+    /**
+     * @throws InvalidConfigException
+     */
+    private function normalizeVariantImport(Product $product, array $variant, array $mapping, bool|int $variantId): Variant
     {
+        // Generate attributes for variant attributes field
         $attributes = [];
         foreach ($mapping['option'] as $field) {
             $attributes[] = [
@@ -147,45 +150,38 @@ class CsvImporter extends Importer
             ];
         }
 
-        $variant = [
-            'price' => $this->stripCurrency($variant[$mapping['variant']['price']] ?? 0),
-            'sku' => $variant[$mapping['variant']['sku']],
-            'stock' => $variant[$mapping['variant']['stock']],
-            'height' => $variant[$mapping['variant']['height']] ?? 0,
-            'width' => $variant[$mapping['variant']['width']] ?? 0,
-            'length' => $variant[$mapping['variant']['length']] ?? 0,
-            'weight' => $variant[$mapping['variant']['weight']] ?? 0,
-            'minQty' => null,
-            'maxQty' => null,
-            'fields' => [
-                'variantAttributes' => $attributes,
-                // TODO : Hard-coding these in for now, we should pull these from the plugins config file
-                'mpn' => $variant[$mapping['variant']['mpn']],
-                'crossReferenceNumber' => $variant[$mapping['variant']['crossReferenceNumber']],
-            ],
+        $mapped = [];
+        $fields = [
+            // TODO this field handle can't be hardcoded
+            'variantAttributes' => $attributes,
         ];
-
-        if ($variant['stock'] === '') {
-            $variant['hasUnlimitedStock'] = true;
+        foreach ($mapping['variant'] as $fieldHandle => $index) {
+            if ($index !== null) {
+                if (in_array($fieldHandle, self::STANDARD_VARIANT_FIELDS, true)) {
+                    $mapped[$fieldHandle] = $variant[$index];
+                } else {
+                    $fields[$fieldHandle] = $variant[$index];
+                }
+            }
         }
 
-        return $variant;
-    }
+        $mapped['fields'] = $fields;
 
-    private function stripCurrency($amount)
-    {
-        $amount = str_replace(['?', ','], '', mb_convert_encoding((string) $amount, 'UTF-8', 'UTF-8'));
-
-        if (is_numeric($amount)) {
-            return $amount;
+        if (! array_key_exists('minQty', $mapped)) {
+            $mapped['minQty'] = null;
         }
 
-        $localeCode = 'en_US';
-        $currencyCode = 'USD';
+        if (! array_key_exists('maxQty', $mapped)) {
+            $mapped['maxQty'] = null;
+        }
 
-        $numberFormatter = new \NumberFormatter($localeCode, \NumberFormatter::DECIMAL);
+        $variantElement = ProductHelper::populateProductVariantModel($product, $mapped, $variantId === false ? 'new' : $variantId);
 
-        return $numberFormatter->parseCurrency(trim($amount), $currencyCode);
+        if (($mapped['stock'] ?? '') === '') {
+            $variantElement->hasUnlimitedStock = true;
+        }
+
+        return $variantElement;
     }
 
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
@@ -195,11 +191,13 @@ class CsvImporter extends Importer
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
 
-        $variantMap = array_fill_keys(array_values($this->variantHeadings), -1);
+        $productTypeMap = VariantManager::getInstance()->getSettings()->getProductTypeMapping('general');
+        $variantMap = array_fill_keys(array_values($productTypeMap), null);
+
         $optionMap = [];
         foreach ($tabularDataReader->getHeader() as $i => $heading) {
-            if (array_key_exists(trim($heading), $this->variantHeadings)) {
-                $variantMap[$this->variantHeadings[trim($heading)]] = $i;
+            if (array_key_exists(trim($heading), $productTypeMap)) {
+                $variantMap[$productTypeMap[trim($heading)]] = $i;
             } elseif (str_starts_with($heading, $optionSignal)) {
                 $optionMap[] = [$i, explode($optionSignal, $heading)[1]];
             }

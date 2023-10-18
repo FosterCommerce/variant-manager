@@ -14,8 +14,8 @@
  */
 
 return [
-    'productFieldMap' => [
-        "*" => [
+    'variantFieldMap' => [
+        '*' => [
             'sku' => 'sku',
             'stock' => 'stock',
             'price' => 'price',

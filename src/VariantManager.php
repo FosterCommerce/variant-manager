@@ -6,14 +6,12 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\events\RegisterComponentTypesEvent;
-use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\services\Fields;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
-use craft\web\View;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ProductVariants;
@@ -74,7 +72,7 @@ class VariantManager extends Plugin
      */
     protected function createSettingsModel(): ?Model
     {
-        return new SettingS();
+        return new Settings();
     }
 
     /**
