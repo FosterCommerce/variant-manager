@@ -9,5 +9,7 @@ use craft\base\Model;
  */
 class Settings extends Model
 {
-    public array $productTypes = [];
+    public array $productFieldMap = [
+        "*" => [],
+    ];
 }

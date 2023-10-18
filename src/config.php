@@ -1,14 +1,5 @@
 <?php
 /**
- * Variant Manager
- *
- * A companion plugin to the Foster Checkout Commerce templates.
- *
- * @link      https://fostercommerce.com
- * @copyright Copyright (c) 2023 Foster Commerce
- */
-
-/**
  * Variant Manager config.php
  *
  * This file exists only as a template for the Variant Manager settings.
@@ -23,5 +14,15 @@
  */
 
 return [
-    'productTypes' => [],
+    'productFieldMap' => [
+        "*" => [
+            'sku' => 'sku',
+            'stock' => 'stock',
+            'price' => 'price',
+            'height' => 'height',
+            'width' => 'width',
+            'length' => 'length',
+            'weight' => 'weight',
+        ],
+    ],
 ];

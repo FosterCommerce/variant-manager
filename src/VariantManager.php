@@ -74,7 +74,7 @@ class VariantManager extends Plugin
      */
     protected function createSettingsModel(): ?Model
     {
-        return Craft::createObject(Settings::class);
+        return new SettingS();
     }
 
     /**
@@ -94,10 +94,6 @@ class VariantManager extends Plugin
     private function attachEventHandlers(): void
     {
         if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
-            Event::on(View::class, View::EVENT_REGISTER_SITE_TEMPLATE_ROOTS, static function(RegisterTemplateRootsEvent $registerTemplateRootsEvent): void {
-                $registerTemplateRootsEvent->roots['variant-manager'] = __DIR__ . '/templates';
-            });
-
             if (Craft::$app->getRequest()->getIsCpRequest()) {
                 $this->registerCpRoutes();
             }
