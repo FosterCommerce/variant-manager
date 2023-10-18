@@ -3,6 +3,8 @@
 namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
+use craft\commerce\elements\Variant;
+use fostercommerce\variantmanager\VariantManager;
 
 class JsonExporter extends Exporter
 {
@@ -12,67 +14,46 @@ class JsonExporter extends Exporter
 
     public string $returnType = 'application/json';
 
-    private array $variantHeadings = [
-        'id' => 'id',
-        'title' => 'title',
-        'sku' => 'sku',
-        'stock' => 'stock',
-        'minQty' => 'minQty',
-        'maxQty' => 'maxQty',
-        'onSale' => 'onSale',
-        'price' => 'price',
-        'priceAsCurrency' => 'priceAsCurrency',
-        'salePrice' => 'salePrice',
-        'salePriceAsCurrency' => 'salePriceAsCurrency',
-        'height' => 'height',
-        'width' => 'width',
-        'length' => 'length',
-        'weight' => 'weight',
-        'isAvailable' => 'isAvailable',
-        // TODO : Hard-coding these in for now, we should pull these from the plugins config file
-        'mpn' => 'mpn',
-        'crossReferenceNumber' => 'crossReferenceNumber',
-    ];
-
-    public function exportProduct(Product $product, $variants): array
+    public function exportProduct(Product $product, array $variants): array
     {
         if (empty($product->variants)) {
             return [];
         }
 
-        $payload = [];
+        $results = [];
 
         foreach ($variants as $variant) {
-            $payload[] = $this->normalizeVariant($variant);
+            $results[] = $this->normalizeVariant($variant);
         }
 
-        return $payload;
+        return $results;
     }
 
-    private function normalizeVariant($variant): array
+    private function normalizeVariant(Variant $variant): array
     {
-        $payload = [];
+        $result = [];
 
-        foreach ($this->variantHeadings as $key => $value) {
-            $payload[$value] = $variant->{$key};
+        $fields = array_values(VariantManager::getInstance()->getSettings()->getProductTypeMapping($variant->product->type->handle));
+
+        foreach ($fields as $field) {
+            $result[$field] = $variant->{$field};
         }
 
-        $stockMapping = $this->variantHeadings['stock'];
-        if ($stockMapping && $variant->hasUnlimitedStock) {
-            $payload[$stockMapping] = '';
+        if (in_array('stock', $fields, true) && $variant->hasUnlimitedStock) {
+            $result['stock'] = '';
         }
 
-        $payload['attributes'] = [];
+        $result['attributes'] = [];
 
         if ($variant->variantAttributes) {
             foreach ($variant->variantAttributes as $attribute) {
-                $payload['attributes'][] = [
+                $result['attributes'][] = [
                     'name' => $attribute['attributeName'],
                     'value' => $attribute['attributeValue'],
                 ];
             }
         }
 
-        return $payload;
+        return $result;
     }
 }
