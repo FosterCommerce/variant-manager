@@ -141,12 +141,18 @@ class CsvImporter extends Importer
      */
     private function normalizeVariantImport(Product $product, array $variant, array $mapping, bool|int $variantId): Variant
     {
+        $emptyOptionValue = VariantManager::getInstance()->getSettings()->emptyOptionValue;
         // Generate attributes for variant attributes field
         $attributes = [];
         foreach ($mapping['option'] as $field) {
+            $value = trim((string) $variant[$field[0]]);
+            if ($value === '') {
+                $value = $emptyOptionValue;
+            }
+
             $attributes[] = [
                 'attributeName' => $field[1],
-                'attributeValue' => trim((string) $variant[$field[0]]),
+                'attributeValue' => $value,
             ];
         }
 
@@ -186,8 +192,7 @@ class CsvImporter extends Importer
 
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
     {
-        // TODO this should be a config probably. See the CSV importer implementation.
-        $optionSignal = 'Option : ';
+        $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
 
@@ -198,8 +203,8 @@ class CsvImporter extends Importer
         foreach ($tabularDataReader->getHeader() as $i => $heading) {
             if (array_key_exists(trim($heading), $productTypeMap)) {
                 $variantMap[$productTypeMap[trim($heading)]] = $i;
-            } elseif (str_starts_with($heading, $optionSignal)) {
-                $optionMap[] = [$i, explode($optionSignal, $heading)[1]];
+            } elseif (str_starts_with($heading, $optionPrefix)) {
+                $optionMap[] = [$i, explode($optionPrefix, $heading)[1]];
             }
         }
 

@@ -14,6 +14,8 @@
  */
 
 return [
+    'emptyOptionValue' => '',
+    'optionPrefix' => 'Option: ',
     'variantFieldMap' => [
         '*' => [
             'sku' => 'sku',

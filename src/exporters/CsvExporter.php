@@ -45,9 +45,7 @@ class CsvExporter extends Exporter
 
     private function resolveVariantExportMapping(Product $product): array
     {
-        // TODO what is an optionSignal actually?
-        // TODO This should be a config probably?
-        $optionSignal = 'Option : ';
+        $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
 
         $map = VariantManager::getInstance()->getSettings()->getProductTypeMapping($product->type->handle);
 
@@ -58,7 +56,7 @@ class CsvExporter extends Exporter
 
         $optionMap = [];
         foreach ($product->variants[0]->variantAttributes ?? [] as $attribute) {
-            $optionMap[] = $optionSignal . $attribute['attributeName'];
+            $optionMap[] = $optionPrefix . $attribute['attributeName'];
         }
 
         return [

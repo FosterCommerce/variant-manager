@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\models;
 
 use Craft;
 use craft\base\Model;
+use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 
 /**
@@ -13,6 +14,10 @@ use craft\commerce\Plugin as CommercePlugin;
  */
 class Settings extends Model
 {
+    public string $emptyOptionValue = '';
+
+    public string $optionPrefix = 'Option: ';
+
     public array $variantFieldMap = [
         '*' => [],
     ];
@@ -44,7 +49,7 @@ class Settings extends Model
             }
 
             $productType = $plugin->productTypes->getProductTypeByHandle($productTypeHandle);
-            if ($productType !== null) {
+            if ($productType instanceof ProductType) {
                 $productTypes[] = $productType;
             }
         }
