@@ -6,11 +6,13 @@ use Craft;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
 use craft\commerce\helpers\Product as ProductHelper;
+use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exceptions\InvalidSkusException;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\VariantManager;
 use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
@@ -157,10 +159,12 @@ class CsvImporter extends Importer
         }
 
         $mapped = [];
-        $fields = [
-            // TODO this field handle can't be hardcoded
-            'variantAttributes' => $attributes,
-        ];
+        $fields = [];
+
+        if (! empty($mapping['fieldHandle'])) {
+            $fields[$mapping['fieldHandle']] = $attributes;
+        }
+
         foreach ($mapping['variant'] as $fieldHandle => $index) {
             if ($index !== null) {
                 if (in_array($fieldHandle, self::STANDARD_VARIANT_FIELDS, true)) {
@@ -196,7 +200,19 @@ class CsvImporter extends Importer
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
 
-        $productTypeMap = VariantManager::getInstance()->getSettings()->getProductTypeMapping('general');
+        // TODO we need to make product type an import option
+        $productTypeHandle = 'general';
+
+        $productTypeMap = VariantManager::getInstance()->getSettings()->getProductTypeMapping($productTypeHandle);
+
+        $productType = CommercePlugin::getInstance()->productTypes->getProductTypeByHandle($productTypeHandle);
+
+        if (! $productType instanceof ProductType) {
+            throw new \RuntimeException('Invalid product type handle');
+        }
+
+        $fieldHandle = FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout())->handle;
+
         $variantMap = array_fill_keys(array_values($productTypeMap), null);
 
         $optionMap = [];
@@ -211,6 +227,7 @@ class CsvImporter extends Importer
         return [
             'variant' => $variantMap,
             'option' => $optionMap,
+            'fieldHandle' => $fieldHandle,
         ];
     }
 

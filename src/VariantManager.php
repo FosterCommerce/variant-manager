@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager;
 use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
+use craft\commerce\elements\Variant;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;

@@ -1,19 +1,26 @@
+{% if multipleFieldsExist == true %}
+<div style="display: inline-block; background-color: #b44d12; color: white; padding: 0.725rem; border-radius: 0.5rem">
+	<p><strong>Warning:</strong> Multiple Variant Attributes fields have been applied.</p>
+	<p>This field will be ignored.</p>
+</div>
+{% endif %}
+
 <table class="table data" style="width: 100%; margin-top: 1rem">
 
 	<thead>
 	<tr>
-		<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 75%;">Name</th>
-		<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 25%;">Value</th>
+		 <th class="singleline-cell textual" style="background-color: #ebf2fa; width: 75%;">Name</th>
+		 <th class="singleline-cell textual" style="background-color: #ebf2fa; width: 25%;">Value</th>
 	</tr>
 	</thead>
 
 	<tbody>
 	{% for attribute in attributes %}
-		<tr>
-			<td class="singleline-cell textual"
-					style="background-color: #FFFFFF; text-align: right;">{{ attribute['attributeName'] }}</td>
-			<td class="singleline-cell textual" style="background-color: #FFFFFF">{{ attribute['attributeValue'] }}</td>
-		</tr>
+		 <tr>
+				<td class="singleline-cell textual"
+						 style="background-color: #FFFFFF; text-align: right;">{{ attribute['attributeName'] }}</td>
+				<td class="singleline-cell textual" style="background-color: #FFFFFF">{{ attribute['attributeValue'] }}</td>
+		 </tr>
 	{% endfor %}
 	</tbody>
 

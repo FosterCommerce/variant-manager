@@ -4,6 +4,8 @@ namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
+use fostercommerce\variantmanager\fields\VariantAttributesField;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\VariantManager;
 
 class JsonExporter extends Exporter
@@ -22,14 +24,19 @@ class JsonExporter extends Exporter
 
         $results = [];
 
+        $field = null;
         foreach ($variants as $variant) {
-            $results[] = $this->normalizeVariant($variant);
+            if (! $field instanceof VariantAttributesField) {
+                $field = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout());
+            }
+
+            $results[] = $this->normalizeVariant($variant, $field->handle);
         }
 
         return $results;
     }
 
-    private function normalizeVariant(Variant $variant): array
+    private function normalizeVariant(Variant $variant, string $variantFieldHandle): array
     {
         $result = [];
 
@@ -45,8 +52,8 @@ class JsonExporter extends Exporter
 
         $result['attributes'] = [];
 
-        if ($variant->variantAttributes) {
-            foreach ($variant->variantAttributes as $attribute) {
+        if ($variant->{$variantFieldHandle}) {
+            foreach ($variant->{$variantFieldHandle} as $attribute) {
                 $result['attributes'][] = [
                     'name' => $attribute['attributeName'],
                     'value' => $attribute['attributeValue'],

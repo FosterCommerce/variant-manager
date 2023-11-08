@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\services;
 
 use craft\base\Component;
 use craft\commerce\elements\Product;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 
 /**
  * ProductVariants
@@ -12,10 +13,9 @@ class ProductVariants extends Component
 {
     /**
      * @param Product|int $product The product to fetch variant attributes for.
-     * @param string $fieldHandle The field handle used for the variant attributes field.
      * @param array|string|null $only If set, limits the options returned to just the ones in the argument.
      */
-    public function getAttributeOptions(Product|int $product, string $fieldHandle, array|string|null $only = null): array
+    public function getAttributeOptions(Product|int $product, array|string|null $only = null): array
     {
         if (is_int($product)) {
             $product = Product::find()->id($product)->one();
@@ -29,6 +29,7 @@ class ProductVariants extends Component
             $only = [$only];
         }
 
+        $fieldHandle = FieldHelper::getFirstVariantAttributesField($product->type->getVariantFieldLayout())?->handle;
         $variants = [];
         foreach ($product->variants as $variant) {
             // Turn the attributes into associative arrays

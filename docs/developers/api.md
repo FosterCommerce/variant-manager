@@ -47,7 +47,6 @@ Use a `POST` request with a body like
 
 ```json
 {
-  "fieldHandle": "variantAttributes",
   "conditions": {
     "Attribute Name": "Value A",
     "Another Attribute": "Value B"

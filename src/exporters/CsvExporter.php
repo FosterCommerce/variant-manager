@@ -3,6 +3,7 @@
 namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\VariantManager;
 
 class CsvExporter extends Exporter
@@ -36,8 +37,12 @@ class CsvExporter extends Exporter
             $payload[] = $variant->{$fieldHandle};
         }
 
-        foreach ($variant->variantAttributes ?? [] as $attribute) {
-            $payload[] = $attribute['attributeValue'];
+        if ($mapping['fieldHandle']) {
+            $handle = $mapping['fieldHandle'];
+            $attributes = $variant->{$handle};
+            foreach ($attributes ?? [] as $attribute) {
+                $payload[] = $attribute['attributeValue'];
+            }
         }
 
         return implode(',', $payload);
@@ -54,14 +59,20 @@ class CsvExporter extends Exporter
             $variantMap[$i] = [$map[$heading], $heading];
         }
 
+        $fieldHandle = null;
         $optionMap = [];
-        foreach ($product->variants[0]->variantAttributes ?? [] as $attribute) {
-            $optionMap[] = $optionPrefix . $attribute['attributeName'];
+        if ($product->variants !== []) {
+            $variant = $product->variants[0];
+            $fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())->handle;
+            foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
+                $optionMap[] = $optionPrefix . $attribute['attributeName'];
+            }
         }
 
         return [
             'variant' => $variantMap,
             'option' => $optionMap,
+            'fieldHandle' => $fieldHandle,
         ];
     }
 }

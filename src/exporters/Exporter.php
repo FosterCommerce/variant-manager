@@ -4,6 +4,8 @@ namespace fostercommerce\variantmanager\exporters;
 
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
+use fostercommerce\variantmanager\fields\VariantAttributesField;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 
 abstract class Exporter
 {
@@ -33,9 +35,14 @@ abstract class Exporter
             return false;
         }
 
-        $fieldHandle = $options['fieldHandle'] ?? 'variantAttributes';
-        $conditions = $options['conditions'] ?? [];
-        $variants = Variant::find()->product($product)->{$fieldHandle}($conditions)->all();
+        $variantAttributesField = FieldHelper::getFirstVariantAttributesField($product->type->getVariantFieldLayout());
+
+        if ($variantAttributesField::class === VariantAttributesField::class) {
+            $conditions = $options['conditions'] ?? [];
+            $variants = Variant::find()->product($product)->{$variantAttributesField->handle}($conditions)->all();
+        } else {
+            $variants = Variant::find()->product($product)->all();
+        }
 
         return [
             'title' => $product->title,

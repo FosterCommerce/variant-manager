@@ -10,6 +10,7 @@ use craft\helpers\ElementHelper;
 use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use yii\db\Schema;
 
 /**
@@ -52,6 +53,7 @@ class VariantAttributesField extends Field
             'namespacedId' => $namespacedId,
             'name' => $name,
             'attributes' => $value,
+            'multipleFieldsExist' => ! FieldHelper::isFirstVariantAttributesField($this, $element),
         ]);
     }
 

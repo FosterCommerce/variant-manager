@@ -9,7 +9,6 @@ use fostercommerce\variantmanager\exporters\Exporter;
 use fostercommerce\variantmanager\exporters\ExportType;
 use fostercommerce\variantmanager\importers\Importer;
 use fostercommerce\variantmanager\importers\ImportMimeType;
-use Throwable;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
@@ -52,17 +51,13 @@ class ProductVariantsController extends Controller
 
         $this->requirePermission('variant-manager:import');
 
-        try {
-            $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
+        $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
 
-            if (! isset($uploadedFile)) {
-                throw new BadRequestHttpException('No file was uploaded');
-            }
-
-            Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile);
-        } catch (Throwable $throwable) {
-            throw new ServerErrorHttpException($throwable->getMessage());
+        if (! isset($uploadedFile)) {
+            throw new BadRequestHttpException('No file was uploaded');
         }
+
+        Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile);
     }
 
     /**

@@ -9,12 +9,12 @@ There are no stand-alone variables available presently.
 
 The following functions are available:
 
-### `craft.variantManager.getAttributeOptions(product, handle)`
+### `craft.variantManager.getAttributeOptions(product)`
 
 Returns an object with keys representing available attribute names for a product. Each keys value holds an array of possible values.
 
 ```twig
-{% set attributeOptions = craft.variantManager.getAttributeOptions(7200, 'variantAttributes') %}
+{% set attributeOptions = craft.variantManager.getAttributeOptions(7200) %}
 {{ attributeOptions | json_encode }}
 ```
 
