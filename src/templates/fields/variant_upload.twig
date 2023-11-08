@@ -17,10 +17,19 @@
 		<div id="modal" class="modal fitted" style="">
 			<div class="body">
 				<div class="message" id="{{ id }}-message"></div>
-				<div class="actions">
+				<div class="actions" style="grid-gap: 1rem;">
+					<div id="{{ id }}-productTypeContainer" class="hidden" style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
+						<div style="display: flex; flex-direction: column; place-content: center;">
+							Product Type
+						</div>
+						<div class="select">
+							<select id="{{ id }}-productType">
+							</select>
+						</div>
+					</div>
 					<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden;"
 									id="{{ id }}-confirm-btn"></button>
-					<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden; margin-left: 1rem">Cancel</button>
+					<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden;">Cancel</button>
 				</div>
 			</div>
 		</div>
@@ -35,6 +44,8 @@
 		let btn = document.getElementById('{{ namespacedId }}-btn');
 
 		let message = document.getElementById('{{ namespacedId }}-message');
+		let productType = document.getElementById('{{ namespacedId }}-productType');
+		let productTypeContainer = document.getElementById('{{ namespacedId }}-productTypeContainer');
 		let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
 		let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
 		for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
@@ -64,6 +75,12 @@
 				return response.json()
 			}).then((result) => {
 				if (!result.exists) {
+					productTypeContainer.classList.remove("hidden");
+
+					productType.innerHTML = result.productTypes.map((productType) => {
+						return `<option value="${productType[0]}">${productType[1]}</option>`;
+					}).join("");
+
 					confirmBtn.innerHTML = "Create Product";
 					confirmBtn.classList.remove("edit", "hidden");
 					confirmBtn.classList.add("add");
@@ -71,6 +88,8 @@
 					message.innerHTML =
 						`Are you sure you want to create a new product named <strong>"${productName}"</strong>?`;
 				} else {
+					productTypeContainer.classList.add("hidden");
+
 					confirmBtn.innerHTML = "Edit Product";
 					confirmBtn.classList.remove("add", "hidden");
 					confirmBtn.classList.add("edit");
@@ -125,6 +144,10 @@
 					new File([file], file.name, {type: "text/csv"})
 				);
 
+				payload.set(
+					"productTypeHandle", productType.value
+				);
+
 				fetch('/admin/variant-manager/upload', {
 					method: "POST",
 					headers: {
@@ -151,6 +174,7 @@
 					}
 
 					confirmBtn.classList.add("hidden");
+					productTypeContainer.classList.add("hidden");
 
 					if (error.statusText) {
 						message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;

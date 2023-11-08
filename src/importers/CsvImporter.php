@@ -48,13 +48,16 @@ class CsvImporter extends Importer
      * @throws ElementNotFoundException
      * @throws \Throwable
      */
-    public function import(UploadedFile $uploadedFile): void
+    public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): void
     {
+        $product = $this->resolveProductModel($uploadedFile->baseName, $productTypeHandle);
+
+        if ($productTypeHandle === null) {
+            $productTypeHandle = $product->type->handle;
+        }
+
         $tabularDataReader = $this->read($uploadedFile);
-
-        $mapping = $this->resolveVariantImportMapping($tabularDataReader);
-
-        $product = $this->resolveProductModel($uploadedFile->baseName);
+        $mapping = $this->resolveVariantImportMapping($tabularDataReader, $productTypeHandle);
 
         if ($product->isNewForSite) {
             $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
@@ -65,7 +68,11 @@ class CsvImporter extends Importer
         $product->setVariants($variants);
         // runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
         // See: https://github.com/craftcms/commerce/pull/3297
-        Craft::$app->elements->saveElement($product, true, false, true);
+        if (! Craft::$app->elements->saveElement($product, true, false, true)) {
+            $errors = $product->getErrorSummary(false);
+            $error = reset($errors);
+            throw new \RuntimeException($error ?? 'Failed to save product');
+        }
     }
 
     /**
@@ -194,14 +201,11 @@ class CsvImporter extends Importer
         return $variantElement;
     }
 
-    private function resolveVariantImportMapping(TabularDataReader $tabularDataReader): array
+    private function resolveVariantImportMapping(TabularDataReader $tabularDataReader, string $productTypeHandle): array
     {
         $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
 
         // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
-
-        // TODO we need to make product type an import option
-        $productTypeHandle = 'general';
 
         $productTypeMap = VariantManager::getInstance()->getSettings()->getProductTypeMapping($productTypeHandle);
 
@@ -234,7 +238,7 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidConfigException
      */
-    private function resolveProductModel(string $name): Product
+    private function resolveProductModel(string $name, ?string $productTypeHandle): Product
     {
         $productQuery = Product::find()->title(Db::escapeParam($name));
 
@@ -248,7 +252,7 @@ class CsvImporter extends Importer
             // TODO I'm pretty sure we want to have some default config for product type IDs
             /** @var CommercePlugin $plugin */
             $plugin = Craft::$app->plugins->getPlugin('commerce');
-            $product->typeId = $plugin->getProductTypes()->getAllProductTypeIds()[0];
+            $product->typeId = $plugin->getProductTypes()->getProductTypeByHandle($productTypeHandle)->id;
         }
 
         return $product;

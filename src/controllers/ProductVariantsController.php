@@ -3,6 +3,7 @@
 namespace fostercommerce\variantmanager\controllers;
 
 use craft\commerce\elements\Product;
+use craft\commerce\Plugin as CommercePlugin;
 use craft\web\Controller;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exporters\Exporter;
@@ -35,8 +36,15 @@ class ProductVariantsController extends Controller
             ->title($this->request->getQueryParam('name'))
             ->one();
 
+        $productTypes = [];
+
+        foreach (CommercePlugin::getInstance()->productTypes->getAllProductTypes() as $productType) {
+            $productTypes[] = [$productType->handle, $productType->name];
+        }
+
         return $this->asJson([
             'exists' => isset($product),
+            'productTypes' => $productTypes,
         ]);
     }
 
@@ -52,12 +60,13 @@ class ProductVariantsController extends Controller
         $this->requirePermission('variant-manager:import');
 
         $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
+        $productTypeHandle = $this->request->getBodyParam('productTypeHandle');
 
         if (! isset($uploadedFile)) {
             throw new BadRequestHttpException('No file was uploaded');
         }
 
-        Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile);
+        Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile, $productTypeHandle);
     }
 
     /**
