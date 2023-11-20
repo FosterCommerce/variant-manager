@@ -1,0 +1,17 @@
+{# Filter by an option value #}
+{% set variants = craft.variants().product(30).moreVariantOptions("A Value 1").all() %}
+
+{# Filter by all option/value pairs #}
+{% set filter = {
+	'Option A': 'A Value 2',
+	'Option B': 'B Value 1',
+} %}
+{% set variants = craft.variants().product(30).moreVariantOptions(filter).all() %}
+
+{# Filter by any option/value pair #}
+{% set filter = [
+	{'Option A': 'A Value 1'},
+	'B Value 2',
+	{'Option C': 'C Value 3'},
+] %}
+{% set variants = craft.variants().product(30).moreVariantOptions(filter).all() %}
