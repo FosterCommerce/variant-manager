@@ -3,7 +3,7 @@
 
 ### Requirements
 
-This plugin requires Craft 4 and at least PHP 8 to install.
+This plugin requires Craft 4 and at least PHP 8.1 to install.
 
 ### Installation
 

@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager\services;
 use craft\base\Component;
 use craft\commerce\elements\Product;
 use fostercommerce\variantmanager\helpers\FieldHelper;
+use yii\base\InvalidConfigException;
 
 /**
  * ProductVariants
@@ -14,6 +15,7 @@ class ProductVariants extends Component
     /**
      * @param Product|int $product The product to fetch variant attributes for.
      * @param array|string|null $only If set, limits the options returned to just the ones in the argument.
+     * @throws InvalidConfigException
      */
     public function getAttributeOptions(Product|int $product, array|string|null $only = null): array
     {
@@ -47,14 +49,21 @@ class ProductVariants extends Component
             );
         }
 
-        return array_map(static function($value): array {
+        $merged = array_merge_recursive(...$variants);
+
+        return array_map(static function($name, $values): array {
             // Turn the value into an array if it isn't already one.
-            if (! is_array($value)) {
-                return [$value];
+            if (! is_array($values)) {
+                $values = [$values];
             }
 
             // Otherwise make sure the items are unique
-            return array_values(array_unique($value));
-        }, array_merge_recursive(...$variants));
+            $values = array_values(array_unique($values));
+
+            return [
+                'name' => $name,
+                'values' => $values,
+            ];
+        }, array_keys($merged), array_values($merged));
     }
 }

@@ -1,17 +1,13 @@
 
 ## Reference
 
-### Available Variables
-
-There are no stand-alone variables available presently.
-
 ### Available Functions
 
 The following functions are available:
 
 ### `craft.variantManager.getAttributeOptions(product)`
 
-Returns an object with keys representing available attribute names for a product. Each keys value holds an array of possible values.
+Returns an array of associative arrays holding an attribute name and an array of possible values for that option.
 
 ```twig
 {% set attributeOptions = craft.variantManager.getAttributeOptions(7200) %}
@@ -21,25 +17,29 @@ Returns an object with keys representing available attribute names for a product
 Will output 
 
 ```
-{
-  "What tire pressure are your tires running at?": [
-    "60PSI",
-    "65PSI"
+[
+  [
+    "name": "Option A",
+    "values": [
+      "Value 1",
+      "Value 2",
+      "Value 3"
+    ]
   ],
-  "How many Cat’s Eye gauges to do need?": [
-    "2 UNIT PACK"
+  [
+    "name": "Option B",
+    "values": [
+      "Value 1",
+    ]
   ],
-  "What is your tire size?": [
-    "22.5\" & 24.5\"",
-    "17.5\"",
-    "19.5\""
+  [
+    "name": "Option C",
+    "values": [
+      "Value 1",
+      "Value 2",
+      "Value 3"
+      "Value 4"
+    ]
   ],
-  "What type of hose material would you like?": [
-    "RUBBER HOSE"
-  ],
-  "What is your wheel type?": [
-    "DUAL TIRES",
-    "SINGLE TIRES (ONLY 1 HOSE ON CAT'S EYE)"
-  ]
-}
+]
 ```
