@@ -5,6 +5,9 @@ namespace fostercommerce\variantmanager\exporters;
 use craft\commerce\elements\Product;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\VariantManager;
+use League\Csv\CannotInsertRecord;
+use League\Csv\Exception;
+use League\Csv\Writer;
 
 class CsvExporter extends Exporter
 {
@@ -12,24 +15,29 @@ class CsvExporter extends Exporter
 
     public string $mimetype = 'text/csv';
 
+    /**
+     * @throws CannotInsertRecord
+     * @throws Exception
+     */
     public function exportProduct(Product $product, array $variants): string
     {
         $mapping = $this->resolveVariantExportMapping($product);
 
-        // TODO CSV generation should use League\Csv
-        $results = [
-            // Initialize with headers
-            implode(',', array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['option'])),
-        ];
+        $writer = Writer::createFromString();
+
+        // Headers include variant fields and attribute options
+        $header = array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['option']);
+        $writer->insertOne($header);
 
         foreach ($variants as $variant) {
-            $results[] = $this->normalizeVariantExport($variant, $mapping);
+            $row = $this->normalizeVariantExport($variant, $mapping);
+            $writer->insertOne($row);
         }
 
-        return implode("\n", $results);
+        return $writer->toString();
     }
 
-    private function normalizeVariantExport($variant, array $mapping): string
+    private function normalizeVariantExport($variant, array $mapping): array
     {
         $payload = [];
 
@@ -45,7 +53,7 @@ class CsvExporter extends Exporter
             }
         }
 
-        return implode(',', $payload);
+        return $payload;
     }
 
     private function resolveVariantExportMapping(Product $product): array

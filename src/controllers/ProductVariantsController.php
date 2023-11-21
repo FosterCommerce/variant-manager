@@ -60,7 +60,7 @@ class ProductVariantsController extends Controller
         $this->requirePermission('variant-manager:import');
 
         $uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
-        $productTypeHandle = $this->request->getBodyParam('productTypeHandle');
+        $productTypeHandle = $this->request->getBodyParam('productTypeHandle') ?: null;
 
         if (! isset($uploadedFile)) {
             throw new BadRequestHttpException('No file was uploaded');

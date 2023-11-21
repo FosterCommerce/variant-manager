@@ -11,7 +11,6 @@ use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
 use craft\web\UploadedFile;
-use fostercommerce\variantmanager\exceptions\InvalidSkusException;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\VariantManager;
 use League\Csv\Exception as CsvException;
@@ -43,7 +42,6 @@ class CsvImporter extends Importer
      * @throws CsvException
      * @throws Exception
      * @throws InvalidConfigException
-     * @throws InvalidSkusException
      * @throws UnableToProcessCsv
      * @throws ElementNotFoundException
      * @throws \Throwable
@@ -58,6 +56,8 @@ class CsvImporter extends Importer
 
         $tabularDataReader = $this->read($uploadedFile);
         $mapping = $this->resolveVariantImportMapping($tabularDataReader, $productTypeHandle);
+
+        $this->validateSkus($product, $mapping, $tabularDataReader);
 
         if ($product->isNewForSite) {
             $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
@@ -76,6 +76,34 @@ class CsvImporter extends Importer
     }
 
     /**
+     * @throws UnableToProcessCsv
+     */
+    private function validateSkus(Product $product, array $mapping, TabularDataReader $tabularDataReader): void
+    {
+        // Exit early if there are duplicate SKUs
+        $skuColumn = $mapping['variant']['sku'];
+        $skus = iterator_to_array($tabularDataReader->fetchColumn($skuColumn));
+
+        $countedSkus = array_count_values($skus);
+        $duplicateSkus = array_filter($countedSkus, static fn($count): bool => $count > 1);
+        if ($duplicateSkus !== []) {
+            throw new \RuntimeException('Duplicate SKUs found');
+        }
+
+        $foundSkus = $this->findProductVariantSkus($skus);
+
+        // If the product is a new product and the SKU exists already, return an error.
+        if ($product->isNewForSite && $foundSkus !== []) {
+            throw new \RuntimeException('One or more SKUs already exist');
+        }
+
+        // If the SKU already exists for a different product return an error.
+        if (array_filter($foundSkus, static fn($key): bool => $key !== $product->id, ARRAY_FILTER_USE_KEY) !== []) {
+            throw new \RuntimeException('One or more SKUs already exist on different products');
+        }
+    }
+
+    /**
      * @throws CsvException
      */
     private function read(UploadedFile $uploadedFile): \League\Csv\TabularDataReader
@@ -86,19 +114,10 @@ class CsvImporter extends Importer
     }
 
     /**
-     * @throws InvalidSkusException
-     * @throws UnableToProcessCsv
      * @throws InvalidConfigException
      */
     private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
-        $mappedSKUs = $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
-
-        // If the SKUs already exist for a new product, throw an error because SKUs should be unique to a product.
-        if ((is_countable($mappedSKUs) ? count($mappedSKUs) : 0) > 0) {
-            throw new InvalidSkusException($product, $mappedSKUs);
-        }
-
         $variants = [];
         foreach ($tabularDataReader->getRecords() as $record) {
             $record = array_values($record);
@@ -107,29 +126,17 @@ class CsvImporter extends Importer
                 continue;
             }
 
-            $variants[] = $this->normalizeVariantImport($product, $record, $mapping, false);
+            $variants[] = $this->normalizeVariantImport($product, $record, $mapping, 0);
         }
 
         return $variants;
     }
 
     /**
-     * @throws InvalidSkusException
-     * @throws UnableToProcessCsv
      * @throws InvalidConfigException
      */
     private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
-        $mappedSKUs = $this->findSKUs(iterator_to_array($tabularDataReader->fetchColumn($mapping['variant']['sku'])));
-
-        // We know in every instance if for some reason there are two product IDs mapped, something is wrong because
-        // an SKU should at most be affiliated with a single (one) product.
-
-        // Similarly, if the SKUs aren't associated to current product if it exists then that's problematic too.
-        if ((! array_key_exists($product->id, $mappedSKUs) && (is_countable($mappedSKUs) ? count($mappedSKUs) : 0) !== 0) || (is_countable($mappedSKUs) ? count($mappedSKUs) : 0) > 1) {
-            throw new InvalidSkusException($product, $mappedSKUs);
-        }
-
         $variants = [];
         foreach ($tabularDataReader->getRecords() as $record) {
             $record = array_values($record);
@@ -138,7 +145,8 @@ class CsvImporter extends Importer
                 continue;
             }
 
-            $variantId = Variant::find()->product($product)->sku($record[$mapping['variant']['sku']])->one()->id;
+            $variantId = Variant::find()->product($product)->sku($record[$mapping['variant']['sku']])->one()?->id ?? 0;
+
             $variants[] = $this->normalizeVariantImport($product, $record, $mapping, $variantId);
         }
 
@@ -148,7 +156,7 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidConfigException
      */
-    private function normalizeVariantImport(Product $product, array $variant, array $mapping, bool|int $variantId): Variant
+    private function normalizeVariantImport(Product $product, array $variant, array $mapping, int $variantId): Variant
     {
         $emptyOptionValue = VariantManager::getInstance()->getSettings()->emptyOptionValue;
         // Generate attributes for variant attributes field
@@ -192,7 +200,7 @@ class CsvImporter extends Importer
             $mapped['maxQty'] = null;
         }
 
-        $variantElement = ProductHelper::populateProductVariantModel($product, $mapped, $variantId === false ? 'new' : $variantId);
+        $variantElement = ProductHelper::populateProductVariantModel($product, $mapped, $variantId === 0 ? 'new' : $variantId);
 
         if (($mapped['stock'] ?? '') === '') {
             $variantElement->hasUnlimitedStock = true;
@@ -204,11 +212,7 @@ class CsvImporter extends Importer
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader, string $productTypeHandle): array
     {
         $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
-
-        // Product mapping is for a future update to allow IDs and metadata to be passed for the product itself (not just variants).
-
         $productTypeMap = VariantManager::getInstance()->getSettings()->getProductTypeMapping($productTypeHandle);
-
         $productType = CommercePlugin::getInstance()->productTypes->getProductTypeByHandle($productTypeHandle);
 
         if (! $productType instanceof ProductType) {
@@ -249,7 +253,6 @@ class CsvImporter extends Importer
             $product->title = $name;
             $product->isNewForSite = true;
 
-            // TODO I'm pretty sure we want to have some default config for product type IDs
             /** @var CommercePlugin $plugin */
             $plugin = Craft::$app->plugins->getPlugin('commerce');
             $product->typeId = $plugin->getProductTypes()->getProductTypeByHandle($productTypeHandle)->id;

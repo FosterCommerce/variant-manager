@@ -27,7 +27,10 @@ abstract class Importer
      */
     abstract public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): void;
 
-    protected function findSKUs(mixed $items): array
+    /**
+     * @param string[] $items
+     */
+    protected function findProductVariantSkus(array $items): array
     {
         $found = Variant::find()
             ->sku($items)
