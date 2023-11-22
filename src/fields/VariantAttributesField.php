@@ -119,10 +119,10 @@ class VariantAttributesField extends Field
         $column = ElementHelper::fieldColumnFromField($this);
 
         foreach ($filter as $key => $value) {
+            $paramKey = StringHelper::randomString(4);
+            $keyParam = ":an{$paramKey}";
+            $valueParam = ":av{$paramKey}";
             if (Craft::$app->getDb()->getIsMysql()) {
-                $paramKey = StringHelper::randomString(4);
-                $keyParam = ":an{$paramKey}";
-                $valueParam = ":av{$paramKey}";
                 // This query checks that the path returned by json_search on each side is the same path.
                 $whereParts['conditions'][] = <<<EOQ
 json_search(json_extract(content.{$column}, "$[*].attributeName"), 'one', {$keyParam})
@@ -131,7 +131,10 @@ EOQ;
                 $whereParts['params'][$keyParam] = $key;
                 $whereParts['params'][$valueParam] = $value;
             } else {
-                throw new \RuntimeException('PostgreSQL not yet implemented');
+                $whereParts['conditions'][] = <<<EOQ
+content."{$column}" @> {$valueParam}
+EOQ;
+                $whereParts['params'][$valueParam] = "[{\"attributeName\": \"{$key}\", \"attributeValue\": \"{$value}\"}]";
             }
         }
     }
@@ -139,10 +142,10 @@ EOQ;
     private function generateStringFilter(string $value, array &$whereParts): void
     {
         $column = ElementHelper::fieldColumnFromField($this);
+        $paramKey = StringHelper::randomString(4);
+        $valueParam = ":av{$paramKey}";
 
         if (Craft::$app->getDb()->getIsMysql()) {
-            $paramKey = StringHelper::randomString(4);
-            $valueParam = ":av{$paramKey}";
             // This query checks that the path returned by json_search on each side is the same path.
             $whereParts['conditions'][] = <<<EOQ
 json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam}) is not null
@@ -150,7 +153,10 @@ EOQ;
 
             $whereParts['params'][$valueParam] = $value;
         } else {
-            throw new \RuntimeException('PostgreSQL not yet implemented');
+            $whereParts['conditions'][] = <<<EOQ
+content."{$column}" @> {$valueParam}
+EOQ;
+            $whereParts['params'][$valueParam] = "[{\"attributeValue\": \"{$value}\"}]";
         }
     }
 }
