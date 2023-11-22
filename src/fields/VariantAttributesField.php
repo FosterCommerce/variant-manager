@@ -42,6 +42,12 @@ class VariantAttributesField extends Field
         return $value;
     }
 
+    public function serializeValue(mixed $value, ?ElementInterface $element = null): mixed
+    {
+        // Don't serialize the value, this is a JSON column.
+        return $value;
+    }
+
     public function getInputHtml(mixed $value, ?ElementInterface $element = null): string
     {
         $name = $this->handle;

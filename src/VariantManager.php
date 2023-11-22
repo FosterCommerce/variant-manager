@@ -6,14 +6,19 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\commerce\elements\Variant;
+use craft\events\ElementContentEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\helpers\Db;
+use craft\helpers\ElementHelper;
+use craft\services\Content;
 use craft\services\Fields;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ProductVariants;
 use Twig\Error\LoaderError;
@@ -101,6 +106,29 @@ class VariantManager extends Plugin
             $this->registerTwig();
             $this->registerFields();
             $this->registerViewHooks();
+        }
+
+        // Work-around while waiting for https://github.com/craftcms/cms/pull/13955
+        if (Craft::$app->getDb()->getIsPgsql()) {
+            Event::on(
+                Content::class,
+                Content::EVENT_AFTER_SAVE_CONTENT,
+                static function(ElementContentEvent $elementContentEvent): void {
+                    $element = $elementContentEvent->element;
+                    $variantAttributesField = FieldHelper::getFirstVariantAttributesField($element->getFieldLayout());
+
+                    if ($variantAttributesField instanceof VariantAttributesField) {
+                        $column = ElementHelper::fieldColumnFromField($variantAttributesField);
+                        $value = $element->getFieldValue($variantAttributesField->handle);
+
+                        Db::update(Craft::$app->content->contentTable, [
+                            $column => $value,
+                        ], [
+                            'id' => $element->contentId,
+                        ], [], true, Craft::$app->getDb());
+                    }
+                }
+            );
         }
     }
 

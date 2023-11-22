@@ -68,7 +68,7 @@ class CsvImporter extends Importer
         $product->setVariants($variants);
         // runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
         // See: https://github.com/craftcms/commerce/pull/3297
-        if (! Craft::$app->elements->saveElement($product, true, false, true)) {
+        if (! Craft::$app->elements->saveElement($product, true, true, true)) {
             $errors = $product->getErrorSummary(false);
             $error = reset($errors);
             throw new \RuntimeException($error ?? 'Failed to save product');
@@ -155,6 +155,7 @@ class CsvImporter extends Importer
 
     /**
      * @throws InvalidConfigException
+     * @throws \Throwable
      */
     private function normalizeVariantImport(Product $product, array $variant, array $mapping, int $variantId): Variant
     {
