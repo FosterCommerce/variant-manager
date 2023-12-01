@@ -10,7 +10,7 @@ class Export extends ElementAction
 {
     public function getTriggerLabel(): string
     {
-        return Craft::t('variant-manager', 'Export');
+        return Craft::t('variant-manager', 'Export Variant Data');
     }
 
     public function getTriggerHtml(): ?string

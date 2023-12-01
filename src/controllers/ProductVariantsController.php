@@ -123,8 +123,8 @@ class ProductVariantsController extends Controller
                     throw new RuntimeException('Unable to create zip archive');
                 }
 
-                foreach ($results as $index => $result) {
-                    $filename = "{$index}_{$result['filename']}.{$exporter->ext}";
+                foreach ($results as $result) {
+                    $filename = "{$result['filename']}.{$exporter->ext}";
                     $result = $result['export'];
                     if (is_array($result)) {
                         $result = json_encode($result, JSON_THROW_ON_ERROR);
