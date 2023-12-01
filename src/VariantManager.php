@@ -3,11 +3,14 @@
 namespace fostercommerce\variantmanager;
 
 use Craft;
+use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin;
+use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
 use craft\events\ElementContentEvent;
 use craft\events\RegisterComponentTypesEvent;
+use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\helpers\Db;
@@ -17,6 +20,7 @@ use craft\services\Fields;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
+use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\Settings;
@@ -100,6 +104,7 @@ class VariantManager extends Plugin
         if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
             if (Craft::$app->getRequest()->getIsCpRequest()) {
                 $this->registerCpRoutes();
+                $this->registerActions();
             }
 
             $this->registerPermissions();
@@ -132,6 +137,17 @@ class VariantManager extends Plugin
         }
     }
 
+    private function registerActions(): void
+    {
+        Event::on(
+            Product::class,
+            Element::EVENT_REGISTER_ACTIONS,
+            static function(RegisterElementActionsEvent $event): void {
+                $event->actions[] = Export::class;
+            }
+        );
+    }
+
     private function registerTwig(): void
     {
         Event::on(
@@ -153,7 +169,7 @@ class VariantManager extends Plugin
                 $registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
                 $registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
                 $registerUrlRulesEvent->rules['variant-manager/upload'] = 'variant-manager/product-variants/upload';
-                $registerUrlRulesEvent->rules['variant-manager/export/<id:[0-9]+>'] = 'variant-manager/product-variants/export';
+                $registerUrlRulesEvent->rules['variant-manager/export'] = 'variant-manager/product-variants/export';
             }
         );
     }

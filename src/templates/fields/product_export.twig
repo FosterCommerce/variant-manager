@@ -14,7 +14,7 @@
 <script type="text/javascript">
 	{% if canExport %}
 	function exportFile(event) {
-		fetch('/admin/variant-manager/export/{{ product.id }}?download=true&format=csv', {
+		fetch('/admin/variant-manager/export?ids={{ product.id }}&download=true&format=csv', {
 			headers: {
 				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
 				'X-Requested-With': 'XMLHttpRequest',

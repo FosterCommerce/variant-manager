@@ -4,12 +4,14 @@ namespace fostercommerce\variantmanager\controllers;
 
 use craft\commerce\elements\Product;
 use craft\commerce\Plugin as CommercePlugin;
+use craft\helpers\FileHelper;
 use craft\web\Controller;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\exporters\Exporter;
 use fostercommerce\variantmanager\exporters\ExportType;
 use fostercommerce\variantmanager\importers\Importer;
 use fostercommerce\variantmanager\importers\ImportMimeType;
+use http\Exception\RuntimeException;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
@@ -73,9 +75,12 @@ class ProductVariantsController extends Controller
      * @throws \JsonException
      * @throws NotFoundHttpException
      * @throws InvalidConfigException
+     * @throws BadRequestHttpException
      */
-    public function actionExport(string $id): void
+    public function actionExport(): void
     {
+        $ids = $this->request->getRequiredQueryParam('ids');
+
         $this->requirePermission('variant-manager:export');
 
         $format = $this->request->getQueryParam('format', 'json');
@@ -86,25 +91,57 @@ class ProductVariantsController extends Controller
         );
 
         $exporter = Exporter::create(ExportType::from($format));
-        $result = $exporter->export($id, $this->request->getBodyParams());
+        $results = [];
+        foreach (explode('|', (string) $ids) as $id) {
+            $result = $exporter->export($id, $this->request->getBodyParams());
 
-        if ($result === false) {
-            throw new NotFoundHttpException("Product with ID {$id} not found");
+            if ($result === false) {
+                throw new NotFoundHttpException("Product with ID {$id} not found");
+            }
+
+            $results[] = $result;
         }
 
         if ($download) {
-            $this->response->setDownloadHeaders($result['title'] . '.' . $exporter->ext, $exporter->mimetype);
-            $result = $result['export'];
-            if (is_array($result)) {
-                $result = json_encode($result, JSON_THROW_ON_ERROR);
+            if (count($results) === 1) {
+                // If there is just a single product, then download that file
+                $result = $results[0];
+                $filename = "{$result['filename']}.{$exporter->ext}";
+                $result = $result['export'];
+                if (is_array($result)) {
+                    $result = json_encode($result, JSON_THROW_ON_ERROR);
+                }
+
+                $this->response->sendContentAsFile($result, $filename, [
+                    'mimeType' => $exporter->mimetype,
+                ]);
+            } else {
+                // If there are multiple products then download a zip file of the content
+                $zipPath = tempnam(sys_get_temp_dir(), 'export_');
+                $zipArchive = new \ZipArchive();
+                if ($zipArchive->open($zipPath, \ZipArchive::CREATE) !== true) {
+                    throw new RuntimeException('Unable to create zip archive');
+                }
+
+                foreach ($results as $index => $result) {
+                    $filename = "{$index}_{$result['filename']}.{$exporter->ext}";
+                    $result = $result['export'];
+                    if (is_array($result)) {
+                        $result = json_encode($result, JSON_THROW_ON_ERROR);
+                    }
+
+                    $zipArchive->addFromString($filename, $result);
+                }
+
+                $zipArchive->close();
+
+                $attachmentName = (new \DateTime())->format('YmdHis');
+                $this->response->sendContentAsFile(file_get_contents($zipPath), "products_{$attachmentName}.zip");
+                FileHelper::unlink($zipPath);
             }
-
-            $this->response->format = Response::FORMAT_RAW;
         } else {
-            $result = $result['export'];
             $this->response->format = Response::FORMAT_JSON;
+            $this->response->data = array_map(static fn($r) => $r['export'], $results);
         }
-
-        $this->response->data = $result;
     }
 }

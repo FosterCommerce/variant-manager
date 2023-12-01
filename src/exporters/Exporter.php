@@ -45,7 +45,7 @@ abstract class Exporter
         }
 
         return [
-            'title' => $product->title,
+            'filename' => "{$product->id}_{$product->slug}",
             'export' => $this->exportProduct($product, $variants),
         ];
     }
