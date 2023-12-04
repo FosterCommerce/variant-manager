@@ -25,7 +25,7 @@ abstract class Importer
      * @throws InvalidSkusException
      * @throws Exception
      */
-    abstract public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): void;
+    abstract public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): array;
 
     /**
      * @param string[] $items

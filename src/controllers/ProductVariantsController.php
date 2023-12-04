@@ -55,7 +55,7 @@ class ProductVariantsController extends Controller
      * @throws ForbiddenHttpException
      * @throws ServerErrorHttpException
      */
-    public function actionUpload(): void
+    public function actionUpload(): Response
     {
         $this->requirePostRequest();
 
@@ -68,7 +68,7 @@ class ProductVariantsController extends Controller
             throw new BadRequestHttpException('No file was uploaded');
         }
 
-        Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile, $productTypeHandle);
+        return $this->asJson(Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile, $productTypeHandle));
     }
 
     /**

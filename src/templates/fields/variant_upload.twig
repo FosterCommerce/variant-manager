@@ -10,14 +10,12 @@
 >{{ 'Upload Product'|t }}
 </button>
 
-<span id="{{ id }}-progress"></span>
-
 <div id="upload-modal" class="modal-shade" style="">
 	<div class="modal-wrapper">
 		<div id="modal" class="modal fitted" style="">
 			<div class="body">
 				<div class="message" id="{{ id }}-message"></div>
-				<div class="actions" style="grid-gap: 1rem;">
+				<div class="actions {{ id }}-primary-actions" style="grid-gap: 1rem;">
 					<div id="{{ id }}-productTypeContainer" class="hidden" style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
 						<div style="display: flex; flex-direction: column; place-content: center;">
 							Product Type
@@ -31,6 +29,9 @@
 									id="{{ id }}-confirm-btn"></button>
 					<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden;">Cancel</button>
 				</div>
+				<div class="actions {{ id }}-complete-actions hidden" style="grid-gap: 1rem;">
+					<button class="btn {{ id }}-close-btn" style="position: relative; overflow: hidden;">Close</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -43,11 +44,17 @@
 		let field = document.getElementById('{{ namespacedId }}');
 		let btn = document.getElementById('{{ namespacedId }}-btn');
 
+		let primaryActions = document.getElementsByClassName('{{ namespacedId }}-primary-actions')[0];
+		let completeActions = document.getElementsByClassName('{{ namespacedId }}-complete-actions')[0];
+
 		let message = document.getElementById('{{ namespacedId }}-message');
 		let productType = document.getElementById('{{ namespacedId }}-productType');
 		let productTypeContainer = document.getElementById('{{ namespacedId }}-productTypeContainer');
 		let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
 		let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
+
+		let productName = null;
+
 		for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
 			el.addEventListener('click', closeModal);
 		}
@@ -61,8 +68,11 @@
 		form.addEventListener('submit', (e) => {
 			e.preventDefault();
 
+			btn.disabled = true;
+			btn.classList.add('disabled');
+
 			const file = new FormData(form).get('variant-uploads');
-			const productName = file.name.split('.').slice(0, -1).join('.');
+			productName = file.name.split('.').slice(0, -1).join('.');
 
 			fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
 				method: 'POST',
@@ -72,6 +82,7 @@
 					'X-Requested-With': 'XMLHttpRequest',
 				},
 			}).then(async (response) => {
+
 				return response.json()
 			}).then((result) => {
 				if (!result.exists) {
@@ -100,6 +111,9 @@
 
 				modal.show();
 			}).catch((error) => {
+				btn.disabled = false;
+				btn.classList.remove('disabled');
+
 				try {
 					error = JSON.parse(error.message);
 				} catch (E) {
@@ -121,6 +135,11 @@
 		});
 
 		function closeModal(event) {
+			primaryActions.classList.remove('hidden');
+			completeActions.classList.add('hidden');
+			btn.disabled = false;
+			btn.classList.remove('disabled');
+
 			modal.hide();
 			form.reset();
 		}
@@ -136,6 +155,9 @@
 
 		function confirmChanges(event) {
 			try {
+				primaryActions.classList.add('hidden');
+				message.innerHTML = `Uploading <strong>${productName}</strong>`;
+
 				const payload = new FormData(form);
 				const file = payload.get("variant-uploads");
 
@@ -163,10 +185,15 @@
 						} else {
 							throw Error(JSON.stringify(await response.json()));
 						}
+					} else {
+						return response.json();
 					}
 				}).then((result) => {
-					modal.hide();
+					completeActions.classList.remove('hidden');
+					message.innerHTML = `Product <strong class="go"><a href="${result.url}">${result.title}</a></strong> has been successfully uploaded`;
 				}).catch((error) => {
+					primaryActions.classList.remove('hidden');
+					completeActions.classList.add('hidden');
 					try {
 						error = JSON.parse(error.message);
 					} catch (E) {
@@ -181,6 +208,9 @@
 					} else if (error.message) {
 						message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
 					}
+				}).finally(() => {
+					btn.disabled = false;
+					btn.classList.remove('disabled');
 				})
 			} catch (E) {
 				console.log(E);

@@ -46,7 +46,7 @@ class CsvImporter extends Importer
      * @throws ElementNotFoundException
      * @throws \Throwable
      */
-    public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): void
+    public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): array
     {
         $product = $this->resolveProductModel($uploadedFile->baseName, $productTypeHandle);
 
@@ -73,6 +73,11 @@ class CsvImporter extends Importer
             $error = reset($errors);
             throw new \RuntimeException($error ?? 'Failed to save product');
         }
+
+        return [
+            'title' => $product->title,
+            'url' => $product->getCpEditUrl(),
+        ];
     }
 
     /**
