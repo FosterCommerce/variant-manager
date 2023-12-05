@@ -3,8 +3,8 @@
 
 ## Requirements
 
-- Craft v4 or greater
-- Craft Commerce v4 or greater
+- Craft v4.4.6 or greater
+- Craft Commerce v4.2 or greater
 - PHP 8.1 or greater
 
 ## Installation

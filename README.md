@@ -4,7 +4,7 @@ A plugin for managing product variants.
 
 ## Requirements
 
-This plugin requires Craft CMS 4.4.6 or later, and PHP 8.0.2 or later.
+This plugin requires at least Craft CMS 4.4.6, Craft Commerce 4.2, and PHP 8.1.
 
 ## Installation
 
