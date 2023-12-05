@@ -11,7 +11,7 @@
 
 ### Installing via Craft Plugin Store
 
-TODO
+To install Variant Manager, navigate to the Plugin Store in your site's Craft Control Panel, search for Variant Manager, and click the Try button.
 
 ### Installing via Composer
 
