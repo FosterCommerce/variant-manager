@@ -10,6 +10,11 @@
 
 1. [Function reference](templates/function-reference.md)
 
-# Element queries
+## Element queries
 
 1. [Variant queries](element-queries/variant-queries.md)
+
+## Recipes
+
+1. [Variant filter](recipes/variant-filter.md)
+1. [Variant switcher](recipes/variant-switcher.md)
