@@ -3,6 +3,7 @@
 namespace fostercommerce\variantmanager\controllers;
 
 use craft\web\Controller;
+use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\VariantManagerAssetBundle;
 use yii\base\InvalidConfigException;
 use yii\web\Response;
@@ -18,6 +19,10 @@ class DashboardController extends Controller
     {
         $this->view->registerAssetBundle(VariantManagerAssetBundle::class);
 
-        return $this->renderTemplate('variant-manager/dashboard');
+        return $this->renderTemplate('variant-manager/dashboard', [
+            'activities' => Activity::find()->orderBy([
+                'dateCreated' => SORT_DESC,
+            ])->all(),
+        ]);
     }
 }

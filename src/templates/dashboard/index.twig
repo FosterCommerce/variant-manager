@@ -17,4 +17,24 @@
 {% endset %}
 
 {% set content %}
+	{% if activities is empty %}
+		<p>No activity yet.</p>
+	{% else %}
+		{% for activity in activities %}
+			<div style="display: flex; flex-direction: row; place-content: space-between;">
+				 <div>
+					 {% set user = craft.users().id(activity.userId).one() %}
+					 {% if user is not null %}
+						 <span><a class="go" href="{{ user.getCpEditUrl() }}">{{ activity.username }}</a></span>
+					 {% else %}
+						 <span>{{ activity.username }}</span>
+					 {% endif %}
+					 {{ activity.message | raw }}
+				 </div>
+				 <div>
+					 {{ activity.dateCreated }}
+				 </div>
+			</div>
+		{% endfor %}
+	{% endif %}
 {% endset %}

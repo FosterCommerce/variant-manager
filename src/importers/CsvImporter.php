@@ -11,7 +11,9 @@ use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
 use craft\web\UploadedFile;
+use DateTime;
 use fostercommerce\variantmanager\helpers\FieldHelper;
+use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\VariantManager;
 use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
@@ -48,6 +50,13 @@ class CsvImporter extends Importer
      */
     public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): array
     {
+        $currentUser = Craft::$app->getUser()->identity;
+        $activity = new Activity([
+            'userId' => $currentUser->id,
+            'username' => $currentUser->username,
+            'dateCreated' => Db::prepareDateForDb(new DateTime()),
+        ]);
+
         $product = $this->resolveProductModel($uploadedFile->baseName, $productTypeHandle);
 
         if ($productTypeHandle === null) {
@@ -60,8 +69,10 @@ class CsvImporter extends Importer
         $this->validateSkus($product, $mapping, $tabularDataReader);
 
         if ($product->isNewForSite) {
+            $activity->message = "imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
             $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
         } else {
+            $activity->message = "imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
             $variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
         }
 
@@ -73,6 +84,8 @@ class CsvImporter extends Importer
             $error = reset($errors);
             throw new \RuntimeException($error ?? 'Failed to save product');
         }
+
+        $activity->save();
 
         return [
             'title' => $product->title,
