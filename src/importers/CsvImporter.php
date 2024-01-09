@@ -87,6 +87,12 @@ class CsvImporter extends Importer
 
         $activity->save();
 
+        Activity::deleteAll([
+            'id' => Activity::find()->select(['id'])->orderBy([
+                'dateCreated' => SORT_DESC,
+            ])->offset(Activity::ACTIVITY_LIMIT)->column(),
+        ]);
+
         return [
             'title' => $product->title,
             'url' => $product->getCpEditUrl(),
