@@ -8,6 +8,8 @@ use craft\commerce\elements\Variant;
 use craft\commerce\helpers\Product as ProductHelper;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
+use craft\commerce\records\Purchasable as PurchasableRecord;
+use craft\commerce\records\Variant as VariantRecord;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
 use craft\web\UploadedFile;
@@ -71,12 +73,34 @@ class CsvImporter extends Importer
         if ($product->isNewForSite) {
             $activity->message = "imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
             $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
+            $previousVariants = [];
         } else {
             $activity->message = "imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
             $variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
+            $previousVariants = $product->variants;
         }
 
         $product->setVariants($variants);
+        $currentVariants = $product->variants;
+
+        if ($previousVariants !== []) {
+            $removed = array_udiff($previousVariants, $currentVariants, static function($prev, $curr): int {
+                if ($prev->sku === $curr->sku) {
+                    return 0;
+                }
+
+                return -1;
+            });
+
+            $removed = array_map(static fn($variant) => $variant->sku, $removed);
+            PurchasableRecord::deleteAll([
+                'sku' => $removed,
+            ]);
+            VariantRecord::deleteAll([
+                'sku' => $removed,
+            ]);
+        }
+
         // runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
         // See: https://github.com/craftcms/commerce/pull/3297
         if (! Craft::$app->elements->saveElement($product, true, true, true)) {
