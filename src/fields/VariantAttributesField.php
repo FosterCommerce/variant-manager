@@ -30,6 +30,13 @@ class VariantAttributesField extends Field
 
     public function getContentColumnType(): string
     {
+        $db = Craft::$app->db;
+        if (version_compare(Craft::$app->getVersion(), '4.6', '>=') && $db->getDriverLabel() === 'MariaDB') {
+            // In Craft 4.6+, TYPE_JSON doesn't work correctly as a JSON data type
+            // TODO Revisit after Craft 5 has been released.
+            return Schema::TYPE_TEXT;
+        }
+
         return Schema::TYPE_JSON;
     }
 

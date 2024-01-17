@@ -113,27 +113,31 @@ class VariantManager extends Plugin
             $this->registerViewHooks();
         }
 
-        // Work-around while waiting for https://github.com/craftcms/cms/pull/13955
-        if (Craft::$app->getDb()->getIsPgsql()) {
-            Event::on(
-                Content::class,
-                Content::EVENT_AFTER_SAVE_CONTENT,
-                static function(ElementContentEvent $elementContentEvent): void {
-                    $element = $elementContentEvent->element;
-                    $variantAttributesField = FieldHelper::getFirstVariantAttributesField($element->getFieldLayout());
+        if (version_compare(Craft::$app->getVersion(), '4.6', '<')) {
+            // Work-around pre-4.6 so store JSON data correctly in MySQL and PSQL
+            // If the site is running Craft pre-4.6, then we need to resave the VariantAttributesField data in the content table so that the JSON data is stored correctly. Otherwise it is stored as a string value.
+            $db = Craft::$app->db;
+            if ($db->getIsPgsql() || $db->getDriverLabel() !== 'MariaDB') {
+                Event::on(
+                    Content::class,
+                    Content::EVENT_AFTER_SAVE_CONTENT,
+                    static function(ElementContentEvent $elementContentEvent): void {
+                        $element = $elementContentEvent->element;
+                        $variantAttributesField = FieldHelper::getFirstVariantAttributesField($element->getFieldLayout());
 
-                    if ($variantAttributesField instanceof VariantAttributesField) {
-                        $column = ElementHelper::fieldColumnFromField($variantAttributesField);
-                        $value = $element->getFieldValue($variantAttributesField->handle);
+                        if ($variantAttributesField instanceof VariantAttributesField) {
+                            $column = ElementHelper::fieldColumnFromField($variantAttributesField);
+                            $value = $element->getFieldValue($variantAttributesField->handle);
 
-                        Db::update(Craft::$app->content->contentTable, [
-                            $column => $value,
-                        ], [
-                            'id' => $element->contentId,
-                        ], [], true, Craft::$app->getDb());
+                            Db::update(Craft::$app->content->contentTable, [
+                                $column => $value,
+                            ], [
+                                'id' => $element->contentId,
+                            ], [], true, Craft::$app->getDb());
+                        }
                     }
-                }
-            );
+                );
+            }
         }
     }
 
