@@ -45,10 +45,6 @@ class CsvExporter extends Exporter
             $payload[] = $fieldHandle === 'stock' && $variant->hasUnlimitedStock ? '' : $variant->{$fieldHandle};
         }
 
-        foreach ($mapping['variant'] as [$fieldHandle, $header]) {
-            $payload[] = $variant->{$fieldHandle};
-        }
-
         if ($mapping['fieldHandle']) {
             $handle = $mapping['fieldHandle'];
             $attributes = $variant->{$handle};
