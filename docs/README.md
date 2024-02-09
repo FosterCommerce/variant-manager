@@ -6,6 +6,12 @@
 1. [Configuration](getting-started/configuration.md)
 1. [Permissions](getting-started/permissions.md)
 
+## Usage
+
+1. [Overview](usage/overview.md)
+2. [Importing Product Variants](usage/importing.md)
+3. [Exporting Product Variants](usage/exporting.md)
+
 ## Templates
 
 1. [Function reference](templates/function-reference.md)
