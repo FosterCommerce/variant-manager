@@ -1,10 +1,10 @@
-# Function Reference
+# Template Tags
 
 ## Available Functions
 
 The following functions are available:
 
-## `craft.variantManager.getAttributeOptions(product, attributes)`
+### `craft.variantManager.getAttributeOptions(product, attributes)`
 
 Accepts either a product ID or a `Product`, and an optional attribute filter to return options for specific attributes only.
 
@@ -41,7 +41,7 @@ Would output something similar to:
       "Value 3",
       "Value 4"
     ]
-  },
+  }
 ]
 ```
 

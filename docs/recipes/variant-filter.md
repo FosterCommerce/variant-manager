@@ -35,6 +35,10 @@ Filter variants based on a selection
 </div>
 
 <ul>
+  {# 
+    NOTE: The "variantAttributes" below in this example should be the handle of the
+    Variant Attributes field you created and have added to your variant fields layout
+  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
     <li>
       {{ variant.sku }} - {{ variant.price|commerceCurrency }}
@@ -73,6 +77,10 @@ Filter variants based on a selection
 </div>
 
 <ul>
+  {# 
+    NOTE: The "variantAttributes" below in this example should be the handle of the
+    Variant Attributes field you created and have added to your variant fields layout
+  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
     <li>
       {{ variant.sku }} - {{ variant.price|commerceCurrency }}
@@ -123,6 +131,10 @@ Filter variants based on a selection
 </div>
 
 <ul>
+  {# 
+    NOTE: The "variantAttributes" below in this example should be the handle of the
+    Variant Attributes field you created and have added to your variant fields layout
+  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
     <li>
       {{ variant.sku }} - {{ variant.price|commerceCurrency }}
@@ -160,6 +172,10 @@ Filter variants based on a selection
 </div>
 
 <ul>
+  {# 
+    NOTE: The "variantAttributes" below in this example should be the handle of the
+    Variant Attributes field you created and have added to your variant fields layout
+  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
     <li>
       {{ variant.sku }} - {{ variant.price|commerceCurrency }}

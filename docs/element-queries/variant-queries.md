@@ -1,4 +1,4 @@
-# Variant Queries
+# Querying Variants
 
 If a `VariantAttributesField` is attached to a product types variants, then it is possible to use that field to filter
 variants by the attributes and options stored in that field.
@@ -30,12 +30,16 @@ The following will return all variants which have the option `'Value'`:
 The following will return all variants which have an attribute of `Attribute A` with a value of `Value A1`, _and_ an
 attribute of `Attribute B` with a value of `Value B1`.
 
+#### PHP
+
 ```php
 \craft\commerce\elements\Variant::find()->myVariantAttributes([
   'Attribute A' => 'Value A1',
   'Attribute B' => 'Value B1',
 ])->all();
 ```
+
+#### Twig
 
 ```twig
 {% set filter = {
@@ -50,6 +54,8 @@ attribute of `Attribute B` with a value of `Value B1`.
 The following will return all variants which have an attribute of `Attribute A` with a value of `Value A1`, _or_ any
 option value of `Value`, _or_ an attribute of `Attribute B` with a value of `Value B1`.
 
+#### PHP
+
 ```php
 \craft\commerce\elements\Variant::find()->myVariantAttributes([
   ['Attribute A' => 'Value A1'],
@@ -57,6 +63,8 @@ option value of `Value`, _or_ an attribute of `Attribute B` with a value of `Val
   ['Attribute B' => 'Value B1'],
 ])->all();
 ```
+
+#### Twig
 
 ```twig
 {% set filter = {

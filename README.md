@@ -29,3 +29,11 @@ composer require fostercommerce/variant-manager
 # tell Craft to install the plugin
 ./craft plugin/install variant-manager
 ```
+
+#### With DDEV
+
+Run the following command from DDEV:
+
+```bash
+ddev composer require fostercommerce/variant-manager -w && ddev exec php craft plugin/install variant-manager
+```
