@@ -1,3 +1,4 @@
+![Screenshot](resources/img/header.png)
 # Variant Manager
 
 A plugin for managing product variants.
