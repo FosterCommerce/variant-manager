@@ -18,7 +18,7 @@
 1. [Template Tags](templates/function-reference.md)
 2. [Querying Variants](element-queries/variant-queries.md)
 
-## Javascript Recipes
+## Template Recipes
 
 1. [Filter variants based on a selection examples](recipes/variant-filter.md)
 1. [Select a variant based on a variants attributes examples](recipes/variant-switcher.md)
