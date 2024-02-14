@@ -15,6 +15,10 @@ Select a variant based on variant attribute values.
   {% set selection = selection|merge({(attribute.name): selected}) %}
 {% endfor %}
 
+{# 
+  NOTE: The "variantAttributes" below in this example should be the handle of the
+  Variant Attributes field you created and have added to your variant fields layout
+#}
 {% set variant = craft.variants().productId(productId).variantAttributes(selection).one() %}
 
 <h1>{{ product.title }}</h1>
@@ -64,6 +68,10 @@ Select a variant based on variant attribute values.
   {% set selection = selection|merge({(attribute.name): selected}) %}
 {% endfor %}
 
+{# 
+  NOTE: The "variantAttributes" below in this example should be the handle of the
+  Variant Attributes field you created and have added to your variant fields layout
+#}
 {% set variant = craft.variants().productId(productId).variantAttributes(selection).one() %}
 
 <h1>{{ product.title }}</h1>
