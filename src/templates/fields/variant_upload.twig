@@ -82,7 +82,10 @@
 					'X-Requested-With': 'XMLHttpRequest',
 				},
 			}).then(async (response) => {
-
+				if (response.status > 299) {
+					let error = await response.json();
+					throw new Error(error.message);
+				}
 				return response.json()
 			}).then((result) => {
 				if (!result.exists) {
@@ -96,8 +99,7 @@
 					confirmBtn.classList.remove("edit", "hidden");
 					confirmBtn.classList.add("add");
 
-					message.innerHTML =
-						`Are you sure you want to create a new product named <strong>"${productName}"</strong>?`;
+					message.innerHTML = "Are you sure you want to create a new product?";
 				} else {
 					productTypeContainer.classList.add("hidden");
 
@@ -106,7 +108,7 @@
 					confirmBtn.classList.add("edit");
 
 					message.innerHTML =
-						`Are you sure you want to edit an existing product named <strong>"${productName}"</strong>?`;
+						`Are you sure you want to edit an existing product named <strong>"${result.name}"</strong>?`;
 				}
 
 				modal.show();

@@ -28,6 +28,7 @@ class CsvExporter extends Exporter
         // Headers include variant fields and attribute options
         $header = array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['option']);
         $writer->insertOne($header);
+        $writer->insertOne([$product->title]);
 
         foreach ($variants as $variant) {
             $row = $this->normalizeVariantExport($variant, $mapping);

@@ -57,13 +57,22 @@ class CsvImporter extends Importer
             'dateCreated' => Db::prepareDateForDb(new DateTime()),
         ]);
 
-        $product = $this->resolveProductModel($uploadedFile->baseName, $productTypeHandle);
+        $tabularDataReader = $this->read($uploadedFile);
+        $titleRecord = array_filter($tabularDataReader->fetchOne());
+        if ($titleRecord === [] || count($titleRecord) > 1) {
+            throw new \RuntimeException('Invalid product title');
+        }
+
+        $productId = explode('__', $uploadedFile->baseName)[0] ?? null;
+        if (!ctype_digit($productId)) {
+            $productId = null;
+        }
+
+        $product = $this->resolveProductModel($titleRecord[array_key_first($titleRecord)], $productId, $productTypeHandle);
 
         if ($productTypeHandle === null) {
             $productTypeHandle = $product->type->handle;
         }
-
-        $tabularDataReader = $this->read($uploadedFile);
         $mapping = $this->resolveVariantImportMapping($tabularDataReader, $productTypeHandle);
 
         $this->validateSkus($product, $mapping, $tabularDataReader);
@@ -143,7 +152,13 @@ class CsvImporter extends Importer
     private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
         $variants = [];
-        foreach ($tabularDataReader->getRecords() as $record) {
+        $iterator = $tabularDataReader->getIterator();
+        foreach ($iterator as $record) {
+            if ($iterator->key() === 1) {
+                // Skip the title record
+                continue;
+            }
+
             $record = array_values($record);
 
             if ($record === []) {
@@ -162,7 +177,13 @@ class CsvImporter extends Importer
     private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
     {
         $variants = [];
-        foreach ($tabularDataReader->getRecords() as $record) {
+        $iterator = $tabularDataReader->getIterator();
+        foreach ($iterator as $record) {
+            if ($iterator->key() === 1) {
+                // Skip the title record
+                continue;
+            }
+
             $record = array_values($record);
 
             if ($record === []) {
@@ -267,21 +288,23 @@ class CsvImporter extends Importer
     /**
      * @throws InvalidConfigException
      */
-    private function resolveProductModel(string $name, ?string $productTypeHandle): Product
+    private function resolveProductModel(string $title, ?string $productId, ?string $productTypeHandle): Product
     {
-        $productQuery = Product::find()->title(Db::escapeParam($name));
-
-        $existing = $productQuery->one();
-        $product = $existing ?? new Product();
-
-        if (! $existing) {
-            $product->title = $name;
+        if ($productId !== null) {
+            $product = Product::find()->id($productId)->one();
+            if ($product === null) {
+                throw new \RuntimeException('Invalid product id');
+            }
+        } else {
+            $product = new Product();
             $product->isNewForSite = true;
 
             /** @var CommercePlugin $plugin */
             $plugin = Craft::$app->plugins->getPlugin('commerce');
             $product->typeId = $plugin->getProductTypes()->getProductTypeByHandle($productTypeHandle)->id;
         }
+
+        $product->title = $title;
 
         return $product;
     }

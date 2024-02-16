@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\controllers;
 
 use craft\commerce\elements\Product;
 use craft\commerce\Plugin as CommercePlugin;
+use craft\helpers\Db;
 use craft\helpers\FileHelper;
 use craft\web\Controller;
 use craft\web\UploadedFile;
@@ -34,9 +35,21 @@ class ProductVariantsController extends Controller
     {
         $this->requirePermission('variant-manager:import');
 
-        $product = Product::find()
-            ->title($this->request->getQueryParam('name'))
-            ->one();
+        $productId = explode('__', $this->request->getQueryParam('name'))[0] ?? null;
+        if (!ctype_digit($productId)) {
+            $productId = null;
+        }
+
+        $product = null;
+        if ($productId !== null) {
+            $product = Product::find()
+                ->id(Db::escapeParam($productId))
+                ->one();
+
+            if ($product === null) {
+                throw new \RuntimeException('Invalid product ID');
+            }
+        }
 
         $productTypes = [];
 
@@ -45,7 +58,8 @@ class ProductVariantsController extends Controller
         }
 
         return $this->asJson([
-            'exists' => isset($product),
+            'exists' => $product !== null,
+            'name' => $product?->title,
             'productTypes' => $productTypes,
         ]);
     }
