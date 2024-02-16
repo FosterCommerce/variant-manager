@@ -64,7 +64,7 @@ class CsvImporter extends Importer
         }
 
         $productId = explode('__', $uploadedFile->baseName)[0] ?? null;
-        if (!ctype_digit($productId)) {
+        if (! ctype_digit((string) $productId)) {
             $productId = null;
         }
 
@@ -73,6 +73,7 @@ class CsvImporter extends Importer
         if ($productTypeHandle === null) {
             $productTypeHandle = $product->type->handle;
         }
+
         $mapping = $this->resolveVariantImportMapping($tabularDataReader, $productTypeHandle);
 
         $this->validateSkus($product, $mapping, $tabularDataReader);

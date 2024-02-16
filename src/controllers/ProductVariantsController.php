@@ -35,8 +35,8 @@ class ProductVariantsController extends Controller
     {
         $this->requirePermission('variant-manager:import');
 
-        $productId = explode('__', $this->request->getQueryParam('name'))[0] ?? null;
-        if (!ctype_digit($productId)) {
+        $productId = explode('__', (string) $this->request->getQueryParam('name'))[0] ?? null;
+        if (! ctype_digit((string) $productId)) {
             $productId = null;
         }
 
