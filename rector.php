@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 use craft\rector\SetList as CraftSetList;
 use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
+use Rector\Naming\Rector\Assign\RenameVariableToMatchMethodCallReturnTypeRector;
 use Rector\Naming\Rector\ClassMethod\RenameParamToMatchTypeRector;
 use Rector\Naming\Rector\ClassMethod\RenameVariableToMatchNewTypeRector;
 use Rector\Set\ValueObject\SetList;
@@ -42,5 +43,6 @@ return static function(RectorConfig $rectorConfig): void {
         EncapsedStringsToSprintfRector::class,
         RenameParamToMatchTypeRector::class,
         RenameVariableToMatchNewTypeRector::class,
+        RenameVariableToMatchMethodCallReturnTypeRector::class,
     ]);
 };

@@ -20,21 +20,44 @@
 	{% if activities is empty %}
 		<p>No activity yet.</p>
 	{% else %}
-		{% for activity in activities %}
-			<div style="display: flex; flex-direction: row; place-content: space-between;">
-				 <div>
-					 {% set user = craft.users().id(activity.userId).one() %}
-					 {% if user is not null %}
-						 <span><a class="go" href="{{ user.getCpEditUrl() }}">{{ activity.username }}</a></span>
-					 {% else %}
-						 <span>{{ activity.username }}</span>
-					 {% endif %}
-					 {{ activity.message | raw }}
-				 </div>
-				 <div>
-					 {{ activity.dateCreated }}
-				 </div>
+		<div class="main tablepane">
+			<table id="activities" class="data fullwidth">
+				<thead>
+				<th scope="col">{{ 'User'|t('variant-manager') }}</th>
+				<th scope="col">{{ 'Message'|t('variant-manager') }}</th>
+				<th scope="col">{{ 'Date'|t('variant-manager') }}</th>
+				</thead>
+				<tbody>
+			{% for activity in activities %}
+			<tr tabindex="0">
+				<td data-title="{{ "User"|t("variant-manager") }}">
+					{% set user = craft.users().id(activity.userId).one() %}
+					{% if user is not null %}
+						<span><a class="go" href="{{ user.getCpEditUrl() }}">{{ activity.username }}</a></span>
+					{% else %}
+						<span>{{ activity.username }}</span>
+					{% endif %}
+				</td>
+				<td data-title="{{ "Message"|t('variant-manager') }}">
+					{{ activity.message | raw }}
+				</td>
+				<td data-title="{{ "Date"|t('variant-manager') }}">
+					{{ activity.dateCreated }}
+				</td>
+			</tr>
+			{% endfor %}
+				</tbody>
+			</table>
+		</div>
+
+		<div id="footer" class="flex">
+			<div id="count-container" class="light flex-grow">
+				{% include '_includes/pagination' with {
+					'pageInfo' : pagination,
+					'itemLabel' : 'item'|t('variant-manager'),
+					'itemsLabel': 'items'|t('variant-manager')
+				} %}
 			</div>
-		{% endfor %}
+		</div>
 	{% endif %}
 {% endset %}

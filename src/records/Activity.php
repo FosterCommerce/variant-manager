@@ -11,8 +11,6 @@ use craft\db\ActiveRecord;
  */
 class Activity extends ActiveRecord
 {
-    final public const ACTIVITY_LIMIT = 50;
-
     final public const TABLE_NAME = '{{%variant_manager_activities}}';
 
     public static function tableName(): string

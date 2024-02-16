@@ -2,7 +2,9 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
+use Craft;
 use craft\web\Controller;
+use craft\web\twig\variables\Paginate;
 use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\VariantManagerAssetBundle;
 use yii\base\InvalidConfigException;
@@ -10,6 +12,8 @@ use yii\web\Response;
 
 class DashboardController extends Controller
 {
+    final public const ACTIVITIES_PER_PAGE = 20;
+
     protected array|bool|int $allowAnonymous = false;
 
     /**
@@ -19,10 +23,24 @@ class DashboardController extends Controller
     {
         $this->view->registerAssetBundle(VariantManagerAssetBundle::class);
 
+        $activityQuery = Activity::find()->orderBy([
+            'dateCreated' => SORT_DESC,
+        ]);
+
+        $pageNum = Craft::$app->request->getPageNum();
+        $offset = (self::ACTIVITIES_PER_PAGE * ($pageNum - 1));
+        $total = $activityQuery->count();
+
         return $this->renderTemplate('variant-manager/dashboard', [
-            'activities' => Activity::find()->orderBy([
-                'dateCreated' => SORT_DESC,
-            ])->all(),
+            'activities' => $activityQuery->limit(self::ACTIVITIES_PER_PAGE)->offset($offset)->all(),
+            'pagination' => Craft::createObject([
+                'class' => Paginate::class,
+                'first' => $offset + 1,
+                'last' => min($offset + self::ACTIVITIES_PER_PAGE, $total),
+                'total' => $total,
+                'currentPage' => $pageNum,
+                'totalPages' => ceil($total / self::ACTIVITIES_PER_PAGE),
+            ]),
         ]);
     }
 }
