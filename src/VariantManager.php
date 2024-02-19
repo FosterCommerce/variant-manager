@@ -24,6 +24,7 @@ use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\Settings;
+use fostercommerce\variantmanager\services\Csv;
 use fostercommerce\variantmanager\services\ProductVariants;
 use Twig\Error\LoaderError;
 use Twig\Error\RuntimeError;
@@ -43,6 +44,7 @@ use yii\base\InvalidConfigException;
  *
  * @property-read Settings $settings
  * @property-read ProductVariants $productVariants
+ * @property-read Csv $csv
  * @property-read null|array $cpNavItem
  */
 class VariantManager extends Plugin
@@ -203,6 +205,7 @@ class VariantManager extends Plugin
 
         $this->setComponents([
             'productVariants' => ProductVariants::class,
+            'csv' => Csv::class,
         ]);
     }
 

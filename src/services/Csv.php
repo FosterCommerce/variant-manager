@@ -1,8 +1,9 @@
 <?php
 
-namespace fostercommerce\variantmanager\importers;
+namespace fostercommerce\variantmanager\services;
 
 use Craft;
+use craft\base\Component;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
 use craft\commerce\helpers\Product as ProductHelper;
@@ -10,8 +11,8 @@ use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\Db;
-use craft\web\UploadedFile;
 use DateTime;
+use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\VariantManager;
@@ -20,10 +21,11 @@ use League\Csv\Reader;
 use League\Csv\Statement;
 use League\Csv\TabularDataReader;
 use League\Csv\UnableToProcessCsv;
+use League\Csv\Writer;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
 
-class CsvImporter extends Importer
+class Csv extends Component
 {
     private const STANDARD_VARIANT_FIELDS = [
         'enabled',
@@ -48,7 +50,7 @@ class CsvImporter extends Importer
      * @throws ElementNotFoundException
      * @throws \Throwable
      */
-    public function import(UploadedFile $uploadedFile, ?string $productTypeHandle): array
+    public function import(string $fileName, string $csvData, ?string $productTypeHandle): void
     {
         $currentUser = Craft::$app->getUser()->identity;
         $activity = new Activity([
@@ -57,13 +59,13 @@ class CsvImporter extends Importer
             'dateCreated' => Db::prepareDateForDb(new DateTime()),
         ]);
 
-        $tabularDataReader = $this->read($uploadedFile);
+        $tabularDataReader = $this->read($csvData);
         $titleRecord = array_filter($tabularDataReader->fetchOne());
         if ($titleRecord === [] || count($titleRecord) > 1) {
             throw new \RuntimeException('Invalid product title');
         }
 
-        $productId = explode('__', $uploadedFile->baseName)[0] ?? null;
+        $productId = explode('__', $fileName)[0] ?? null;
         if (! ctype_digit((string) $productId)) {
             $productId = null;
         }
@@ -96,11 +98,74 @@ class CsvImporter extends Importer
         }
 
         $activity->save();
+    }
+
+    public function export(string $productId, array $options = []): array|bool
+    {
+        /** @var Product|null $product */
+        $product = Product::find()->id($productId)->one();
+
+        if (! isset($product)) {
+            return false;
+        }
+
+        $variantAttributesField = FieldHelper::getFirstVariantAttributesField($product->type->getVariantFieldLayout());
+
+        if ($variantAttributesField::class === VariantAttributesField::class) {
+            $conditions = $options['conditions'] ?? [];
+            $variants = Variant::find()->product($product)->{$variantAttributesField->handle}($conditions)->all();
+        } else {
+            $variants = Variant::find()->product($product)->all();
+        }
 
         return [
-            'title' => $product->title,
-            'url' => $product->getCpEditUrl(),
+            'filename' => "{$product->id}__{$product->slug}",
+            'export' => $this->exportProduct($product, $variants),
         ];
+    }
+
+    /**
+     * @throws CannotInsertRecord
+     * @throws Exception
+     */
+    public function exportProduct(Product $product, array $variants): string
+    {
+        $mapping = $this->resolveVariantExportMapping($product);
+
+        $writer = Writer::createFromString();
+
+        // Headers include variant fields and attribute options
+        $header = array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['option']);
+        $writer->insertOne($header);
+        $writer->insertOne([$product->title]);
+
+        foreach ($variants as $variant) {
+            $row = $this->normalizeVariantExport($variant, $mapping);
+            $writer->insertOne($row);
+        }
+
+        return $writer->toString();
+    }
+
+    /**
+     * @param string[] $items
+     */
+    protected function findProductVariantSkus(array $items): array
+    {
+        $found = Variant::find()
+            ->sku($items)
+            ->all();
+
+        $mapped = [];
+        foreach ($found as $variant) {
+            if (! array_key_exists($variant->product->id, $mapped)) {
+                $mapped[$variant->product->id] = [];
+            }
+
+            $mapped[$variant->product->id][] = $variant->sku;
+        }
+
+        return $mapped;
     }
 
     /**
@@ -134,9 +199,9 @@ class CsvImporter extends Importer
     /**
      * @throws CsvException
      */
-    private function read(UploadedFile $uploadedFile): \League\Csv\TabularDataReader
+    private function read(string $csvData): \League\Csv\TabularDataReader
     {
-        $reader = Reader::createFromPath($uploadedFile->tempName, 'r');
+        $reader = Reader::createFromString($csvData);
         $reader->setHeaderOffset(0);
         return Statement::create()->process($reader);
     }
@@ -302,5 +367,52 @@ class CsvImporter extends Importer
         $product->title = $title;
 
         return $product;
+    }
+
+    private function normalizeVariantExport($variant, array $mapping): array
+    {
+        $payload = [];
+
+        foreach ($mapping['variant'] as [$fieldHandle, $header]) {
+            $payload[] = $fieldHandle === 'stock' && $variant->hasUnlimitedStock ? '' : $variant->{$fieldHandle};
+        }
+
+        if ($mapping['fieldHandle']) {
+            $handle = $mapping['fieldHandle'];
+            $attributes = $variant->{$handle};
+            foreach ($attributes ?? [] as $attribute) {
+                $payload[] = $attribute['attributeValue'];
+            }
+        }
+
+        return $payload;
+    }
+
+    private function resolveVariantExportMapping(Product $product): array
+    {
+        $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
+
+        $map = VariantManager::getInstance()->getSettings()->getProductTypeMapping($product->type->handle);
+
+        $variantMap = [];
+        foreach (array_keys($map) as $i => $heading) {
+            $variantMap[$i] = [$map[$heading], $heading];
+        }
+
+        $fieldHandle = null;
+        $optionMap = [];
+        if ($product->variants !== []) {
+            $variant = $product->variants[0];
+            $fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())->handle;
+            foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
+                $optionMap[] = $optionPrefix . $attribute['attributeName'];
+            }
+        }
+
+        return [
+            'variant' => $variantMap,
+            'option' => $optionMap,
+            'fieldHandle' => $fieldHandle,
+        ];
     }
 }

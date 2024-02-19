@@ -6,12 +6,11 @@ use craft\commerce\elements\Product;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\helpers\Db;
 use craft\helpers\FileHelper;
+use craft\helpers\Queue;
 use craft\web\Controller;
 use craft\web\UploadedFile;
-use fostercommerce\variantmanager\exporters\Exporter;
-use fostercommerce\variantmanager\exporters\ExportType;
-use fostercommerce\variantmanager\importers\Importer;
-use fostercommerce\variantmanager\importers\ImportMimeType;
+use fostercommerce\variantmanager\jobs\Import as ImportJob;
+use fostercommerce\variantmanager\VariantManager;
 use http\Exception\RuntimeException;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
@@ -69,7 +68,7 @@ class ProductVariantsController extends Controller
      * @throws ForbiddenHttpException
      * @throws ServerErrorHttpException
      */
-    public function actionUpload(): Response
+    public function actionUpload(): void
     {
         $this->requirePostRequest();
 
@@ -82,7 +81,7 @@ class ProductVariantsController extends Controller
             throw new BadRequestHttpException('No file was uploaded');
         }
 
-        return $this->asJson(Importer::create(ImportMimeType::from($uploadedFile->type))->import($uploadedFile, $productTypeHandle));
+        Queue::push(ImportJob::fromFile($uploadedFile, $productTypeHandle));
     }
 
     /**
@@ -97,17 +96,16 @@ class ProductVariantsController extends Controller
 
         $this->requirePermission('variant-manager:export');
 
-        $format = $this->request->getQueryParam('format', 'json');
         $download = filter_var(
             $this->request->getQueryParam('download', false),
             FILTER_VALIDATE_BOOLEAN,
             FILTER_NULL_ON_FAILURE
         );
 
-        $exporter = Exporter::create(ExportType::from($format));
+        $csvService = VariantManager::getInstance()->csv;
         $results = [];
         foreach (explode('|', (string) $ids) as $id) {
-            $result = $exporter->export($id, $this->request->getBodyParams());
+            $result = $csvService->export($id, $this->request->getBodyParams());
 
             if ($result === false) {
                 throw new NotFoundHttpException("Product with ID {$id} not found");
@@ -120,14 +118,14 @@ class ProductVariantsController extends Controller
             if (count($results) === 1) {
                 // If there is just a single product, then download that file
                 $result = $results[0];
-                $filename = "{$result['filename']}.{$exporter->ext}";
+                $filename = "{$result['filename']}.csv";
                 $result = $result['export'];
                 if (is_array($result)) {
                     $result = json_encode($result, JSON_THROW_ON_ERROR);
                 }
 
                 $this->response->sendContentAsFile($result, $filename, [
-                    'mimeType' => $exporter->mimetype,
+                    'mimeType' => 'text/csv',
                 ]);
             } else {
                 // If there are multiple products then download a zip file of the content
@@ -138,7 +136,7 @@ class ProductVariantsController extends Controller
                 }
 
                 foreach ($results as $result) {
-                    $filename = "{$result['filename']}.{$exporter->ext}";
+                    $filename = "{$result['filename']}.csv";
                     $result = $result['export'];
                     if (is_array($result)) {
                         $result = json_encode($result, JSON_THROW_ON_ERROR);

@@ -188,11 +188,11 @@
 							throw Error(JSON.stringify(await response.json()));
 						}
 					} else {
-						return response.json();
+						return {};
 					}
 				}).then((result) => {
 					completeActions.classList.remove('hidden');
-					message.innerHTML = `Product <strong class="go"><a href="${result.url}">${result.title}</a></strong> has been successfully uploaded`;
+					message.innerHTML = `File <strong>${file.name}</strong> has been queued for processing`;
 				}).catch((error) => {
 					primaryActions.classList.remove('hidden');
 					completeActions.classList.add('hidden');
