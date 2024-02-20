@@ -73,22 +73,44 @@
 
 			const file = new FormData(form).get('variant-uploads');
 			productName = file.name.split('.').slice(0, -1).join('.');
+			const fileType = file.name.split('.').slice(1, 2)[0];
 
-			fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
-				method: 'POST',
-				headers: {
-					'Accept': 'application/json',
-					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-					'X-Requested-With': 'XMLHttpRequest',
-				},
-			}).then(async (response) => {
-				if (response.status > 299) {
-					let error = await response.json();
-					throw new Error(error.message);
-				}
-				return response.json()
-			}).then((result) => {
-				if (!result.exists) {
+			async function checkExists() {
+				return fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
+					method: 'POST',
+					headers: {
+						'Accept': 'application/json',
+						'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+						'X-Requested-With': 'XMLHttpRequest',
+					},
+				}).then(async (response) => {
+					if (response.status > 299) {
+						let error = await response.json();
+						throw new Error(error.message);
+					}
+					const res = await response.json();
+					if (fileType === 'zip') {
+						return {zip: true, ...res};
+					}
+
+					return res
+				})
+			}
+
+			checkExists().then((result) => {
+				if (result.zip) {
+					productTypeContainer.classList.remove("hidden");
+
+					productType.innerHTML = result.productTypes.map((productType) => {
+						return `<option value="${productType[0]}">${productType[1]}</option>`;
+					}).join("");
+
+					confirmBtn.innerHTML = "Process Zip";
+					confirmBtn.classList.remove("edit", "hidden");
+					confirmBtn.classList.add("add");
+
+					message.innerHTML = "Are you sure you want to process this zip file?";
+				} else if (!result.exists) {
 					productTypeContainer.classList.remove("hidden");
 
 					productType.innerHTML = result.productTypes.map((productType) => {

@@ -7,7 +7,6 @@ use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\commerce\elements\Product;
-use craft\commerce\elements\Variant;
 use craft\events\ElementContentEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterElementActionsEvent;
@@ -31,7 +30,6 @@ use Twig\Error\RuntimeError;
 use Twig\Error\SyntaxError;
 use yii\base\Event;
 use yii\base\Exception;
-use yii\base\InvalidConfigException;
 
 /**
  * Variant Manager plugin

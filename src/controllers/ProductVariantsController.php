@@ -81,7 +81,37 @@ class ProductVariantsController extends Controller
             throw new BadRequestHttpException('No file was uploaded');
         }
 
-        Queue::push(ImportJob::fromFile($uploadedFile, $productTypeHandle));
+        $fileType = pathinfo($uploadedFile->name, PATHINFO_EXTENSION);
+        if ($fileType === 'zip') {
+            $zip = new \ZipArchive();
+            $zip->open($uploadedFile->tempName);
+            $filenames = [];
+            for ($i = 0; $i < $zip->numFiles; ++$i) {
+                $filename = $zip->getNameIndex($i);
+                $pathinfo = pathinfo($filename);
+                $baseName = $pathinfo['filename'];
+                $extension = $pathinfo['extension'] ?? null;
+                if (! str_starts_with($baseName, '.') && $extension === 'csv') {
+                    // Only extract csv files from the zip.
+                    // Don't extract any hidden files. This helps catch OSX specific files such as DS_Store, etc. It
+                    // also prevents extracting files from the __MACOSX dir.
+                    $filenames[] = $filename;
+                }
+            }
+
+            $extractToDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'variant-manager';
+            $zip->extractTo($extractToDir, $filenames);
+
+            foreach ($filenames as $filename) {
+                $file = $extractToDir . DIRECTORY_SEPARATOR . $filename;
+                Queue::push(ImportJob::fromFilename($file, $productTypeHandle));
+                unlink($file);
+            }
+        } elseif ($fileType === 'csv') {
+            Queue::push(ImportJob::fromFile($uploadedFile, $productTypeHandle));
+        } else {
+            throw new \RuntimeException('Invalid file type');
+        }
     }
 
     /**

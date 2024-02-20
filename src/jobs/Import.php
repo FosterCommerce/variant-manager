@@ -27,6 +27,15 @@ class Import extends BaseJob
         ]);
     }
 
+    public static function fromFilename(string $filename, ?string $productTypeHandle): self
+    {
+        return new self([
+            'filename' => basename($filename),
+            'productTypeHandle' => $productTypeHandle,
+            'csvData' => file_get_contents($filename),
+        ]);
+    }
+
     /**
      * @throws UnableToProcessCsv
      * @throws ElementNotFoundException
