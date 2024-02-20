@@ -65,23 +65,6 @@ class VariantManager extends Plugin
         });
     }
 
-    public function getCpNavItem(): ?array
-    {
-        $cpNavItem = parent::getCpNavItem();
-
-        $cpNavItem['subnav'] = [
-            'dashboard' => [
-                'label' => 'Dashboard',
-                'url' => 'plugin-handle',
-            ],
-        ];
-
-        return $cpNavItem;
-    }
-
-    /**
-     * @throws InvalidConfigException
-     */
     protected function createSettingsModel(): ?Model
     {
         return new Settings();
