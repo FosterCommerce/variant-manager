@@ -50,7 +50,7 @@ class Csv extends Component
      * @throws ElementNotFoundException
      * @throws \Throwable
      */
-    public function import(string $fileName, string $csvData, ?string $productTypeHandle): void
+    public function import(string $filename, string $csvData, ?string $productTypeHandle): void
     {
         $currentUser = Craft::$app->getUser()->identity;
         $activity = new Activity([
@@ -65,7 +65,7 @@ class Csv extends Component
             throw new \RuntimeException('Invalid product title');
         }
 
-        $productId = explode('__', $fileName)[0] ?? null;
+        $productId = explode('__', $filename)[0] ?? null;
         if (! ctype_digit((string) $productId)) {
             $productId = null;
         }
@@ -81,10 +81,8 @@ class Csv extends Component
         $this->validateSkus($product, $mapping, $tabularDataReader);
 
         if ($product->isNewForSite) {
-            $activity->message = "imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
             $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
         } else {
-            $activity->message = "imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
             $variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
         }
 
@@ -95,6 +93,13 @@ class Csv extends Component
             $errors = $product->getErrorSummary(false);
             $error = reset($errors);
             throw new \RuntimeException($error ?? 'Failed to save product');
+        }
+
+        // Do this after save so that we can get the correct edit URL from a new product
+        if ($product->isNewForSite) {
+            $activity->message = "Imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
+        } else {
+            $activity->message = "Imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
         }
 
         $activity->save();
