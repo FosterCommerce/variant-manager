@@ -5,7 +5,8 @@
 {% set title = "Variant Manager"|t('variant-manager') %}
 
 {% set additionalButtons %}
-	<form method="POST">
+	<form method="POST" style="display: flex; flex-direction: row;">
+		 <div id="upload-spinner" class="spinner hidden" style="margin-right: 1rem;"></div>
 		{{ csrfInput() }}
 		{% include 'variant-manager/fields/variant_upload' with {
 			"id": "variant-uploads",

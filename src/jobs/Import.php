@@ -5,7 +5,7 @@ namespace fostercommerce\variantmanager\jobs;
 use craft\errors\ElementNotFoundException;
 use craft\queue\BaseJob;
 use craft\web\UploadedFile;
-use fostercommerce\variantmanager\VariantManager;
+use fostercommerce\variantmanager\Plugin;
 use League\Csv\UnableToProcessCsv;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
@@ -46,7 +46,7 @@ class Import extends BaseJob
      */
     public function execute($queue): void
     {
-        VariantManager::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle);
+        Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle);
     }
 
     protected function defaultDescription(): ?string

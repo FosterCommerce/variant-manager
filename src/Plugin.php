@@ -5,7 +5,7 @@ namespace fostercommerce\variantmanager;
 use Craft;
 use craft\base\Element;
 use craft\base\Model;
-use craft\base\Plugin;
+use craft\base\Plugin as BasePlugin;
 use craft\commerce\elements\Product;
 use craft\events\ElementContentEvent;
 use craft\events\RegisterComponentTypesEvent;
@@ -34,7 +34,7 @@ use yii\base\Exception;
 /**
  * Variant Manager plugin
  *
- * @method static VariantManager getInstance()
+ * @method static Plugin getInstance()
  * @method Settings getSettings()
  * @author Foster Commerce <support@fostercomerce.com>
  * @copyright Foster Commerce
@@ -45,7 +45,7 @@ use yii\base\Exception;
  * @property-read Csv $csv
  * @property-read null|array $cpNavItem
  */
-class VariantManager extends Plugin
+class Plugin extends BasePlugin
 {
     public string $schemaVersion = '1.0.0';
 

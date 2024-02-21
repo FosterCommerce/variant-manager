@@ -2,10 +2,20 @@
   "name": "fostercommerce/variant-manager",
   "description": "A plugin for managing product variants.",
   "type": "craft-plugin",
-  "license": "mit",
-  "version": "1.1.0",
+  "version": "1.0.0-beta.1",
+  "keywords": ["craft","plugin","ecommerce"],
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Foster Commerce",
+      "homepage": "https://www.fostercommerce.com"
+    }
+  ],
   "support": {
-    "email": "support@fostercomerce.com"
+    "email": "support@fostercomerce.com",
+    "issues": "https://github.com/fostercommerce/variant-manager/issues?state=open",
+    "source": "https://github.com/fostercommerce/variant-manager",
+    "docs": "https://github.com/fostercommerce/variant-manager/blob/develop/README.md"
   },
   "require": {
     "php": ">=8.1.0",
@@ -27,9 +37,7 @@
   "extra": {
     "handle": "variant-manager",
     "name": "Variant Manager",
-    "developer": "Foster Commerce",
-    "documentationUrl": "",
-    "class": "fostercommerce\\variantmanager\\VariantManager"
+    "documentationUrl": "https://github.com/fostercommerce/variant-manager/blob/develop/README.md"
   },
   "config": {
     "sort-packages": true,

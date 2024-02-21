@@ -14,8 +14,8 @@ use craft\helpers\Db;
 use DateTime;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
+use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\records\Activity;
-use fostercommerce\variantmanager\VariantManager;
 use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
 use League\Csv\Statement;
@@ -269,7 +269,7 @@ class Csv extends Component
      */
     private function normalizeVariantImport(Product $product, array $variant, array $mapping, int $variantId): Variant
     {
-        $emptyOptionValue = VariantManager::getInstance()->getSettings()->emptyOptionValue;
+        $emptyOptionValue = Plugin::getInstance()->getSettings()->emptyOptionValue;
         // Generate attributes for variant attributes field
         $attributes = [];
         foreach ($mapping['option'] as $field) {
@@ -322,8 +322,8 @@ class Csv extends Component
 
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader, string $productTypeHandle): array
     {
-        $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
-        $productTypeMap = VariantManager::getInstance()->getSettings()->getProductTypeMapping($productTypeHandle);
+        $optionPrefix = Plugin::getInstance()->getSettings()->optionPrefix;
+        $productTypeMap = Plugin::getInstance()->getSettings()->getProductTypeMapping($productTypeHandle);
         $productType = CommercePlugin::getInstance()->productTypes->getProductTypeByHandle($productTypeHandle);
 
         if (! $productType instanceof ProductType) {
@@ -338,7 +338,7 @@ class Csv extends Component
         foreach ($tabularDataReader->getHeader() as $i => $heading) {
             if (array_key_exists(trim($heading), $productTypeMap)) {
                 $variantMap[$productTypeMap[trim($heading)]] = $i;
-            } elseif (str_starts_with($heading, $optionPrefix)) {
+            } elseif (str_starts_with($heading, (string) $optionPrefix)) {
                 $optionMap[] = [$i, explode($optionPrefix, $heading)[1]];
             }
         }
@@ -395,9 +395,9 @@ class Csv extends Component
 
     private function resolveVariantExportMapping(Product $product): array
     {
-        $optionPrefix = VariantManager::getInstance()->getSettings()->optionPrefix;
+        $optionPrefix = Plugin::getInstance()->getSettings()->optionPrefix;
 
-        $map = VariantManager::getInstance()->getSettings()->getProductTypeMapping($product->type->handle);
+        $map = Plugin::getInstance()->getSettings()->getProductTypeMapping($product->type->handle);
 
         $variantMap = [];
         foreach (array_keys($map) as $i => $heading) {

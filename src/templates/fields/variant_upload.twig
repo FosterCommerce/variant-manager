@@ -53,6 +53,8 @@
 		let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
 		let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
 
+		let uploadSpinner = document.getElementById('upload-spinner');
+
 		let productName = null;
 
 		for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
@@ -97,7 +99,9 @@
 				})
 			}
 
+			uploadSpinner.classList.remove('hidden');
 			checkExists().then((result) => {
+				uploadSpinner.classList.add('hidden');
 				if (result.zip) {
 					productTypeContainer.classList.remove("hidden");
 
@@ -106,6 +110,8 @@
 					}).join("");
 
 					confirmBtn.innerHTML = "Process Zip";
+					primaryActions.classList.remove('hidden');
+					completeActions.classList.add('hidden');
 					confirmBtn.classList.remove("edit", "hidden");
 					confirmBtn.classList.add("add");
 
@@ -118,6 +124,8 @@
 					}).join("");
 
 					confirmBtn.innerHTML = "Create Product";
+					primaryActions.classList.remove('hidden');
+					completeActions.classList.add('hidden');
 					confirmBtn.classList.remove("edit", "hidden");
 					confirmBtn.classList.add("add");
 
@@ -126,6 +134,8 @@
 					productTypeContainer.classList.add("hidden");
 
 					confirmBtn.innerHTML = "Edit Product";
+					primaryActions.classList.remove('hidden');
+					completeActions.classList.add('hidden');
 					confirmBtn.classList.remove("add", "hidden");
 					confirmBtn.classList.add("edit");
 
@@ -135,21 +145,22 @@
 
 				modal.show();
 			}).catch((error) => {
+				uploadSpinner.classList.add('hidden');
 				btn.disabled = false;
 				btn.classList.remove('disabled');
 
 				try {
 					error = JSON.parse(error.message);
-				} catch (E) {
-					error = error;
+				} catch (err) {
+					error = err;
 				}
 
 				confirmBtn.classList.add("hidden");
 
 				if (error.statusText) {
-					message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;
+					Craft.cp.displayError(`An error occurred: ${error.statusText}`);
 				} else if (error.message) {
-					message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
+					Craft.cp.displayError(error.message);
 				}
 
 				modal.show();
@@ -178,9 +189,9 @@
 		}
 
 		function confirmChanges(event) {
+			modal.hide();
 			try {
 				primaryActions.classList.add('hidden');
-				message.innerHTML = `Uploading <strong>${productName}</strong>`;
 
 				const payload = new FormData(form);
 				const file = payload.get("variant-uploads");
@@ -194,6 +205,7 @@
 					"productTypeHandle", productType.value
 				);
 
+				uploadSpinner.classList.remove('hidden');
 				fetch('/admin/variant-manager/upload', {
 					method: "POST",
 					headers: {
@@ -203,6 +215,7 @@
 					},
 					body: payload,
 				}).then(async (response) => {
+					uploadSpinner.classList.add('hidden');
 					if (!response.ok) {
 						if (response.statusText) {
 							throw Error(response.statusText);
@@ -213,31 +226,31 @@
 						return {};
 					}
 				}).then((result) => {
-					completeActions.classList.remove('hidden');
-					message.innerHTML = `File <strong>${file.name}</strong> has been queued for processing`;
+					Craft.cp.displayNotice(`File ${file.name} has been queued for processing`);
 				}).catch((error) => {
+					uploadSpinner.classList.add('hidden');
 					primaryActions.classList.remove('hidden');
 					completeActions.classList.add('hidden');
 					try {
 						error = JSON.parse(error.message);
-					} catch (E) {
-						error = error;
+					} catch (err) {
+						error = err;
 					}
 
 					confirmBtn.classList.add("hidden");
 					productTypeContainer.classList.add("hidden");
 
 					if (error.statusText) {
-						message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.statusText}`;
+						Craft.cp.displayError(`An error occurred: ${error.statusText}`);
 					} else if (error.message) {
-						message.innerHTML = `<strong class="error">An error occurred:</strong> ${error.message}`;
+						Craft.cp.displayError(error.message);
 					}
 				}).finally(() => {
 					btn.disabled = false;
 					btn.classList.remove('disabled');
 				})
-			} catch (E) {
-				console.log(E);
+			} catch (err) {
+				Craft.cp.displayError(err.message);
 			}
 		}
 

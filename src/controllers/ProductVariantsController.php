@@ -10,7 +10,7 @@ use craft\helpers\Queue;
 use craft\web\Controller;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\jobs\Import as ImportJob;
-use fostercommerce\variantmanager\VariantManager;
+use fostercommerce\variantmanager\Plugin;
 use http\Exception\RuntimeException;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
@@ -132,7 +132,7 @@ class ProductVariantsController extends Controller
             FILTER_NULL_ON_FAILURE
         );
 
-        $csvService = VariantManager::getInstance()->csv;
+        $csvService = Plugin::getInstance()->csv;
         $results = [];
         foreach (explode('|', (string) $ids) as $id) {
             $result = $csvService->export($id, $this->request->getBodyParams());
