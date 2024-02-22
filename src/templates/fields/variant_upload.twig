@@ -145,15 +145,10 @@
 
 				modal.show();
 			}).catch((error) => {
+				modal.hide();
 				uploadSpinner.classList.add('hidden');
 				btn.disabled = false;
 				btn.classList.remove('disabled');
-
-				try {
-					error = JSON.parse(error.message);
-				} catch (err) {
-					error = err;
-				}
 
 				confirmBtn.classList.add("hidden");
 
@@ -162,8 +157,6 @@
 				} else if (error.message) {
 					Craft.cp.displayError(error.message);
 				}
-
-				modal.show();
 			});
 
 			return true;
@@ -231,11 +224,6 @@
 					uploadSpinner.classList.add('hidden');
 					primaryActions.classList.remove('hidden');
 					completeActions.classList.add('hidden');
-					try {
-						error = JSON.parse(error.message);
-					} catch (err) {
-						error = err;
-					}
 
 					confirmBtn.classList.add("hidden");
 					productTypeContainer.classList.add("hidden");

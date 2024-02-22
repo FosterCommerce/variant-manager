@@ -10,8 +10,6 @@ use craft\commerce\helpers\Product as ProductHelper;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
-use craft\helpers\Db;
-use DateTime;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
@@ -52,13 +50,6 @@ class Csv extends Component
      */
     public function import(string $filename, string $csvData, ?string $productTypeHandle): void
     {
-        $currentUser = Craft::$app->getUser()->identity;
-        $activity = new Activity([
-            'userId' => $currentUser->id,
-            'username' => $currentUser->username,
-            'dateCreated' => Db::prepareDateForDb(new DateTime()),
-        ]);
-
         $tabularDataReader = $this->read($csvData);
         $titleRecord = array_filter($tabularDataReader->fetchOne());
         if ($titleRecord === [] || count($titleRecord) > 1) {
@@ -97,12 +88,14 @@ class Csv extends Component
 
         // Do this after save so that we can get the correct edit URL from a new product
         if ($product->isNewForSite) {
-            $activity->message = "Imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
+            Activity::log(
+                "Imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
+            );
         } else {
-            $activity->message = "Imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}";
+            Activity::log(
+                "Imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
+            );
         }
-
-        $activity->save();
     }
 
     public function export(string $productId, array $options = []): array|bool

@@ -6,6 +6,7 @@ use craft\errors\ElementNotFoundException;
 use craft\queue\BaseJob;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\Plugin;
+use fostercommerce\variantmanager\records\Activity;
 use League\Csv\UnableToProcessCsv;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
@@ -46,7 +47,12 @@ class Import extends BaseJob
      */
     public function execute($queue): void
     {
-        Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle);
+        try {
+            Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle);
+        } catch (\Throwable $throwable) {
+            Activity::log("Failed to import <strong>{$this->filename}</strong>: {$throwable->getMessage()}", 'error');
+            throw $throwable;
+        }
     }
 
     protected function defaultDescription(): ?string

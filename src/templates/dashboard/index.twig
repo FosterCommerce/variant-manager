@@ -39,7 +39,7 @@
 					{% endif %}
 				</td>
 				<td data-title="{{ "Message"|t('variant-manager') }}">
-					{{ activity.message | raw }}
+					<span class="status {% if activity.type == 'success' %}green{% else %}red{% endif %}"></span>{{ activity.message | raw }}
 				</td>
 				<td data-title="{{ "Date"|t('variant-manager') }}">
 					{{ activity.dateCreated }}

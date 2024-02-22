@@ -12,6 +12,7 @@ class Install extends Migration
         $this->createTable(Activity::TABLE_NAME, [
             'id' => $this->primaryKey(),
             'message' => $this->text()->notNull(),
+            'type' => $this->string()->notNull(),
             'userId' => $this->integer()->notNull(),
             'username' => $this->string()->notNull(),
             'dateCreated' => $this->dateTime()->notNull(),
