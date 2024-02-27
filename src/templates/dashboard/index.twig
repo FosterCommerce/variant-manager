@@ -1,12 +1,27 @@
 {# https://github.com/craftcms/cms/blob/develop/src/templates/_layouts/cp.twig #}
 
 {% extends 'variant-manager/_layouts/cp' %}
+{% import "_includes/forms" as forms %}
 
 {% set title = "Variant Manager"|t('variant-manager') %}
 
 {% set additionalButtons %}
+	<form id="log-form" method="get">
+		{{ forms.selectField({
+			first: true,
+			id: 'log-status',
+			name: 'status',
+			options: [
+				{ label: 'All activity logs', value: 'all' },
+				{ label: 'Successful activities', value: 'success' },
+				{ label: 'Errored activities', value: 'error' }
+			],
+			toggle: true,
+			value: logStatus,
+		}) }}
+	</form>
 	<form method="POST" style="display: flex; flex-direction: row;">
-		 <div id="upload-spinner" class="spinner hidden" style="margin-right: 1rem;"></div>
+		<div id="upload-spinner" class="spinner hidden" style="margin-right: 1rem;"></div>
 		{{ csrfInput() }}
 		{% include 'variant-manager/fields/variant_upload' with {
 			"id": "variant-uploads",
@@ -28,24 +43,25 @@
 				<th scope="col">{{ 'Date'|t('variant-manager') }}</th>
 				</thead>
 				<tbody>
-			{% for activity in activities %}
-			<tr tabindex="0">
-				<td data-title="{{ "User"|t("variant-manager") }}">
-					{% set user = craft.users().id(activity.userId).one() %}
-					{% if user is not null %}
-						<span><a class="go" href="{{ user.getCpEditUrl() }}">{{ activity.username }}</a></span>
-					{% else %}
-						<span>{{ activity.username }}</span>
-					{% endif %}
-				</td>
-				<td data-title="{{ "Message"|t('variant-manager') }}">
-					<span class="status {% if activity.type == 'success' %}green{% else %}red{% endif %}"></span>{{ activity.message | raw }}
-				</td>
-				<td data-title="{{ "Date"|t('variant-manager') }}">
-					{{ activity.dateCreated }}
-				</td>
-			</tr>
-			{% endfor %}
+				{% for activity in activities %}
+					<tr tabindex="0">
+						<td data-title="{{ "User"|t("variant-manager") }}">
+							{% set user = craft.users().id(activity.userId).one() %}
+							{% if user is not null %}
+								<span><a class="go" href="{{ user.getCpEditUrl() }}">{{ activity.username }}</a></span>
+							{% else %}
+								<span>{{ activity.username }}</span>
+							{% endif %}
+						</td>
+						<td data-title="{{ "Message"|t('variant-manager') }}">
+							<span
+								class="status {% if activity.type == 'success' %}green{% else %}red{% endif %}"></span>{{ activity.message | raw }}
+						</td>
+						<td data-title="{{ "Date"|t('variant-manager') }}">
+							{{ activity.dateCreated }}
+						</td>
+					</tr>
+				{% endfor %}
 				</tbody>
 			</table>
 		</div>
@@ -61,3 +77,11 @@
 		</div>
 	{% endif %}
 {% endset %}
+
+{% js %}
+
+	document.getElementById('log-status').addEventListener('change', function () {
+		document.getElementById('log-form').submit();
+	});
+
+{% endjs %}

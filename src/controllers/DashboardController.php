@@ -31,8 +31,21 @@ class DashboardController extends Controller
         $offset = (self::ACTIVITIES_PER_PAGE * ($pageNum - 1));
         $total = $activityQuery->count();
 
+        $status = $this->request->getQueryParam('status', 'all');
+
+        if ($status !== 'all') {
+            if ($status !== 'success' && $status !== 'error') {
+                throw new \RuntimeException('Invalid log status');
+            }
+
+            $activityQuery = $activityQuery->where([
+                'type' => $status,
+            ]);
+        }
+
         return $this->renderTemplate('variant-manager/dashboard', [
             'activities' => $activityQuery->limit(self::ACTIVITIES_PER_PAGE)->offset($offset)->all(),
+            'logStatus' => $status,
             'pagination' => Craft::createObject([
                 'class' => Paginate::class,
                 'first' => $offset + 1,
