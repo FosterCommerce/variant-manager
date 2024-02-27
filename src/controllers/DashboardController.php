@@ -27,10 +27,6 @@ class DashboardController extends Controller
             'dateCreated' => SORT_DESC,
         ]);
 
-        $pageNum = Craft::$app->request->getPageNum();
-        $offset = (self::ACTIVITIES_PER_PAGE * ($pageNum - 1));
-        $total = $activityQuery->count();
-
         $status = $this->request->getQueryParam('status', 'all');
 
         if ($status !== 'all') {
@@ -42,6 +38,10 @@ class DashboardController extends Controller
                 'type' => $status,
             ]);
         }
+
+        $pageNum = Craft::$app->request->getPageNum();
+        $offset = (self::ACTIVITIES_PER_PAGE * ($pageNum - 1));
+        $total = $activityQuery->count();
 
         return $this->renderTemplate('variant-manager/dashboard', [
             'activities' => $activityQuery->limit(self::ACTIVITIES_PER_PAGE)->offset($offset)->all(),
