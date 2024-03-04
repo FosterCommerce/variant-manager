@@ -114,11 +114,13 @@ class VariantAttributesField extends Field
                 throw new \RuntimeException('$value must be either an array or a string');
             }
 
-            $conditions[] = '(' . implode(" {$whereParts['type']} ", $whereParts['conditions']) . ')';
-            $params = [
-                ...$params,
-                ...$whereParts['params'],
-            ];
+            if ($whereParts['conditions'] !== []) {
+                $conditions[] = '(' . implode(" {$whereParts['type']} ", $whereParts['conditions']) . ')';
+                $params = [
+                    ...$params,
+                    ...$whereParts['params'],
+                ];
+            }
         }
 
         return $qb->buildCondition(implode(' OR ', $conditions), $params);

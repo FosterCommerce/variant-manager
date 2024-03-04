@@ -10,7 +10,6 @@ use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
 use craft\helpers\ElementHelper;
-use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use League\Csv\CannotInsertRecord;
@@ -72,7 +71,7 @@ class Csv extends Component
         $this->validateSkus($product, $mapping, $tabularDataReader);
 
         if ($product->isNewForSite) {
-            $variants = $this->normalizeNewProductImport($product, $tabularDataReader, $mapping);
+            $variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
         } else {
             $variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
         }
@@ -207,7 +206,7 @@ class Csv extends Component
      * @return Variant[]
      * @throws InvalidConfigException
      */
-    private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
+    private function normalizeNewProductImport(TabularDataReader $tabularDataReader, array $mapping): array
     {
         $variants = [];
         $iterator = $tabularDataReader->getIterator();
