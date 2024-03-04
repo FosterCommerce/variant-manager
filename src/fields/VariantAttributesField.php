@@ -5,12 +5,11 @@ namespace fostercommerce\variantmanager\fields;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
-use craft\elements\db\ElementQueryInterface;
-use craft\helpers\ElementHelper;
 use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use fostercommerce\variantmanager\helpers\FieldHelper;
+use yii\db\ExpressionInterface;
 use yii\db\Schema;
 
 /**
@@ -28,15 +27,8 @@ class VariantAttributesField extends Field
         return 'array|null';
     }
 
-    public function getContentColumnType(): string
+    public static function dbType(): array|string|null
     {
-        $db = Craft::$app->db;
-        if (version_compare(Craft::$app->getVersion(), '4.6', '>=') && $db->getDriverLabel() === 'MariaDB') {
-            // In Craft 4.6+, TYPE_JSON doesn't work correctly as a JSON data type
-            // TODO Revisit after Craft 5 has been released.
-            return Schema::TYPE_TEXT;
-        }
-
         return Schema::TYPE_JSON;
     }
 
@@ -70,50 +62,69 @@ class VariantAttributesField extends Field
         ]);
     }
 
-    public function modifyElementsQuery(ElementQueryInterface $elementQuery, mixed $value): void
-    {
-        if (! isset($value)) {
-            return;
-        }
+    public static function queryCondition(
+        array $instances,
+        mixed $value,
+        array &$params,
+    ): array|string|ExpressionInterface|false|null {
+        $db = Craft::$app->getDb();
+        $qb = $db->getQueryBuilder();
+        $contentColumn = $qb->db->quoteColumnName('elements_sites.content');
 
-        $whereParts = [
-            'type' => 'AND',
-            'conditions' => [],
-            'params' => [],
-        ];
-        if (is_array($value)) {
-            if (! array_is_list($value)) {
-                // If the value is an associative array, then we need to filter out variants that don't have the combination
-                // of key/value pairs in their field.
-                $this->generateAssociativeFilter($value, $whereParts);
-            } else {
-                $whereParts = [
-                    'type' => 'OR',
-                    'conditions' => [],
-                    'params' => [],
-                ];
-                foreach ($value as $filter) {
-                    if (is_array($filter) && ! array_is_list($filter)) {
-                        $this->generateAssociativeFilter($filter, $whereParts);
-                    } elseif (is_string($filter)) {
-                        $this->generateStringFilter($filter, $whereParts);
-                    } else {
-                        throw new \RuntimeException('$value items must be associative arrays or strings');
+        $conditions = [];
+        $params = [];
+
+        foreach ($instances as $instance) {
+            $jsonPath = $instance->layoutElement->uid;
+
+            if (! isset($value)) {
+                return null;
+            }
+
+            $whereParts = [
+                'type' => 'AND',
+                'conditions' => [],
+                'params' => [],
+            ];
+            if (is_array($value)) {
+                if (! array_is_list($value)) {
+                    // If the value is an associative array, then we need to filter out variants that don't have the combination
+                    // of key/value pairs in their field.
+                    $instance->generateAssociativeFilter($contentColumn, $value, $whereParts);
+                } else {
+                    $whereParts = [
+                        'type' => 'OR',
+                        'conditions' => [],
+                        'params' => [],
+                    ];
+                    foreach ($value as $filter) {
+                        if (is_array($filter) && ! array_is_list($filter)) {
+                            $instance->generateAssociativeFilter($contentColumn, $filter, $whereParts);
+                        } elseif (is_string($filter)) {
+                            $instance->generateStringFilter($contentColumn, $filter, $whereParts);
+                        } else {
+                            throw new \RuntimeException('$value items must be associative arrays or strings');
+                        }
                     }
                 }
+            } elseif (is_string($value)) {
+                // If the value is a string, then we filter out variants that don't have that value in their fields attributeValue property.
+                $instance->generateStringFilter($contentColumn, $value, $whereParts);
+            } else {
+                throw new \RuntimeException('$value must be either an array or a string');
             }
-        } elseif (is_string($value)) {
-            // If the value is a string, then we filter out variants that don't have that value in their fields attributeValue property.
-            $this->generateStringFilter($value, $whereParts);
-        } else {
-            throw new \RuntimeException('$value must be either an array or a string');
+
+            $conditions[] = '(' . implode(" {$whereParts['type']} ", $whereParts['conditions']) . ')';
+            $params = [
+                ...$params,
+                ...$whereParts['params'],
+            ];
         }
 
-        $condition = implode(" {$whereParts['type']} ", $whereParts['conditions']);
-        $elementQuery->subQuery->andWhere($condition)->addParams($whereParts['params']);
+        return $qb->buildCondition(implode(' OR ', $conditions), $params);
     }
 
-    private function generateAssociativeFilter(array $filter, array &$whereParts): void
+    private function generateAssociativeFilter(string $contentColumn, array $filter, array &$whereParts): void
     {
         if (array_filter(
                 $filter,
@@ -123,7 +134,7 @@ class VariantAttributesField extends Field
             throw new \RuntimeException('filter values must be strings');
         }
 
-        $column = ElementHelper::fieldColumnFromField($this);
+        $fieldUid = $this->layoutElement->uid;
 
         foreach ($filter as $key => $value) {
             $paramKey = StringHelper::randomString(4);
@@ -132,36 +143,35 @@ class VariantAttributesField extends Field
             if (Craft::$app->getDb()->getIsMysql()) {
                 // This query checks that the path returned by json_search on each side is the same path.
                 $whereParts['conditions'][] = <<<EOQ
-json_search(json_extract(content.{$column}, "$[*].attributeName"), 'one', {$keyParam})
-= json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam})
+json_search({$contentColumn}->>"$.\"{$fieldUid}\"[*].attributeName", 'one', {$keyParam})
+= json_search({$contentColumn}->>"$.\"{$fieldUid}\"[*].attributeValue", 'one', {$valueParam})
 EOQ;
                 $whereParts['params'][$keyParam] = $key;
                 $whereParts['params'][$valueParam] = $value;
             } else {
                 $whereParts['conditions'][] = <<<EOQ
-content."{$column}" @> {$valueParam}
+"{$contentColumn}" @> {$valueParam}
 EOQ;
                 $whereParts['params'][$valueParam] = "[{\"attributeName\": \"{$key}\", \"attributeValue\": \"{$value}\"}]";
             }
         }
     }
 
-    private function generateStringFilter(string $value, array &$whereParts): void
+    private function generateStringFilter(string $contentColumn, string $value, array &$whereParts): void
     {
-        $column = ElementHelper::fieldColumnFromField($this);
+        $fieldUid = $this->layoutElement->uid;
         $paramKey = StringHelper::randomString(4);
         $valueParam = ":av{$paramKey}";
 
         if (Craft::$app->getDb()->getIsMysql()) {
             // This query checks that the path returned by json_search on each side is the same path.
             $whereParts['conditions'][] = <<<EOQ
-json_search(json_extract(content.{$column}, "$[*].attributeValue"), 'one', {$valueParam}) is not null
+json_search({$contentColumn}->>"$.\"{$fieldUid}\"[*].attributeValue", 'one', {$valueParam}) is not null
 EOQ;
-
             $whereParts['params'][$valueParam] = $value;
         } else {
             $whereParts['conditions'][] = <<<EOQ
-content."{$column}" @> {$valueParam}
+"{$contentColumn}" @> {$valueParam}
 EOQ;
             $whereParts['params'][$valueParam] = "[{\"attributeValue\": \"{$value}\"}]";
         }

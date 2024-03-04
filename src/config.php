@@ -20,7 +20,7 @@ return [
         '*' => [
             'sku' => 'sku',
             'stock' => 'stock',
-            'price' => 'price',
+            'price' => 'basePrice',
             'height' => 'height',
             'width' => 'width',
             'length' => 'length',

@@ -7,21 +7,17 @@ use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\commerce\elements\Product;
-use craft\events\ElementContentEvent;
+use craft\events\DefineHtmlEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
-use craft\helpers\Db;
-use craft\helpers\ElementHelper;
-use craft\services\Content;
 use craft\services\Fields;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
-use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\Csv;
 use fostercommerce\variantmanager\services\ProductVariants;
@@ -94,33 +90,6 @@ class Plugin extends BasePlugin
             $this->registerTwig();
             $this->registerFields();
             $this->registerViewHooks();
-        }
-
-        if (version_compare(Craft::$app->getVersion(), '4.6', '<')) {
-            // Work-around pre-4.6 so store JSON data correctly in MySQL and PSQL
-            // If the site is running Craft pre-4.6, then we need to resave the VariantAttributesField data in the content table so that the JSON data is stored correctly. Otherwise it is stored as a string value.
-            $db = Craft::$app->db;
-            if ($db->getIsPgsql() || $db->getDriverLabel() !== 'MariaDB') {
-                Event::on(
-                    Content::class,
-                    Content::EVENT_AFTER_SAVE_CONTENT,
-                    static function(ElementContentEvent $elementContentEvent): void {
-                        $element = $elementContentEvent->element;
-                        $variantAttributesField = FieldHelper::getFirstVariantAttributesField($element->getFieldLayout());
-
-                        if ($variantAttributesField instanceof VariantAttributesField) {
-                            $column = ElementHelper::fieldColumnFromField($variantAttributesField);
-                            $value = $element->getFieldValue($variantAttributesField->handle);
-
-                            Db::update(Craft::$app->content->contentTable, [
-                                $column => $value,
-                            ], [
-                                'id' => $element->contentId,
-                            ], [], true, Craft::$app->getDb());
-                        }
-                    }
-                );
-            }
         }
     }
 
@@ -200,6 +169,25 @@ class Plugin extends BasePlugin
                 'product' => $context['product'],
             ]
         ));
+
+        Event::on(
+            Product::class,
+            Element::EVENT_DEFINE_SIDEBAR_HTML,
+            static function(DefineHtmlEvent $event): void {
+                $entry = $event->sender ?? null;
+
+                $html = Craft::$app->getView()->renderTemplate(
+                    'variant-manager/fields/product_export', [
+                        'id' => 'product-export',
+                        'namespacedId' => 'product-export',
+                        'name' => 'product-export',
+                        'product' => $entry,
+                    ]
+                );
+
+                $event->html .= $html;
+            }
+        );
     }
 
     private function registerPermissions(): void

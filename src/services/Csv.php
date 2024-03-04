@@ -6,10 +6,11 @@ use Craft;
 use craft\base\Component;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
-use craft\commerce\helpers\Product as ProductHelper;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
+use craft\helpers\ElementHelper;
+use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use League\Csv\CannotInsertRecord;
@@ -28,13 +29,13 @@ class Csv extends Component
         'enabled',
         'isDefault',
         'sku',
-        'price',
+        'basePrice',
         'width',
         'height',
         'length',
         'weight',
         'stock',
-        'hasUnlimitedStock',
+        'inventoryTracked',
         'minQty',
         'maxQty',
     ];
@@ -79,10 +80,20 @@ class Csv extends Component
         $product->setVariants($variants);
         // runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
         // See: https://github.com/craftcms/commerce/pull/3297
-        if (! Craft::$app->elements->saveElement($product, true, true, true)) {
+        if (! Craft::$app->elements->saveElement($product, false, true, true)) {
             $errors = $product->getErrorSummary(false);
             $error = reset($errors);
             throw new \RuntimeException($error ?? 'Failed to save product');
+        }
+
+        // Save after product has been saved so that titles can be generated correctly if necessary.
+        foreach ($variants as $variant) {
+            $variant->setOwner($product);
+            if (! Craft::$app->elements->saveElement($variant, false, true, true)) {
+                $errors = $product->getErrorSummary(false);
+                $error = reset($errors);
+                throw new \RuntimeException($error ?? 'Failed to save product');
+            }
         }
 
         return $product;
@@ -132,6 +143,7 @@ class Csv extends Component
 
     /**
      * @param string[] $items
+     * @throws InvalidConfigException
      */
     protected function findProductVariantSkus(array $items): array
     {
@@ -141,11 +153,13 @@ class Csv extends Component
 
         $mapped = [];
         foreach ($found as $variant) {
-            if (! array_key_exists($variant->product->id, $mapped)) {
-                $mapped[$variant->product->id] = [];
+            /** @var Product $product */
+            $product = $variant->getOwner();
+            if (! array_key_exists($product->id, $mapped)) {
+                $mapped[$product->id] = [];
             }
 
-            $mapped[$variant->product->id][] = $variant->sku;
+            $mapped[$product->id][] = $variant->sku;
         }
 
         return $mapped;
@@ -190,6 +204,7 @@ class Csv extends Component
     }
 
     /**
+     * @return Variant[]
      * @throws InvalidConfigException
      */
     private function normalizeNewProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
@@ -208,13 +223,14 @@ class Csv extends Component
                 continue;
             }
 
-            $variants[] = $this->normalizeVariantImport($product, $record, $mapping, 0);
+            $variants[] = $this->normalizeVariantImport($record, $mapping, 0);
         }
 
         return $variants;
     }
 
     /**
+     * @return Variant[]
      * @throws InvalidConfigException
      */
     private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
@@ -235,7 +251,7 @@ class Csv extends Component
 
             $variantId = Variant::find()->product($product)->sku($record[$mapping['variant']['sku']])->one()?->id ?? 0;
 
-            $variants[] = $this->normalizeVariantImport($product, $record, $mapping, $variantId);
+            $variants[] = $this->normalizeVariantImport($record, $mapping, $variantId);
         }
 
         return $variants;
@@ -245,7 +261,7 @@ class Csv extends Component
      * @throws InvalidConfigException
      * @throws \Throwable
      */
-    private function normalizeVariantImport(Product $product, array $variant, array $mapping, int $variantId): Variant
+    private function normalizeVariantImport(array $variant, array $mapping, int $variantId): Variant
     {
         $emptyAttributeValue = Plugin::getInstance()->getSettings()->emptyAttributeValue;
         // Generate attributes for variant attributes field
@@ -279,8 +295,6 @@ class Csv extends Component
             }
         }
 
-        $mapped['fields'] = $fields;
-
         if (! array_key_exists('minQty', $mapped)) {
             $mapped['minQty'] = null;
         }
@@ -289,11 +303,27 @@ class Csv extends Component
             $mapped['maxQty'] = null;
         }
 
-        $variantElement = ProductHelper::populateProductVariantModel($product, $mapped, $variantId === 0 ? 'new' : $variantId);
+        if ($variantId !== 0) {
+            /** @var Variant $variantElement */
+            $variantElement = Variant::find()->id($variantId)->one();
+        } else {
+            $variantElement = Craft::createObject(Variant::class);
+        }
+
+        foreach ($mapped as $fieldHandle => $value) {
+            // TODO ignore stock
+            $variantElement->{$fieldHandle} = $value;
+        }
+
+        foreach ($fields as $fieldHandle => $value) {
+            $variantElement->setFieldValue($fieldHandle, $value);
+        }
 
         if (($mapped['stock'] ?? '') === '') {
-            $variantElement->hasUnlimitedStock = true;
+            $variantElement->inventoryTracked = false;
         }
+
+        $variantElement->setPrice(100);
 
         return $variantElement;
     }
@@ -341,6 +371,7 @@ class Csv extends Component
         } else {
             $product = new Product();
             $product->isNewForSite = true;
+            $product->slug = ElementHelper::generateSlug($title);
 
             /** @var CommercePlugin $plugin */
             $plugin = Craft::$app->plugins->getPlugin('commerce');
@@ -357,7 +388,7 @@ class Csv extends Component
         $payload = [];
 
         foreach ($mapping['variant'] as [$fieldHandle, $header]) {
-            $payload[] = $fieldHandle === 'stock' && $variant->hasUnlimitedStock ? '' : $variant->{$fieldHandle};
+            $payload[] = $fieldHandle === 'stock' && $variant->inventoryTracked ? '' : $variant->{$fieldHandle};
         }
 
         if ($mapping['fieldHandle']) {
