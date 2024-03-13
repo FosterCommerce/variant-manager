@@ -6,8 +6,8 @@ Create a `variant-manager.php` file in your `config` directory. The following sh
 <?php
 
 return [
-    'emptyOptionValue' => '',
-    'optionPrefix' => 'Option: ',
+    'emptyAttributeValue' => '',
+    'attributePrefix' => 'Attribute: ',
     'variantFieldMap' => [
         '*' => [
             'sku' => 'sku',
@@ -30,11 +30,11 @@ When a variant has a `VariantAttributesField` field, the following config option
 
 **Note** that variant fields may only have a single VariantAttributes field. Any additional fields will be ignored by the plugin.
 
-#### `emptyOptionValue`
+#### `emptyAttributeValue`
 
 The value to use when a variant's attribute value is empty.
 
-####  `optionPrefix`
+####  `attributePrefix`
 
 The prefix to use to determine which columns correspond to variant attributes when importing/exporting product variants.
 
@@ -60,8 +60,8 @@ $defaultFieldMap = [
 ];
 
 return [
-  'emptyOptionValue' => 'None',
-  'optionPrefix' => 'Option : ',
+  'emptyAttributeValue' => 'None',
+  'attributePrefix' => 'Option : ',
   'variantFieldMap' => [
     "*" => $defaultFieldMap,
     'general' => array_merge(

@@ -14,9 +14,9 @@ use craft\commerce\Plugin as CommercePlugin;
  */
 class Settings extends Model
 {
-    public string $emptyOptionValue = '';
+    public string $emptyAttributeValue = '';
 
-    public string $optionPrefix = 'Option: ';
+    public string $attributePrefix = 'Attribute: ';
 
     public array $variantFieldMap = [
         '*' => [],

@@ -9,7 +9,7 @@ data in columns that Commerce needs and have been
 
 If you have product attributes that define a product variant (ex. color, size, etc.) they should also have columns in
 your spreadsheet with the column name being the attribute name, and prefixed with what is configured as the
-`optionPrefix` in the [Variant Manager configuration file](../getting-started/configuration.md)
+`attributePrefix` in the [Variant Manager configuration file](../getting-started/configuration.md)
 (ex. "Option: Color" and "Option: Size").
 
 If you have any plain text or number fields setup in your Commerce product type variants that you want to import from

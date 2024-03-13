@@ -247,13 +247,13 @@ class Csv extends Component
      */
     private function normalizeVariantImport(Product $product, array $variant, array $mapping, int $variantId): Variant
     {
-        $emptyOptionValue = Plugin::getInstance()->getSettings()->emptyOptionValue;
+        $emptyAttributeValue = Plugin::getInstance()->getSettings()->emptyAttributeValue;
         // Generate attributes for variant attributes field
         $attributes = [];
         foreach ($mapping['option'] as $field) {
             $value = trim((string) $variant[$field[0]]);
             if ($value === '') {
-                $value = $emptyOptionValue;
+                $value = $emptyAttributeValue;
             }
 
             $attributes[] = [
@@ -300,7 +300,7 @@ class Csv extends Component
 
     private function resolveVariantImportMapping(TabularDataReader $tabularDataReader, string $productTypeHandle): array
     {
-        $optionPrefix = Plugin::getInstance()->getSettings()->optionPrefix;
+        $attributePrefix = Plugin::getInstance()->getSettings()->attributePrefix;
         $productTypeMap = Plugin::getInstance()->getSettings()->getProductTypeMapping($productTypeHandle);
         $productType = CommercePlugin::getInstance()->productTypes->getProductTypeByHandle($productTypeHandle);
 
@@ -316,8 +316,8 @@ class Csv extends Component
         foreach ($tabularDataReader->getHeader() as $i => $heading) {
             if (array_key_exists(trim($heading), $productTypeMap)) {
                 $variantMap[$productTypeMap[trim($heading)]] = $i;
-            } elseif (str_starts_with($heading, (string) $optionPrefix)) {
-                $optionMap[] = [$i, explode($optionPrefix, $heading)[1]];
+            } elseif (str_starts_with($heading, (string) $attributePrefix)) {
+                $optionMap[] = [$i, explode($attributePrefix, $heading)[1]];
             }
         }
 
@@ -373,7 +373,7 @@ class Csv extends Component
 
     private function resolveVariantExportMapping(Product $product): array
     {
-        $optionPrefix = Plugin::getInstance()->getSettings()->optionPrefix;
+        $attributePrefix = Plugin::getInstance()->getSettings()->attributePrefix;
 
         $map = Plugin::getInstance()->getSettings()->getProductTypeMapping($product->type->handle);
 
@@ -389,7 +389,7 @@ class Csv extends Component
             $fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
             if ($fieldHandle !== null) {
                 foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
-                    $optionMap[] = $optionPrefix . $attribute['attributeName'];
+                    $optionMap[] = $attributePrefix . $attribute['attributeName'];
                 }
             }
         }
