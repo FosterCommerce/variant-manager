@@ -108,7 +108,6 @@ class Csv extends Component
 
         $this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
         $this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
-        // TODO save site data and inventory data
 
         return $product;
     }
@@ -423,7 +422,7 @@ class Csv extends Component
         $mapped = [];
         $fields = [];
 
-        if (!empty($mapping['fieldHandle'])) {
+        if (! empty($mapping['fieldHandle'])) {
             $fields[$mapping['fieldHandle']] = $attributes;
         }
 
