@@ -92,7 +92,7 @@ class Csv extends Component
      * @throws CannotInsertRecord
      * @throws CsvException
      */
-    public function export(string $productId, array $options = []): array|bool
+    public function export(string $productId): array|bool
     {
         /** @var Product|null $product */
         $product = Product::find()->id($productId)->one();
@@ -117,8 +117,8 @@ class Csv extends Component
 
         $writer = Writer::createFromString();
 
-        // Headers include variant fields and attribute options
-        $header = array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['option']);
+        // Headers include variant fields and attributes
+        $header = array_merge(array_map(static fn($fieldMap) => $fieldMap[1], $mapping['variant']), $mapping['attribute']);
         $writer->insertOne($header);
         $writer->insertOne([$product->title]);
 
@@ -250,7 +250,7 @@ class Csv extends Component
         $emptyAttributeValue = Plugin::getInstance()->getSettings()->emptyAttributeValue;
         // Generate attributes for variant attributes field
         $attributes = [];
-        foreach ($mapping['option'] as $field) {
+        foreach ($mapping['attribute'] as $field) {
             $value = trim((string) $variant[$field[0]]);
             if ($value === '') {
                 $value = $emptyAttributeValue;
@@ -312,18 +312,18 @@ class Csv extends Component
 
         $variantMap = array_fill_keys(array_values($productTypeMap), null);
 
-        $optionMap = [];
+        $attributeMap = [];
         foreach ($tabularDataReader->getHeader() as $i => $heading) {
             if (array_key_exists(trim($heading), $productTypeMap)) {
                 $variantMap[$productTypeMap[trim($heading)]] = $i;
             } elseif (str_starts_with($heading, (string) $attributePrefix)) {
-                $optionMap[] = [$i, explode($attributePrefix, $heading)[1]];
+                $attributeMap[] = [$i, explode($attributePrefix, $heading)[1]];
             }
         }
 
         return [
             'variant' => $variantMap,
-            'option' => $optionMap,
+            'attribute' => $attributeMap,
             'fieldHandle' => $fieldHandle,
         ];
     }
@@ -383,20 +383,20 @@ class Csv extends Component
         }
 
         $fieldHandle = null;
-        $optionMap = [];
+        $attributeMap = [];
         if ($product->variants !== []) {
             $variant = $product->variants[0];
             $fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
             if ($fieldHandle !== null) {
                 foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
-                    $optionMap[] = $attributePrefix . $attribute['attributeName'];
+                    $attributeMap[] = $attributePrefix . $attribute['attributeName'];
                 }
             }
         }
 
         return [
             'variant' => $variantMap,
-            'option' => $optionMap,
+            'attribute' => $attributeMap,
             'fieldHandle' => $fieldHandle,
         ];
     }

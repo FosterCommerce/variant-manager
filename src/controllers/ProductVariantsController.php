@@ -135,7 +135,7 @@ class ProductVariantsController extends Controller
         $csvService = Plugin::getInstance()->csv;
         $results = [];
         foreach (explode('|', (string) $ids) as $id) {
-            $result = $csvService->export($id, $this->request->getBodyParams());
+            $result = $csvService->export($id);
 
             if ($result === false) {
                 throw new NotFoundHttpException("Product with ID {$id} not found");
