@@ -72,6 +72,7 @@ class Import extends BaseJob
                 $user,
                 "Failed to import <strong>{$this->filename}</strong>: {$throwable->getMessage()}", 'error'
             );
+            dd($throwable);
             throw $throwable;
         }
     }

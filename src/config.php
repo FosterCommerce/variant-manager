@@ -16,10 +16,11 @@
 return [
     'emptyAttributeValue' => '',
     'attributePrefix' => 'Attribute: ',
+    'inventoryPrefix' => 'Inventory',
     'variantFieldMap' => [
         '*' => [
             'sku' => 'sku',
-            'stock' => 'stock',
+            'inventoryTracked' => 'inventoryTracked',
             'price' => 'basePrice',
             'height' => 'height',
             'width' => 'width',

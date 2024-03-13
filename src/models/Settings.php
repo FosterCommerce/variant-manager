@@ -18,6 +18,8 @@ class Settings extends Model
 
     public string $attributePrefix = 'Attribute: ';
 
+    public string $inventoryPrefix = 'Inventory';
+
     public array $variantFieldMap = [
         '*' => [],
     ];
