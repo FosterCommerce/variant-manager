@@ -13,6 +13,8 @@ use yii\base\InvalidConfigException;
 
 class Import extends BaseJob
 {
+    public int $importByUserId;
+
     public string $filename;
 
     public ?string $productTypeHandle = null;
@@ -22,6 +24,7 @@ class Import extends BaseJob
     public static function fromFile(UploadedFile $uploadedFile, ?string $productTypeHandle): self
     {
         return new self([
+            'importByUserId' => \Craft::$app->getUser()->identity->id,
             'filename' => $uploadedFile->baseName,
             'productTypeHandle' => $productTypeHandle,
             'csvData' => file_get_contents($uploadedFile->tempName),
@@ -31,6 +34,7 @@ class Import extends BaseJob
     public static function fromFilename(string $filename, ?string $productTypeHandle): self
     {
         return new self([
+            'importByUserId' => \Craft::$app->getUser()->identity->id,
             'filename' => basename($filename),
             'productTypeHandle' => $productTypeHandle,
             'csvData' => file_get_contents($filename),
@@ -47,10 +51,27 @@ class Import extends BaseJob
      */
     public function execute($queue): void
     {
+        $user = \Craft::$app->getUsers()->getUserById($this->importByUserId);
         try {
-            Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle);
+            $product = Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle);
+
+            // Do this after save so that we can get the correct edit URL from a new product
+            if ($product->isNewForSite) {
+                Activity::log(
+                    $user,
+                    "Imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
+                );
+            } else {
+                Activity::log(
+                    $user,
+                    "Imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
+                );
+            }
         } catch (\Throwable $throwable) {
-            Activity::log("Failed to import <strong>{$this->filename}</strong>: {$throwable->getMessage()}", 'error');
+            Activity::log(
+                $user,
+                "Failed to import <strong>{$this->filename}</strong>: {$throwable->getMessage()}", 'error'
+            );
             throw $throwable;
         }
     }

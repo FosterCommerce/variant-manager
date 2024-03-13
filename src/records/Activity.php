@@ -2,8 +2,8 @@
 
 namespace fostercommerce\variantmanager\records;
 
-use Craft;
 use craft\db\ActiveRecord;
+use craft\elements\User;
 use craft\helpers\Db;
 
 /**
@@ -21,12 +21,11 @@ class Activity extends ActiveRecord
         return self::TABLE_NAME;
     }
 
-    public static function log(string $message, string $type = 'success'): void
+    public static function log(?User $user, string $message, string $type = 'success'): void
     {
-        $currentUser = Craft::$app->getUser()->identity;
         $activity = new self([
-            'userId' => $currentUser->id,
-            'username' => $currentUser->username,
+            'userId' => $user?->id ?? 0,
+            'username' => $user?->username ?? 'Unknown',
             'type' => $type,
             'message' => $message,
             'dateCreated' => Db::prepareDateForDb(new \DateTime()),

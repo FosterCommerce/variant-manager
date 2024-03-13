@@ -10,10 +10,9 @@ use craft\commerce\helpers\Product as ProductHelper;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\errors\ElementNotFoundException;
-use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
-use fostercommerce\variantmanager\records\Activity;
+use League\Csv\CannotInsertRecord;
 use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
 use League\Csv\Statement;
@@ -48,7 +47,7 @@ class Csv extends Component
      * @throws ElementNotFoundException
      * @throws \Throwable
      */
-    public function import(string $filename, string $csvData, ?string $productTypeHandle): void
+    public function import(string $filename, string $csvData, ?string $productTypeHandle): Product
     {
         $tabularDataReader = $this->read($csvData);
         $titleRecord = array_filter($tabularDataReader->fetchOne());
@@ -86,18 +85,13 @@ class Csv extends Component
             throw new \RuntimeException($error ?? 'Failed to save product');
         }
 
-        // Do this after save so that we can get the correct edit URL from a new product
-        if ($product->isNewForSite) {
-            Activity::log(
-                "Imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
-            );
-        } else {
-            Activity::log(
-                "Imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
-            );
-        }
+        return $product;
     }
 
+    /**
+     * @throws CannotInsertRecord
+     * @throws CsvException
+     */
     public function export(string $productId, array $options = []): array|bool
     {
         /** @var Product|null $product */
@@ -107,24 +101,15 @@ class Csv extends Component
             return false;
         }
 
-        $variantAttributesField = FieldHelper::getFirstVariantAttributesField($product->type->getVariantFieldLayout());
-
-        if ($variantAttributesField::class === VariantAttributesField::class) {
-            $conditions = $options['conditions'] ?? [];
-            $variants = Variant::find()->product($product)->{$variantAttributesField->handle}($conditions)->all();
-        } else {
-            $variants = Variant::find()->product($product)->all();
-        }
-
         return [
             'filename' => "{$product->id}__{$product->slug}",
-            'export' => $this->exportProduct($product, $variants),
+            'export' => $this->exportProduct($product, Variant::find()->product($product)->all()),
         ];
     }
 
     /**
      * @throws CannotInsertRecord
-     * @throws Exception
+     * @throws CsvException
      */
     public function exportProduct(Product $product, array $variants): string
     {
@@ -323,7 +308,7 @@ class Csv extends Component
             throw new \RuntimeException('Invalid product type handle');
         }
 
-        $fieldHandle = FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout())->handle;
+        $fieldHandle = FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout())?->handle;
 
         $variantMap = array_fill_keys(array_values($productTypeMap), null);
 
@@ -401,9 +386,11 @@ class Csv extends Component
         $optionMap = [];
         if ($product->variants !== []) {
             $variant = $product->variants[0];
-            $fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())->handle;
-            foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
-                $optionMap[] = $optionPrefix . $attribute['attributeName'];
+            $fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
+            if ($fieldHandle !== null) {
+                foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
+                    $optionMap[] = $optionPrefix . $attribute['attributeName'];
+                }
             }
         }
 
