@@ -158,7 +158,7 @@ class Csv extends Component
     {
         // Exit early if there are duplicate SKUs
         $skuColumn = $mapping['variant']['sku'];
-        $skus = iterator_to_array($tabularDataReader->fetchColumn($skuColumn));
+        $skus = iterator_to_array($tabularDataReader->fetchColumnByOffset($skuColumn));
 
         $countedSkus = array_count_values($skus);
         $duplicateSkus = array_filter($countedSkus, static fn($count): bool => $count > 1);
