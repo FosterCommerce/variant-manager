@@ -1,6 +1,6 @@
 # Release Notes for Variant Manager
 
-## 1.0.0-beta.2 - Unreleased
+## 1.0.0-beta.2 - 2024-03-14
 
 - Added success and error types for activity logs.
 - Included a status indicator for each activity log on the dashboard.
