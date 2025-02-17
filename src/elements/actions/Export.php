@@ -8,15 +8,15 @@ use craft\helpers\Json;
 
 class Export extends ElementAction
 {
-    public function getTriggerLabel(): string
-    {
-        return Craft::t('variant-manager', 'Export Variant Data');
-    }
+	public function getTriggerLabel(): string
+	{
+		return Craft::t('variant-manager', 'Export Variant Data');
+	}
 
-    public function getTriggerHtml(): ?string
-    {
-        $type = Json::encode(static::class);
-        $js = <<<EOT
+	public function getTriggerHtml(): ?string
+	{
+		$type = Json::encode(static::class);
+		$js = <<<EOT
 (function()
 {
     var trigger = new Craft.ElementActionTrigger({
@@ -37,8 +37,8 @@ class Export extends ElementAction
 })();
 EOT;
 
-        Craft::$app->getView()->registerJs($js);
+		Craft::$app->getView()->registerJs($js);
 
-        return null;
-    }
+		return null;
+	}
 }

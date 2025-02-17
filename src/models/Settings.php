@@ -14,57 +14,57 @@ use craft\commerce\Plugin as CommercePlugin;
  */
 class Settings extends Model
 {
-    public string $emptyAttributeValue = '';
+	public string $emptyAttributeValue = '';
 
-    public string $attributePrefix = 'Attribute: ';
+	public string $attributePrefix = 'Attribute: ';
 
-    public string $inventoryPrefix = 'Inventory';
+	public string $inventoryPrefix = 'Inventory';
 
-    public array $variantFieldMap = [
-        '*' => [],
-    ];
+	public array $variantFieldMap = [
+		'*' => [],
+	];
 
-    public function setAttributes($values, $safeOnly = true): void
-    {
-        parent::setAttributes($values, $safeOnly);
+	public function setAttributes($values, $safeOnly = true): void
+	{
+		parent::setAttributes($values, $safeOnly);
 
-        // Make sure that the catch-all type always exists
-        if ($this->variantFieldMap === []) {
-            $this->variantFieldMap = [
-                '*' => [],
-            ];
-        }
+		// Make sure that the catch-all type always exists
+		if ($this->variantFieldMap === []) {
+			$this->variantFieldMap = [
+				'*' => [],
+			];
+		}
 
-        if (! array_key_exists('*', $this->variantFieldMap)) {
-            $this->variantFieldMap['*'] = [];
-        }
-    }
+		if (! array_key_exists('*', $this->variantFieldMap)) {
+			$this->variantFieldMap['*'] = [];
+		}
+	}
 
-    public function getAvailableProductTypes(): array
-    {
-        $productTypes = [];
-        /** @var CommercePlugin $plugin */
-        $plugin = Craft::$app->plugins->getPlugin('commerce');
-        foreach (array_keys($this->variantFieldMap) as $productTypeHandle) {
-            if ($productTypeHandle === '*') {
-                continue;
-            }
+	public function getAvailableProductTypes(): array
+	{
+		$productTypes = [];
+		/** @var CommercePlugin $plugin */
+		$plugin = Craft::$app->plugins->getPlugin('commerce');
+		foreach (array_keys($this->variantFieldMap) as $productTypeHandle) {
+			if ($productTypeHandle === '*') {
+				continue;
+			}
 
-            $productType = $plugin->productTypes->getProductTypeByHandle($productTypeHandle);
-            if ($productType instanceof ProductType) {
-                $productTypes[] = $productType;
-            }
-        }
+			$productType = $plugin->productTypes->getProductTypeByHandle($productTypeHandle);
+			if ($productType instanceof ProductType) {
+				$productTypes[] = $productType;
+			}
+		}
 
-        return $productTypes;
-    }
+		return $productTypes;
+	}
 
-    public function getProductTypeMapping(?string $productTypeHandle): ?array
-    {
-        if ($productTypeHandle === null) {
-            return $this->variantFieldMap['*'];
-        }
+	public function getProductTypeMapping(?string $productTypeHandle): ?array
+	{
+		if ($productTypeHandle === null) {
+			return $this->variantFieldMap['*'];
+		}
 
-        return $this->variantFieldMap[$productTypeHandle] ?? $this->variantFieldMap['*'];
-    }
+		return $this->variantFieldMap[$productTypeHandle] ?? $this->variantFieldMap['*'];
+	}
 }

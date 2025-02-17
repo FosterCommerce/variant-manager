@@ -43,168 +43,170 @@ use yii\base\Exception;
  */
 class Plugin extends BasePlugin
 {
-    public string $schemaVersion = '1.0.0';
+	public string $schemaVersion = '1.0.0';
 
-    public bool $hasCpSettings = false;
+	public bool $hasCpSettings = false;
 
-    public bool $hasCpSection = true;
+	public bool $hasCpSection = true;
 
-    public function init(): void
-    {
-        parent::init();
+	public function init(): void
+	{
+		parent::init();
 
-        Craft::$app->onInit(function(): void {
-            $this->registerComponents();
-            $this->attachEventHandlers();
-        });
-    }
+		Craft::$app->onInit(function (): void {
+			$this->registerComponents();
+			$this->attachEventHandlers();
+		});
+	}
 
-    protected function createSettingsModel(): ?Model
-    {
-        return new Settings();
-    }
+	protected function createSettingsModel(): ?Model
+	{
+		return new Settings();
+	}
 
-    /**
-     * @throws SyntaxError
-     * @throws RuntimeError
-     * @throws Exception
-     * @throws LoaderError
-     */
-    protected function settingsHtml(): ?string
-    {
-        return Craft::$app->getView()->renderTemplate('variantmanager/_settings', [
-            'plugin' => $this,
-            'settings' => $this->getSettings(),
-        ]);
-    }
+	/**
+	 * @throws SyntaxError
+	 * @throws RuntimeError
+	 * @throws Exception
+	 * @throws LoaderError
+	 */
+	protected function settingsHtml(): ?string
+	{
+		return Craft::$app->getView()->renderTemplate('variantmanager/_settings', [
+			'plugin' => $this,
+			'settings' => $this->getSettings(),
+		]);
+	}
 
-    private function attachEventHandlers(): void
-    {
-        if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
-            if (Craft::$app->getRequest()->getIsCpRequest()) {
-                $this->registerCpRoutes();
-                $this->registerActions();
-            }
+	private function attachEventHandlers(): void
+	{
+		if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
+			if (Craft::$app->getRequest()->getIsCpRequest()) {
+				$this->registerCpRoutes();
+				$this->registerActions();
+			}
 
-            $this->registerPermissions();
-            $this->registerTwig();
-            $this->registerFields();
-            $this->registerViewHooks();
-        }
-    }
+			$this->registerPermissions();
+			$this->registerTwig();
+			$this->registerFields();
+			$this->registerViewHooks();
+		}
+	}
 
-    private function registerActions(): void
-    {
-        Event::on(
-            Product::class,
-            Element::EVENT_REGISTER_ACTIONS,
-            static function(RegisterElementActionsEvent $event): void {
-                $event->actions[] = Export::class;
-            }
-        );
-    }
+	private function registerActions(): void
+	{
+		Event::on(
+			Product::class,
+			Element::EVENT_REGISTER_ACTIONS,
+			static function (RegisterElementActionsEvent $event): void {
+				$event->actions[] = Export::class;
+			}
+		);
+	}
 
-    private function registerTwig(): void
-    {
-        Event::on(
-            CraftVariable::class,
-            CraftVariable::EVENT_INIT,
-            static function(Event $event): void {
-                $variable = $event->sender;
-                $variable->set('variantManager', ProductVariants::class);
-            }
-        );
-    }
+	private function registerTwig(): void
+	{
+		Event::on(
+			CraftVariable::class,
+			CraftVariable::EVENT_INIT,
+			static function (Event $event): void {
+				$variable = $event->sender;
+				$variable->set('variantManager', ProductVariants::class);
+			}
+		);
+	}
 
-    private function registerCpRoutes(): void
-    {
-        Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            static function(RegisterUrlRulesEvent $registerUrlRulesEvent): void {
-                $registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
-                $registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
-                $registerUrlRulesEvent->rules['variant-manager/upload'] = 'variant-manager/product-variants/upload';
-                $registerUrlRulesEvent->rules['variant-manager/export'] = 'variant-manager/product-variants/export';
-            }
-        );
-    }
+	private function registerCpRoutes(): void
+	{
+		Event::on(
+			UrlManager::class,
+			UrlManager::EVENT_REGISTER_CP_URL_RULES,
+			static function (RegisterUrlRulesEvent $registerUrlRulesEvent): void {
+				$registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
+				$registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
+				$registerUrlRulesEvent->rules['variant-manager/upload'] = 'variant-manager/product-variants/upload';
+				$registerUrlRulesEvent->rules['variant-manager/export'] = 'variant-manager/product-variants/export';
+			}
+		);
+	}
 
-    private function registerFields(): void
-    {
-        Event::on(
-            Fields::class,
-            Fields::EVENT_REGISTER_FIELD_TYPES,
-            static function(RegisterComponentTypesEvent $registerComponentTypesEvent): void {
-                Craft::debug(
-                    'Fields::EVENT_REGISTER_FIELD_TYPES',
-                    __METHOD__
-                );
-                $registerComponentTypesEvent->types[] = VariantAttributesField::class;
-            }
-        );
-    }
+	private function registerFields(): void
+	{
+		Event::on(
+			Fields::class,
+			Fields::EVENT_REGISTER_FIELD_TYPES,
+			static function (RegisterComponentTypesEvent $registerComponentTypesEvent): void {
+				Craft::debug(
+					'Fields::EVENT_REGISTER_FIELD_TYPES',
+					__METHOD__
+				);
+				$registerComponentTypesEvent->types[] = VariantAttributesField::class;
+			}
+		);
+	}
 
-    private function registerComponents(): void
-    {
-        if (Craft::$app->getRequest()->getIsConsoleRequest()) {
-            $this->controllerNamespace = 'fostercommerce\\variantmanager\\console\\controllers';
-        } else {
-            $this->controllerNamespace = 'fostercommerce\\variantmanager\\controllers';
-        }
+	private function registerComponents(): void
+	{
+		if (Craft::$app->getRequest()->getIsConsoleRequest()) {
+			$this->controllerNamespace = 'fostercommerce\\variantmanager\\console\\controllers';
+		} else {
+			$this->controllerNamespace = 'fostercommerce\\variantmanager\\controllers';
+		}
 
-        $this->setComponents([
-            'productVariants' => ProductVariants::class,
-            'csv' => Csv::class,
-        ]);
-    }
+		$this->setComponents([
+			'productVariants' => ProductVariants::class,
+			'csv' => Csv::class,
+		]);
+	}
 
-    private function registerViewHooks(): void
-    {
-        Craft::$app->view->hook('cp.commerce.product.edit.details', static fn(array &$context) => Craft::$app->getView()->renderTemplate(
-            'variant-manager/fields/product_export', [
-                'id' => 'product-export',
-                'namespacedId' => 'product-export',
-                'name' => 'product-export',
-                'product' => $context['product'],
-            ]
-        ));
+	private function registerViewHooks(): void
+	{
+		Craft::$app->view->hook('cp.commerce.product.edit.details', static fn (array &$context) => Craft::$app->getView()->renderTemplate(
+			'variant-manager/fields/product_export',
+			[
+				'id' => 'product-export',
+				'namespacedId' => 'product-export',
+				'name' => 'product-export',
+				'product' => $context['product'],
+			]
+		));
 
-        Event::on(
-            Product::class,
-            Element::EVENT_DEFINE_SIDEBAR_HTML,
-            static function(DefineHtmlEvent $event): void {
-                $entry = $event->sender ?? null;
+		Event::on(
+			Product::class,
+			Element::EVENT_DEFINE_SIDEBAR_HTML,
+			static function (DefineHtmlEvent $event): void {
+				$entry = $event->sender ?? null;
 
-                $html = Craft::$app->getView()->renderTemplate(
-                    'variant-manager/fields/product_export', [
-                        'id' => 'product-export',
-                        'namespacedId' => 'product-export',
-                        'name' => 'product-export',
-                        'product' => $entry,
-                    ]
-                );
+				$html = Craft::$app->getView()->renderTemplate(
+					'variant-manager/fields/product_export',
+					[
+						'id' => 'product-export',
+						'namespacedId' => 'product-export',
+						'name' => 'product-export',
+						'product' => $entry,
+					]
+				);
 
-                $event->html .= $html;
-            }
-        );
-    }
+				$event->html .= $html;
+			}
+		);
+	}
 
-    private function registerPermissions(): void
-    {
-        Event::on(UserPermissions::class, UserPermissions::EVENT_REGISTER_PERMISSIONS, static function(RegisterUserPermissionsEvent $registerUserPermissionsEvent): void {
-            $registerUserPermissionsEvent->permissions[] = [
-                'heading' => Craft::t('variant-manager', 'Variant Manager'),
-                'permissions' => [
-                    'variant-manager:import' => [
-                        'label' => Craft::t('variant-manager', 'Import products and variants'),
-                        'warning' => Craft::t('variant-manager', 'Imports can potentially overwrite existing variants.'),
-                    ],
-                    'variant-manager:export' => [
-                        'label' => Craft::t('variant-manager', 'Export products and variants'),
-                    ],
-                ],
-            ];
-        });
-    }
+	private function registerPermissions(): void
+	{
+		Event::on(UserPermissions::class, UserPermissions::EVENT_REGISTER_PERMISSIONS, static function (RegisterUserPermissionsEvent $registerUserPermissionsEvent): void {
+			$registerUserPermissionsEvent->permissions[] = [
+				'heading' => Craft::t('variant-manager', 'Variant Manager'),
+				'permissions' => [
+					'variant-manager:import' => [
+						'label' => Craft::t('variant-manager', 'Import products and variants'),
+						'warning' => Craft::t('variant-manager', 'Imports can potentially overwrite existing variants.'),
+					],
+					'variant-manager:export' => [
+						'label' => Craft::t('variant-manager', 'Export products and variants'),
+					],
+				],
+			];
+		});
+	}
 }

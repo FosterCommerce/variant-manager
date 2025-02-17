@@ -24,9 +24,11 @@
     "league/csv": "^9.0"
   },
   "require-dev": {
+    "craftcms/phpstan": "dev-main",
+    "craftcms/rector": "dev-main",
     "fostercommerce/ecs": "dev-main",
-    "fostercommerce/phpstan": "dev-main",
     "fostercommerce/rector": "dev-main",
+    "phpstan/phpstan": "^1.12",
     "roave/security-advisories": "dev-latest"
   },
   "autoload": {
@@ -50,9 +52,9 @@
   "minimum-stability": "dev",
   "scripts": {
     "phpstan": "phpstan --memory-limit=1G",
-    "ecs-check": "ecs check --ansi --memory-limit=1G",
-    "ecs-fix": "ecs check --ansi --fix --memory-limit=1G",
-    "rector": "rector process --config rector.php",
-    "rector-dry-run": "rector process --dry-run --config rector.php"
+    "ecs:check": "ecs check --ansi --memory-limit=1G",
+    "ecs:fix": "ecs check --ansi --fix --memory-limit=1G",
+    "rector:fix": "rector process --config rector.php",
+    "rector:dry-run": "rector process --dry-run --config rector.php"
   }
 }

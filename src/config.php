@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Variant Manager config.php
  *
@@ -14,18 +15,19 @@
  */
 
 return [
-    'emptyAttributeValue' => '',
-    'attributePrefix' => 'Attribute: ',
-    'inventoryPrefix' => 'Inventory',
-    'variantFieldMap' => [
-        '*' => [
-            'sku' => 'sku',
-            'inventoryTracked' => 'inventoryTracked',
-            'price' => 'basePrice',
-            'height' => 'height',
-            'width' => 'width',
-            'length' => 'length',
-            'weight' => 'weight',
-        ],
-    ],
+	'emptyAttributeValue' => '',
+	'attributePrefix' => 'Attribute: ',
+	'inventoryPrefix' => 'Inventory',
+	'variantFieldMap' => [
+		'*' => [
+			'title' => 'title',
+			'sku' => 'sku',
+			'inventoryTracked' => 'inventoryTracked',
+			'price' => 'basePrice',
+			'height' => 'height',
+			'width' => 'width',
+			'length' => 'length',
+			'weight' => 'weight',
+		],
+	],
 ];

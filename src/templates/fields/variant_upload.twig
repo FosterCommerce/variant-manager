@@ -16,7 +16,8 @@
 			<div class="body">
 				<div class="message" id="{{ id }}-message"></div>
 				<div class="actions {{ id }}-primary-actions" style="grid-gap: 1rem;">
-					<div id="{{ id }}-productTypeContainer" class="hidden" style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
+					<div id="{{ id }}-productTypeContainer" class="hidden"
+							 style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
 						<div style="display: flex; flex-direction: column; place-content: center;">
 							Product Type
 						</div>
@@ -251,7 +252,7 @@
 {% endif %}
 
 {% js %}
-	confirmationToken = null;
-	let modal = new Garnish.Modal($('#upload-modal'));
-	modal.quickHide();
+confirmationToken = null;
+let modal = new Garnish.Modal($('#upload-modal'));
+modal.quickHide();
 {% endjs %}

@@ -7,26 +7,26 @@ use craft\web\assets\cp\CpAsset;
 
 class VariantManagerAssetBundle extends AssetBundle
 {
-    public function init(): void
-    {
-        $this->sourcePath = '@fostercommerce/variantmanager/assets';
+	public function init(): void
+	{
+		$this->sourcePath = '@fostercommerce/variantmanager/assets';
 
-        $this->depends = [
-            CpAsset::class,
-        ];
+		$this->depends = [
+			CpAsset::class,
+		];
 
-        $this->js = [
-            'js/main.min.js',
-        ];
+		$this->js = [
+			'js/main.min.js',
+		];
 
-        $this->jsOptions = [
-            'type' => 'module',
-        ];
+		$this->jsOptions = [
+			'type' => 'module',
+		];
 
-        $this->css = [
-            'css/main.css',
-        ];
+		$this->css = [
+			'css/main.css',
+		];
 
-        parent::init();
-    }
+		parent::init();
+	}
 }
