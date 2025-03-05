@@ -20,6 +20,10 @@ class Settings extends Model
 
 	public string $inventoryPrefix = 'Inventory';
 
+	public array $productFieldMap = [
+		'*' => [],
+	];
+
 	public array $variantFieldMap = [
 		'*' => [],
 	];
@@ -37,6 +41,17 @@ class Settings extends Model
 
 		if (! array_key_exists('*', $this->variantFieldMap)) {
 			$this->variantFieldMap['*'] = [];
+		}
+
+		// Make sure that the catch-all type always exists for product field map
+		if ($this->productFieldMap === []) {
+			$this->productFieldMap = [
+				'*' => [],
+			];
+		}
+
+		if (! array_key_exists('*', $this->productFieldMap)) {
+			$this->productFieldMap['*'] = [];
 		}
 	}
 
@@ -66,5 +81,14 @@ class Settings extends Model
 		}
 
 		return $this->variantFieldMap[$productTypeHandle] ?? $this->variantFieldMap['*'];
+	}
+
+	public function getProductFieldMapping(?string $productTypeHandle): ?array
+	{
+		if ($productTypeHandle === null) {
+			return $this->productFieldMap['*'];
+		}
+
+		return $this->productFieldMap[$productTypeHandle] ?? $this->productFieldMap['*'];
 	}
 }

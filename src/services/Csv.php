@@ -63,7 +63,7 @@ class Csv extends Component
 	{
 		$tabularDataReader = $this->read($csvData);
 		$titleRecord = array_filter($tabularDataReader->fetchOne());
-		if ($titleRecord === [] || count($titleRecord) > 1) {
+		if ($titleRecord === []) {
 			throw new \RuntimeException('Invalid product title');
 		}
 
@@ -81,6 +81,8 @@ class Csv extends Component
 		$mapping = $this->resolveVariantImportMapping($tabularDataReader, $productTypeHandle);
 
 		$this->validateSkus($product, $mapping, $tabularDataReader);
+
+		$this->applyProductFields($product, $titleRecord);
 
 		if ($product->isNewForSite) {
 			$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
@@ -101,10 +103,16 @@ class Csv extends Component
 		foreach ($variants as $variant) {
 			$variant->setOwner($product);
 			if (! Craft::$app->elements->saveElement($variant, false, true, true)) {
-				$errors = $product->getErrorSummary(false);
+				$errors = $variant->getErrorSummary(false);
 				$error = reset($errors);
 				throw new \RuntimeException($error ?? 'Failed to save product');
 			}
+		}
+
+		if (! Craft::$app->elements->saveElement($product, false, true, true)) {
+			$errors = $product->getErrorSummary(false);
+			$error = reset($errors);
+			throw new \RuntimeException($error ?? 'Failed to save product');
 		}
 
 		$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
@@ -140,6 +148,7 @@ class Csv extends Component
 	{
 		$sites = Craft::$app->sites->allSites;
 		$mapping = $this->resolveVariantExportMapping($product, $sites);
+		$productMapping = $this->resolveProductExportMapping($product);
 
 		$writer = Writer::createFromString();
 
@@ -160,17 +169,40 @@ class Csv extends Component
 			];
 		}
 
-		// Order:
-		// 1. Variant field mapping (This may change if fields are set per site in the future)
-		// 2. Commerce-specific variant fields which are different per site
-		// 3. Inventory fields for each inventory location
-		// 4. Variant Attribute fields
-		$header = array_merge(array_map(static fn ($fieldMap) => $fieldMap[1], $mapping['variant']), $sitesHeaders, $inventoryHeaders, $mapping['attribute']);
-		$writer->insertOne($header);
-		$writer->insertOne([$product->title]);
+		$productHeaders = array_map(static fn ($fieldMap) => $fieldMap[1], $productMapping);
 
+		// Order:
+		// 1. Product field mapping
+		// 2. Variant field mapping (This may change if fields are set per site in the future)
+		// 3. Commerce-specific variant fields which are different per site
+		// 4. Inventory fields for each inventory location
+		// 5. Variant Attribute fields
+		$header = array_merge(
+			$productHeaders,
+			array_map(
+				static fn ($fieldMap) => $fieldMap[1],
+				$mapping['variant']
+			),
+			$sitesHeaders,
+			$inventoryHeaders,
+			$mapping['attribute']
+		);
+
+		$dedupedHeader = array_values(array_unique($header));
+
+		$writer->insertOne($dedupedHeader);
+
+		// First row contains product title and product fields
+		$productRow = $this->normalizeProductExport($product, $productMapping);
+		$writer->insertOne($productRow);
+
+		$productHeaderCount = count($productHeaders);
+		$productCells = array_fill(0, $productHeaderCount, '');
 		foreach ($variants as $variant) {
-			$row = $this->normalizeVariantExport($variant, $mapping, $sites);
+			$row = array_merge($productCells, $this->normalizeVariantExport($variant, $mapping, $sites));
+			// We need to make sure that the variant columns that share a name with product columns are not duplicated.
+			// This line of code removes it by creating an associative array first using the header values as keys and then converting it back to an indexed array.
+			$row = array_values(array_combine($header, $row));
 			$writer->insertOne($row);
 		}
 
@@ -574,24 +606,24 @@ class Csv extends Component
 	 */
 	private function normalizeVariantExport(Variant $variant, array $mapping, array $sites): array
 	{
-		$payload = [];
+		$row = [];
 
-		// Map Variant field values
+		// Add variant fields
 		foreach ($mapping['variant'] as [$fieldHandle, $header]) {
-			$payload[] = $fieldHandle === 'stock' && $variant->inventoryTracked ? '' : $variant->{$fieldHandle};
+			$row[] = $fieldHandle === 'stock' && $variant->inventoryTracked ? '' : $variant->{$fieldHandle};
 		}
 
 		// Map variant values per site
 		$mappedSiteValues = $this->valueMapFromMapping($mapping['sites']);
 		foreach ($sites as $site) {
 			$siteVariant = Variant::find()->id($variant->id)->site($site)->one();
-			$siteMapping = $mappedSiteValues[$site->handle];
+			$siteMapping = $mappedSiteValues[$site->handle] ?? [];
 			foreach ($siteMapping as $key => $value) {
 				$siteMapping[$key] = $siteVariant->{$key} ?? '';
 			}
 
-			$payload = [
-				...$payload,
+			$row = [
+				...$row,
 				...array_values($siteMapping),
 			];
 		}
@@ -604,8 +636,8 @@ class Csv extends Component
 			$levels = $variant->getInventoryLevels();
 			foreach ($levels as $level) {
 				$location = $level->getInventoryLocation()->handle;
-				$levelMapping = $inventoryMapping[$location];
-				$mappedValues = $mappedInventoryValues[$location];
+				$levelMapping = $inventoryMapping[$location] ?? [];
+				$mappedValues = $mappedInventoryValues[$location] ?? [];
 				foreach (array_keys($levelMapping) as $totalKey) {
 					$mappedValues[$totalKey] = $level->{$totalKey};
 				}
@@ -615,8 +647,8 @@ class Csv extends Component
 		}
 
 		foreach ($mappedInventoryValues as $mappedInventoryValue) {
-			$payload = [
-				...$payload,
+			$row = [
+				...$row,
 				...array_values($mappedInventoryValue),
 			];
 		}
@@ -626,11 +658,11 @@ class Csv extends Component
 			$handle = $mapping['fieldHandle'];
 			$attributes = $variant->{$handle};
 			foreach ($attributes ?? [] as $attribute) {
-				$payload[] = $attribute['attributeValue'];
+				$row[] = $attribute['attributeValue'];
 			}
 		}
 
-		return $payload;
+		return $row;
 	}
 
 	/**
@@ -711,5 +743,50 @@ class Csv extends Component
 			'inventory' => $inventoryMap,
 			'sites' => $mappedSites,
 		];
+	}
+
+	private function applyProductFields(Product $product, array $titleRecord): void
+	{
+		if (empty($titleRecord)) {
+			return;
+		}
+
+		foreach ($titleRecord as $fieldHandle => $value) {
+			if ($fieldHandle === 'title') {
+				continue;
+			}
+			$product->setFieldValue($fieldHandle, $value);
+		}
+	}
+
+	private function normalizeProductExport(Product $product, array $mapping): array
+	{
+		$row = [];
+
+		foreach ($mapping as [$fieldHandle, $heading]) {
+			if ($fieldHandle === 'title') {
+				$row[] = $product->title;
+			} elseif (property_exists($product, $fieldHandle)) {
+				$row[] = $product->{$fieldHandle};
+			} else {
+				$row[] = $product->getFieldValue($fieldHandle);
+			}
+		}
+
+		return $row;
+	}
+
+	private function resolveProductExportMapping(Product $product): array
+	{
+		$settings = Plugin::getInstance()->getSettings();
+		$productTypeMapping = $settings->getProductFieldMapping($product->type->handle);
+
+		$productMap = [];
+		foreach (array_keys($productTypeMapping) as $i => $heading) {
+			$fieldHandle = $productTypeMapping[$heading];
+			$productMap[$i] = [$fieldHandle, $heading];
+		}
+
+		return $productMap;
 	}
 }

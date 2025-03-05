@@ -18,6 +18,12 @@ return [
 	'emptyAttributeValue' => '',
 	'attributePrefix' => 'Attribute: ',
 	'inventoryPrefix' => 'Inventory',
+	'productFieldMap' => [
+		'*' => [
+			'title' => 'title',
+			// Add default product fields here
+		],
+	],
 	'variantFieldMap' => [
 		'*' => [
 			'title' => 'title',
