@@ -4,6 +4,7 @@ namespace fostercommerce\variantmanager\services;
 
 use Craft;
 use craft\base\Component;
+use craft\base\Element;
 use craft\commerce\collections\UpdateInventoryLevelCollection;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
@@ -11,7 +12,12 @@ use craft\commerce\enums\InventoryUpdateQuantityType;
 use craft\commerce\models\inventory\UpdateInventoryLevel;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
+use craft\elements\db\ElementQuery;
+use craft\elements\Entry;
 use craft\errors\ElementNotFoundException;
+use craft\fields\Entries;
+use craft\fields\Lightswitch;
+use craft\fields\Money as MoneyField;
 use craft\helpers\ElementHelper;
 use craft\helpers\Typecast;
 use craft\models\Site;
@@ -25,6 +31,10 @@ use League\Csv\Statement;
 use League\Csv\TabularDataReader;
 use League\Csv\UnableToProcessCsv;
 use League\Csv\Writer;
+use Money\Currencies\ISOCurrencies;
+use Money\Currency;
+use Money\Formatter\DecimalMoneyFormatter;
+use Money\Money;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
 
@@ -62,7 +72,7 @@ class Csv extends Component
 	public function import(string $filename, string $csvData, ?string $productTypeHandle): Product
 	{
 		$tabularDataReader = $this->read($csvData);
-		$titleRecord = array_filter($tabularDataReader->fetchOne());
+		$titleRecord = array_filter($tabularDataReader->nth(0), static fn ($value) => $value !== null);
 		if ($titleRecord === []) {
 			throw new \RuntimeException('Invalid product title');
 		}
@@ -483,7 +493,7 @@ class Csv extends Component
 		}
 
 		foreach ($fields as $fieldHandle => $value) {
-			$variantElement->setFieldValue($fieldHandle, $value);
+			$this->setFieldValue($variantElement, $fieldHandle, $value);
 		}
 
 		return $variantElement;
@@ -755,7 +765,34 @@ class Csv extends Component
 			if ($fieldHandle === 'title') {
 				continue;
 			}
-			$product->setFieldValue($fieldHandle, $value);
+
+			if ($fieldHandle === 'slug') {
+				$product->slug = $value;
+				continue;
+			}
+
+			$this->setFieldValue($product, $fieldHandle, $value);
+		}
+	}
+
+	private function setFieldValue(Element $element, string $fieldHandle, mixed $value): void
+	{
+		$field = $element->getFieldLayout()?->getFieldByHandle($fieldHandle);
+		if ($field instanceof Entries) {
+			// We have to assume that the value is an array of slugs
+			$slugs = explode(',', $value);
+			$sectionUids = $field->sources === '*' ? [] : array_map(static fn ($source) => str_replace('section:', '', $source), $field->sources);
+			$sectionHandles = array_map(static fn ($uid) => Craft::$app->entries->getSectionByUid($uid)?->handle, $sectionUids);
+			$entries = collect(Entry::find()->slug($slugs)->section($sectionHandles)->all())->pluck('id')->all();
+			$element->setFieldValue($fieldHandle, $entries);
+		} elseif ($field instanceof MoneyField) {
+			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
+			$value = (int) ($value * 100);
+			$element->setFieldValue($fieldHandle, new Money($value, new Currency('USD')));
+		} elseif ($field instanceof Lightswitch) {
+			$element->setFieldValue($fieldHandle, $value === '1');
+		} else {
+			$element->setFieldValue($fieldHandle, $value);
 		}
 	}
 
@@ -766,10 +803,17 @@ class Csv extends Component
 		foreach ($mapping as [$fieldHandle, $heading]) {
 			if ($fieldHandle === 'title') {
 				$row[] = $product->title;
-			} elseif (property_exists($product, $fieldHandle)) {
-				$row[] = $product->{$fieldHandle};
+			} elseif ($fieldHandle === 'slug') {
+				$row[] = $product->slug;
 			} else {
-				$row[] = $product->getFieldValue($fieldHandle);
+				$value = $product->getFieldValue($fieldHandle);
+				if ($value instanceof ElementQuery) {
+					$value = collect($value->all())->pluck('slug')->join(',');
+				} elseif ($value instanceof Money) {
+					$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
+					$value = $formatter->format($value);
+				}
+				$row[] = $value;
 			}
 		}
 
