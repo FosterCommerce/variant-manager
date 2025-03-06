@@ -12,7 +12,7 @@ use craft\commerce\enums\InventoryUpdateQuantityType;
 use craft\commerce\models\inventory\UpdateInventoryLevel;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
-use craft\elements\db\ElementQuery;
+use craft\elements\db\EntryQuery;
 use craft\elements\Entry;
 use craft\errors\ElementNotFoundException;
 use craft\fields\Entries;
@@ -779,11 +779,29 @@ class Csv extends Component
 	{
 		$field = $element->getFieldLayout()?->getFieldByHandle($fieldHandle);
 		if ($field instanceof Entries) {
-			// We have to assume that the value is an array of slugs
-			$slugs = explode(',', $value);
-			$sectionUids = $field->sources === '*' ? [] : array_map(static fn ($source) => str_replace('section:', '', $source), $field->sources);
+			$sectionUids = $field->sources === '*'
+				? []
+				: array_map(static fn ($source) => str_replace('section:', '', $source), $field->sources);
 			$sectionHandles = array_map(static fn ($uid) => Craft::$app->entries->getSectionByUid($uid)?->handle, $sectionUids);
-			$entries = collect(Entry::find()->slug($slugs)->section($sectionHandles)->all())->pluck('id')->all();
+
+			// We have to assume that the value is an array of slugs
+			$slugs = collect(explode(',', $value))->map(static fn ($slug) => explode(':', $slug))->all();
+			$entries = [];
+			foreach ($slugs as [$sectionHandle, $slug]) {
+				if ($sectionUids !== [] && ! in_array($sectionHandle, $sectionHandles, true)) {
+					// If the field defines sections, and the section is not in the list of allowed sections, skip.
+					continue;
+				}
+
+				$entry = Entry::find()->slug($slug)->section($sectionHandle)->one();
+				if ($entry === null) {
+					// If the entry is not found, skip.
+					continue;
+				}
+
+				$entries[] = $entry->id;
+			}
+
 			$element->setFieldValue($fieldHandle, $entries);
 		} elseif ($field instanceof MoneyField) {
 			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
@@ -807,8 +825,10 @@ class Csv extends Component
 				$row[] = $product->slug;
 			} else {
 				$value = $product->getFieldValue($fieldHandle);
-				if ($value instanceof ElementQuery) {
-					$value = collect($value->all())->pluck('slug')->join(',');
+				if ($value instanceof EntryQuery) {
+					$value = collect($value->all())
+						->map(static fn ($element) => "{$element->section->handle}:{$element->slug}")
+						->join(',');
 				} elseif ($value instanceof Money) {
 					$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
 					$value = $formatter->format($value);
