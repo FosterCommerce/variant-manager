@@ -385,7 +385,7 @@ class Csv extends Component
 	{
 		$reader = Reader::createFromString($csvData);
 		$reader->setHeaderOffset(0);
-		return Statement::create()->process($reader);
+		return (new Statement())->process($reader);
 	}
 
 	/**
@@ -806,7 +806,7 @@ class Csv extends Component
 		} elseif ($field instanceof MoneyField) {
 			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
 			$value = (int) ($value * 100);
-			$element->setFieldValue($fieldHandle, new Money($value, new Currency('USD')));
+			$element->setFieldValue($fieldHandle, new Money($value, new Currency($field->currency)));
 		} elseif ($field instanceof Lightswitch) {
 			$element->setFieldValue($fieldHandle, $value === '1');
 		} else {
