@@ -851,6 +851,11 @@ class Csv extends Component
 			$productMap[$i] = [$fieldHandle, $heading];
 		}
 
+		$titleMap = collect($productMap)->filter(static fn ($mapping) => $mapping[1] === 'title')->first();
+		if ($titleMap === null) {
+			$productMap = array_merge([['title', 'title']], $productMap);
+		}
+
 		return $productMap;
 	}
 }
