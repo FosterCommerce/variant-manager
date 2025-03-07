@@ -104,11 +104,17 @@ class ProductVariantsController extends Controller
 
 			foreach ($filenames as $filename) {
 				$file = $extractToDir . DIRECTORY_SEPARATOR . $filename;
-				Queue::push(ImportJob::fromFilename($file, $productTypeHandle));
+				Queue::push(
+					ImportJob::fromFilename($file, $productTypeHandle),
+					queue: Plugin::getInstance()->queue,
+				);
 				unlink($file);
 			}
 		} elseif ($fileType === 'csv') {
-			Queue::push(ImportJob::fromFile($uploadedFile, $productTypeHandle));
+			Queue::push(
+				ImportJob::fromFile($uploadedFile, $productTypeHandle),
+				queue: Plugin::getInstance()->queue,
+			);
 		} else {
 			throw new \RuntimeException('Invalid file type');
 		}
