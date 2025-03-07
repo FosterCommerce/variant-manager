@@ -787,7 +787,15 @@ class Csv extends Component
 			// We have to assume that the value is an array of slugs
 			$slugs = collect(explode(',', $value))->map(static fn ($slug) => explode(':', $slug))->all();
 			$entries = [];
-			foreach ($slugs as [$sectionHandle, $slug]) {
+			foreach ($slugs as $slug) {
+				$sectionHandle = $slug[0] ?? null;
+				$slug = $slug[1] ?? null;
+
+				if ($sectionHandle === null || $slug === null) {
+					continue;
+				}
+
+
 				if ($sectionUids !== [] && ! in_array($sectionHandle, $sectionHandles, true)) {
 					// If the field defines sections, and the section is not in the list of allowed sections, skip.
 					continue;
@@ -804,6 +812,15 @@ class Csv extends Component
 
 			$element->setFieldValue($fieldHandle, $entries);
 		} elseif ($field instanceof MoneyField) {
+			if (is_string($value)) {
+				$value = trim($value);
+			}
+
+			if ($value === '' || $value === null) {
+				$element->setFieldValue($fieldHandle, null);
+				return;
+			}
+
 			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
 			$value = (int) ($value * 100);
 			$element->setFieldValue($fieldHandle, new Money($value, new Currency($field->currency)));
