@@ -26,10 +26,10 @@ use Twig\Error\RuntimeError;
 use Twig\Error\SyntaxError;
 use yii\base\Event;
 use yii\base\Exception;
+use yii\di\Instance;
+use yii\queue\Queue;
 
 /**
- * Variant Manager plugin
- *
  * @method static Plugin getInstance()
  * @method Settings getSettings()
  * @author Foster Commerce <support@fostercomerce.com>
@@ -49,12 +49,21 @@ class Plugin extends BasePlugin
 
 	public bool $hasCpSection = true;
 
+	/**
+	 * The queue to use for running jobs.
+	 *
+	 * @see [craft-blitz](https://github.com/putyourlightson/craft-blitz/blob/a7dc7b3d1f547e141d165c71c9ad6290a9dc2792/src/Blitz.php#L131)
+	 * @see [Custom Queues](https://putyourlightson.com/plugins/blitz#custom-queues)
+	 */
+	public Queue|array|string $queue = 'queue';
+
 	public function init(): void
 	{
 		parent::init();
 
 		Craft::$app->onInit(function (): void {
 			$this->registerComponents();
+			$this->registerQueue();
 			$this->attachEventHandlers();
 		});
 	}
@@ -91,6 +100,11 @@ class Plugin extends BasePlugin
 			$this->registerFields();
 			$this->registerViewHooks();
 		}
+	}
+
+	private function registerQueue(): void
+	{
+		$this->queue = Instance::ensure($this->queue, Queue::class);
 	}
 
 	private function registerActions(): void
