@@ -69,7 +69,7 @@ class Csv extends Component
 	 * @throws ElementNotFoundException
 	 * @throws \Throwable
 	 */
-	public function import(string $filename, string $csvData, ?string $productTypeHandle): Product
+	public function import(string $filename, string $csvData, ?string $productTypeHandle, bool $refreshVariants = false): Product
 	{
 		$tabularDataReader = $this->read($csvData);
 		$titleRecord = array_filter($tabularDataReader->nth(0), static fn ($value) => $value !== null);
@@ -97,6 +97,13 @@ class Csv extends Component
 		if ($product->isNewForSite) {
 			$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
 		} else {
+			if ($refreshVariants) {
+				$variants = Variant::find()->product($product)->all();
+				foreach ($variants as $variant) {
+					Craft::$app->elements->deleteElement($variant);
+				}
+			}
+
 			$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
 		}
 
@@ -210,6 +217,9 @@ class Csv extends Component
 		$productCells = array_fill(0, $productHeaderCount, '');
 		foreach ($variants as $variant) {
 			$row = array_merge($productCells, $this->normalizeVariantExport($variant, $mapping, $sites));
+			if (count($row) < count($header)) {
+				$row = array_merge($row, array_fill(count($row), count($header) - count($row), ''));
+			}
 			// We need to make sure that the variant columns that share a name with product columns are not duplicated.
 			// This line of code removes it by creating an associative array first using the header values as keys and then converting it back to an indexed array.
 			$row = array_values(array_combine($header, $row));
@@ -420,8 +430,9 @@ class Csv extends Component
 	 */
 	private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
 	{
-		$variants = [];
 		$iterator = $tabularDataReader->getIterator();
+		$existingVariants = collect(Variant::find()->product($product)->all());
+		$newVariants = [];
 		foreach ($iterator as $record) {
 			if ($iterator->key() === 1) {
 				// Skip the title record
@@ -434,12 +445,18 @@ class Csv extends Component
 				continue;
 			}
 
-			$variantId = Variant::find()->product($product)->sku($record[$mapping['variant']['sku']])->one()?->id ?? 0;
-
-			$variants[] = $this->normalizeVariantImport($record, $mapping, $variantId);
+			$variant = $existingVariants->firstWhere('sku', $record[$mapping['variant']['sku']])->id ?? 0;
+			$newVariants[] = $this->normalizeVariantImport($record, $mapping, $variant);
 		}
 
-		return $variants;
+
+		$removedVariants = $existingVariants->diff($newVariants);
+		foreach ($removedVariants as $variant) {
+			// Remove variants that weren't in the import.
+			Craft::$app->elements->deleteElement($variant);
+		}
+
+		return $newVariants;
 	}
 
 	/**
