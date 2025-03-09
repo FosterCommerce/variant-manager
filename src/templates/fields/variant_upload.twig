@@ -1,5 +1,8 @@
 {% set canImport = currentUser.can("variant-manager:import") %}
-<input type="file" id="{{ id }}" name="{{ name }}" style="display: none;">
+<input type="hidden" name="action" value="variant-manager/product-variants/upload">
+<input type="file" id="{{ id }}-file" name="{{ name }}" style="display: none;">
+<input type="hidden" id="{{ id }}-productType" name="productTypeHandle">
+<input type="hidden" id="{{ id }}-refreshVariants" name="refreshVariants">
 <button
 	type="button"
 	{% if not canImport %}disabled{% endif %}
@@ -14,21 +17,29 @@
 	<div class="modal-wrapper">
 		<div id="modal" class="modal fitted" style="">
 			<div class="body">
-				<div class="message" id="{{ id }}-message"></div>
-				<div class="actions {{ id }}-primary-actions" style="grid-gap: 1rem;">
-					<div id="{{ id }}-productTypeContainer" class="hidden"
-							 style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
-						<div style="display: flex; flex-direction: column; place-content: center;">
-							Product Type
+				<div class="message" id="{{ id }}-message">ffooba</div>
+				<div class="actions {{ id }}-primary-actions" style="display: flex; flex-direction: column; align-items: flex-end; grid-gap: 1rem;">
+						<div id="{{ id }}-productTypeContainer" class="hidden"
+								style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
+							<div style="display: flex; flex-direction: column; place-content: center;">
+								Product Type
+							</div>
+							<div class="select">
+								<select name="productTypeHandle" id="{{ id }}-productType-selection">
+								</select>
+							</div>
 						</div>
-						<div class="select">
-							<select id="{{ id }}-productType">
-							</select>
+						<div style="display: flex; flex-direction: row; grid-gap: 1rem; align-items: center" id="{{ id }}-refreshVariantsContainer" class="hidden">
+							<label for="{{ id }}-refreshVariants-selection">
+								Refresh existing variants?
+							</label>
+							<input type="checkbox" name="refreshVariants" id="{{ id }}-refreshVariants-selection">
 						</div>
-					</div>
-					<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden;"
-									id="{{ id }}-confirm-btn"></button>
-					<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden;">Cancel</button>
+						<div>
+							<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden;"
+											id="{{ id }}-confirm-btn"></button>
+							<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden;">Cancel</button>
+						</div>
 				</div>
 				<div class="actions {{ id }}-complete-actions hidden" style="grid-gap: 1rem;">
 					<button class="btn {{ id }}-close-btn" style="position: relative; overflow: hidden;">Close</button>
@@ -42,212 +53,160 @@
 
 {% if canImport %}
 	<script type="text/javascript">
-		let field = document.getElementById('{{ namespacedId }}');
-		let btn = document.getElementById('{{ namespacedId }}-btn');
+		document.addEventListener('DOMContentLoaded', () => {
+			let field = document.getElementById('{{ namespacedId }}-file');
+			let btn = document.getElementById('{{ namespacedId }}-btn');
 
-		let primaryActions = document.getElementsByClassName('{{ namespacedId }}-primary-actions')[0];
-		let completeActions = document.getElementsByClassName('{{ namespacedId }}-complete-actions')[0];
+			let primaryActions = document.getElementsByClassName('{{ namespacedId }}-primary-actions')[0];
+			let completeActions = document.getElementsByClassName('{{ namespacedId }}-complete-actions')[0];
 
-		let message = document.getElementById('{{ namespacedId }}-message');
-		let productType = document.getElementById('{{ namespacedId }}-productType');
-		let productTypeContainer = document.getElementById('{{ namespacedId }}-productTypeContainer');
-		let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
-		let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
+			let message = document.getElementById('{{ namespacedId }}-message');
+			let productType = document.getElementById('{{ namespacedId }}-productType');
+			let refreshVariants = document.getElementById('{{ namespacedId }}-refreshVariants');
+			let productTypeSelection = document.getElementById('{{ namespacedId }}-productType-selection');
+			let refreshVariantsSelection = document.getElementById('{{ namespacedId }}-refreshVariants-selection');
+			let refreshVariantsContainer = document.getElementById('{{ namespacedId }}-refreshVariantsContainer');
+			let productTypeContainer = document.getElementById('{{ namespacedId }}-productTypeContainer');
+			let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
+			let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
 
-		let uploadSpinner = document.getElementById('upload-spinner');
+			let uploadSpinner = document.getElementById('upload-spinner');
 
-		let productName = null;
+			let productName = null;
 
-		for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
-			el.addEventListener('click', closeModal);
-		}
-
-		let form = field.closest('form');
-
-		btn.addEventListener('click', openFileDialog);
-		confirmBtn.addEventListener('click', confirmChanges);
-		field.addEventListener('change', onSelectedFile);
-
-		form.addEventListener('submit', (e) => {
-			e.preventDefault();
-
-			btn.disabled = true;
-			btn.classList.add('disabled');
-
-			const file = new FormData(form).get('variant-uploads');
-			productName = file.name.split('.').slice(0, -1).join('.');
-			const fileType = file.name.split('.').slice(1, 2)[0];
-
-			async function checkExists() {
-				return fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
-					method: 'POST',
-					headers: {
-						'Accept': 'application/json',
-						'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-						'X-Requested-With': 'XMLHttpRequest',
-					},
-				}).then(async (response) => {
-					if (response.status > 299) {
-						let error = await response.json();
-						throw new Error(error.message);
-					}
-					const res = await response.json();
-					if (fileType === 'zip') {
-						return {zip: true, ...res};
-					}
-
-					return res
-				})
+			for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
+				el.addEventListener('click', closeModal);
 			}
 
-			uploadSpinner.classList.remove('hidden');
-			checkExists().then((result) => {
-				uploadSpinner.classList.add('hidden');
-				if (result.zip) {
-					productTypeContainer.classList.remove("hidden");
+			let form = field.closest('form');
+			btn.addEventListener('click', openFileDialog);
+			field.addEventListener('change', showConfirmation);
+			confirmBtn.addEventListener('click', confirmChanges);
 
-					productType.innerHTML = result.productTypes.map((productType) => {
-						return `<option value="${productType[0]}">${productType[1]}</option>`;
-					}).join("");
+			function showConfirmation(e) {
+				let file = e.target.files[0] ?? null;
 
-					confirmBtn.innerHTML = "Process Zip";
-					primaryActions.classList.remove('hidden');
-					completeActions.classList.add('hidden');
-					confirmBtn.classList.remove("edit", "hidden");
-					confirmBtn.classList.add("add");
-
-					message.innerHTML = "Are you sure you want to process this zip file?";
-				} else if (!result.exists) {
-					productTypeContainer.classList.remove("hidden");
-
-					productType.innerHTML = result.productTypes.map((productType) => {
-						return `<option value="${productType[0]}">${productType[1]}</option>`;
-					}).join("");
-
-					confirmBtn.innerHTML = "Create Product";
-					primaryActions.classList.remove('hidden');
-					completeActions.classList.add('hidden');
-					confirmBtn.classList.remove("edit", "hidden");
-					confirmBtn.classList.add("add");
-
-					message.innerHTML = "Are you sure you want to create a new product?";
-				} else {
-					productTypeContainer.classList.add("hidden");
-
-					confirmBtn.innerHTML = "Edit Product";
-					primaryActions.classList.remove('hidden');
-					completeActions.classList.add('hidden');
-					confirmBtn.classList.remove("add", "hidden");
-					confirmBtn.classList.add("edit");
-
-					message.innerHTML =
-						`Are you sure you want to edit an existing product named <strong>"${result.name}"</strong>?`;
+				if (!file) {
+					return;
 				}
 
-				modal.show();
-			}).catch((error) => {
-				modal.hide();
-				uploadSpinner.classList.add('hidden');
-				btn.disabled = false;
-				btn.classList.remove('disabled');
+				btn.disabled = true;
+				btn.classList.add('disabled');
 
-				confirmBtn.classList.add("hidden");
+				productName = file.name.split('.').slice(0, -1).join('.');
+				const fileType = file.name.split('.').slice(1, 2)[0];
 
-				if (error.statusText) {
-					Craft.cp.displayError(`An error occurred: ${error.statusText}`);
-				} else if (error.message) {
-					Craft.cp.displayError(error.message);
+				async function checkExists() {
+					return fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
+						method: 'POST',
+						headers: {
+							'Accept': 'application/json',
+							'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+							'X-Requested-With': 'XMLHttpRequest',
+						},
+					}).then(async (response) => {
+						if (response.status > 299) {
+							let error = await response.json();
+							throw new Error(error.message);
+						}
+						const res = await response.json();
+						if (fileType === 'zip') {
+							return {zip: true, ...res};
+						}
+
+						return res
+					})
 				}
-			});
-
-			return true;
-		});
-
-		function closeModal(event) {
-			primaryActions.classList.remove('hidden');
-			completeActions.classList.add('hidden');
-			btn.disabled = false;
-			btn.classList.remove('disabled');
-
-			modal.hide();
-			form.reset();
-		}
-
-		function openFileDialog(event) {
-			field.click();
-		}
-
-		function onSelectedFile(event) {
-			const files = event.target.files;
-			parseFile(files[0]);
-		}
-
-		function confirmChanges(event) {
-			modal.hide();
-			try {
-				primaryActions.classList.add('hidden');
-
-				const payload = new FormData(form);
-				const file = payload.get("variant-uploads");
-
-				payload.set(
-					"variant-uploads",
-					new File([file], file.name, {type: "text/csv"})
-				);
-
-				payload.set(
-					"productTypeHandle", productType.value
-				);
 
 				uploadSpinner.classList.remove('hidden');
-				fetch('/admin/variant-manager/upload', {
-					method: "POST",
-					headers: {
-						'Accept': 'application/json',
-						'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-						'X-Requested-With': 'XMLHttpRequest',
-					},
-					body: payload,
-				}).then(async (response) => {
+				checkExists().then((result) => {
 					uploadSpinner.classList.add('hidden');
-					if (!response.ok) {
-						if (response.statusText) {
-							throw Error(response.statusText);
-						} else {
-							throw Error(JSON.stringify(await response.json()));
-						}
+					if (result.zip) {
+						// Zip file
+						productTypeContainer.classList.remove("hidden");
+
+						productTypeSelection.innerHTML = result.productTypes.map((productType) => {
+							return `<option value="${productType[0]}">${productType[1]}</option>`;
+						}).join("");
+
+						confirmBtn.innerHTML = "Process Zip";
+						primaryActions.classList.remove('hidden');
+						completeActions.classList.add('hidden');
+						confirmBtn.classList.remove("edit", "hidden");
+						confirmBtn.classList.add("add");
+						refreshVariantsContainer.classList.remove("hidden");
+
+						message.innerHTML = "Are you sure you want to process this zip file?";
+					} else if (!result.exists) {
+						// New product
+						productTypeContainer.classList.remove("hidden");
+
+						productTypeSelection.innerHTML = result.productTypes.map((productType) => {
+							return `<option value="${productType[0]}">${productType[1]}</option>`;
+						}).join("");
+
+						confirmBtn.innerHTML = "Create Product";
+						primaryActions.classList.remove('hidden');
+						completeActions.classList.add('hidden');
+						confirmBtn.classList.remove("edit", "hidden");
+						confirmBtn.classList.add("add");
+						refreshVariantsContainer.classList.add("hidden");
+
+						message.innerHTML = "Are you sure you want to create a new product?";
 					} else {
-						return {};
+						// Existing product
+						productTypeContainer.classList.add("hidden");
+
+						confirmBtn.innerHTML = "Edit Product";
+						primaryActions.classList.remove('hidden');
+						completeActions.classList.add('hidden');
+						confirmBtn.classList.remove("add", "hidden");
+						confirmBtn.classList.add("edit");
+						refreshVariantsContainer.classList.remove("hidden");
+						message.innerHTML =
+							`Are you sure you want to edit an existing product named <strong>"${result.name}"</strong>?`;
 					}
-				}).then((result) => {
-					Craft.cp.displayNotice(`File ${file.name} has been queued for processing`);
+
+					modal.show();
 				}).catch((error) => {
+					modal.hide();
 					uploadSpinner.classList.add('hidden');
-					primaryActions.classList.remove('hidden');
-					completeActions.classList.add('hidden');
+					btn.disabled = false;
+					btn.classList.remove('disabled');
 
 					confirmBtn.classList.add("hidden");
-					productTypeContainer.classList.add("hidden");
 
 					if (error.statusText) {
 						Craft.cp.displayError(`An error occurred: ${error.statusText}`);
 					} else if (error.message) {
 						Craft.cp.displayError(error.message);
 					}
-				}).finally(() => {
-					btn.disabled = false;
-					btn.classList.remove('disabled');
-				})
-			} catch (err) {
-				Craft.cp.displayError(err.message);
+				});
+
+				return true;
+			};
+
+			function closeModal(event) {
+				primaryActions.classList.remove('hidden');
+				completeActions.classList.add('hidden');
+				btn.disabled = false;
+				btn.classList.remove('disabled');
+
+				modal.hide();
+				window.location.reload();
 			}
-		}
 
-		function parseFile(file) {
-			// Using "form.submit() isn't consistent so we have to rely on dispatching the submit event manually."
-			form.dispatchEvent(new Event('submit', {'cancelable': true}));
-		}
+			function openFileDialog(event) {
+				field.click();
+			}
 
+			function confirmChanges(event) {
+				productType.value = productTypeSelection.value;
+				refreshVariants.value = refreshVariantsSelection.checked ? '1' : '0';
+				modal.hide();
+				form.submit();
+			}
+		});
 	</script>
 {% endif %}
 

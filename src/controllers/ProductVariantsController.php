@@ -11,7 +11,6 @@ use craft\web\Controller;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\jobs\Import as ImportJob;
 use fostercommerce\variantmanager\Plugin;
-use http\Exception\RuntimeException;
 use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
@@ -74,50 +73,59 @@ class ProductVariantsController extends Controller
 
 		$this->requirePermission('variant-manager:import');
 
-		$uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
-		$productTypeHandle = $this->request->getBodyParam('productTypeHandle') ?: null;
+		try {
+			$uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
+			$productTypeHandle = $this->request->getBodyParam('productTypeHandle') ?: null;
+			$refreshVariants = $this->request->getBodyParam('refreshVariants') ?: false;
 
-		if (! isset($uploadedFile)) {
-			throw new BadRequestHttpException('No file was uploaded');
-		}
-
-		$fileType = pathinfo($uploadedFile->name, PATHINFO_EXTENSION);
-		if ($fileType === 'zip') {
-			$zip = new \ZipArchive();
-			$zip->open($uploadedFile->tempName);
-			$filenames = [];
-			for ($i = 0; $i < $zip->numFiles; ++$i) {
-				$filename = $zip->getNameIndex($i);
-				$pathinfo = pathinfo($filename);
-				$baseName = $pathinfo['filename'];
-				$extension = $pathinfo['extension'] ?? null;
-				if (! str_starts_with($baseName, '.') && $extension === 'csv') {
-					// Only extract csv files from the zip.
-					// Don't extract any hidden files. This helps catch OSX specific files such as DS_Store, etc. It
-					// also prevents extracting files from the __MACOSX dir.
-					$filenames[] = $filename;
-				}
+			if (! isset($uploadedFile)) {
+				throw new BadRequestHttpException('No file was uploaded');
 			}
 
-			$extractToDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'variant-manager';
-			$zip->extractTo($extractToDir, $filenames);
+			$fileType = pathinfo($uploadedFile->name, PATHINFO_EXTENSION);
+			if ($fileType === 'zip') {
+				$zip = new \ZipArchive();
+				$zip->open($uploadedFile->tempName);
+				$filenames = [];
+				for ($i = 0; $i < $zip->numFiles; ++$i) {
+					$filename = $zip->getNameIndex($i);
+					$pathinfo = pathinfo($filename);
+					$baseName = $pathinfo['filename'];
+					$extension = $pathinfo['extension'] ?? null;
+					if (! str_starts_with($baseName, '.') && $extension === 'csv') {
+						// Only extract csv files from the zip.
+						// Don't extract any hidden files. This helps catch OSX specific files such as DS_Store, etc. It
+						// also prevents extracting files from the __MACOSX dir.
+						$filenames[] = $filename;
+					}
+				}
 
-			foreach ($filenames as $filename) {
-				$file = $extractToDir . DIRECTORY_SEPARATOR . $filename;
+				$extractToDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'variant-manager';
+				$zip->extractTo($extractToDir, $filenames);
+
+				foreach ($filenames as $filename) {
+					$file = $extractToDir . DIRECTORY_SEPARATOR . $filename;
+					Queue::push(
+						ImportJob::fromFilename($file, $productTypeHandle, $refreshVariants),
+						queue: Plugin::getInstance()->queue,
+					);
+					unlink($file);
+				}
+			} elseif ($fileType === 'csv') {
 				Queue::push(
-					ImportJob::fromFilename($file, $productTypeHandle),
+					ImportJob::fromFile($uploadedFile, $productTypeHandle, $refreshVariants),
 					queue: Plugin::getInstance()->queue,
 				);
-				unlink($file);
+			} else {
+				$this->setFailFlash("{$uploadedFile->name} is not a valid file type");
+				return;
 			}
-		} elseif ($fileType === 'csv') {
-			Queue::push(
-				ImportJob::fromFile($uploadedFile, $productTypeHandle),
-				queue: Plugin::getInstance()->queue,
-			);
-		} else {
-			throw new \RuntimeException('Invalid file type');
+		} catch (\Exception $e) {
+			$this->setFailFlash($e->getMessage());
+			return;
 		}
+
+		$this->setSuccessFlash("File {$uploadedFile->name} has been queued for processing");
 	}
 
 	/**
@@ -168,7 +176,7 @@ class ProductVariantsController extends Controller
 				$zipPath = tempnam(sys_get_temp_dir(), 'export_');
 				$zipArchive = new \ZipArchive();
 				if ($zipArchive->open($zipPath, \ZipArchive::CREATE) !== true) {
-					throw new RuntimeException('Unable to create zip archive');
+					throw new \RuntimeException('Unable to create zip archive');
 				}
 
 				foreach ($results as $result) {

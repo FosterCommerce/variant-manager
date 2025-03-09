@@ -138,7 +138,6 @@ class Plugin extends BasePlugin
 			static function (RegisterUrlRulesEvent $registerUrlRulesEvent): void {
 				$registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
 				$registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
-				$registerUrlRulesEvent->rules['variant-manager/upload'] = 'variant-manager/product-variants/upload';
 				$registerUrlRulesEvent->rules['variant-manager/export'] = 'variant-manager/product-variants/export';
 			}
 		);

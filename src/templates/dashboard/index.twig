@@ -20,7 +20,7 @@
 			value: logStatus,
 		}) }}
 	</form>
-	<form method="POST" style="display: flex; flex-direction: row;">
+	<form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: row;">
 		<div id="upload-spinner" class="spinner hidden" style="margin-right: 1rem;"></div>
 		{{ csrfInput() }}
 		{% include 'variant-manager/fields/variant_upload' with {
