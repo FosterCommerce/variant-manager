@@ -5,23 +5,119 @@
 	</div>
 {% endif %}
 
-<table class="table data" style="width: 100%; margin-top: 1rem">
-
-	<thead>
-	<tr>
-		<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 75%;">Name</th>
-		<th class="singleline-cell textual" style="background-color: #ebf2fa; width: 25%;">Value</th>
-	</tr>
-	</thead>
-
-	<tbody>
-	{% for attribute in attributes %}
+<div class="variant-attributes-container">
+	<table class="table data variant-attributes-table">
+		<thead>
 		<tr>
-			<td class="singleline-cell textual"
-					style="background-color: #FFFFFF; text-align: right;">{{ attribute['attributeName'] }}</td>
-			<td class="singleline-cell textual" style="background-color: #FFFFFF">{{ attribute['attributeValue'] }}</td>
+			<th class="singleline-cell textual text-right">Name</th>
+			<th class="singleline-cell textual">Value</th>
 		</tr>
-	{% endfor %}
-	</tbody>
+		</thead>
 
-</table>
+		<tbody>
+		{% for attribute in attributes %}
+			<tr>
+				<td class="singleline-cell textual text-right">{{ attribute['attributeName'] }}</td>
+				<!-- When clicking on the value cell, it should change to an input field -->
+				<td class="singleline-cell textual">
+					<input type="text" class="value-input" value="{{ attribute['attributeValue'] }}" />
+				</td>
+			</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+	<div class="flex justify-end save-button-container">
+		<div class="spinner hidden"></div>
+		<button class="btn submit save-button disabled" disabled>Save Attributes</button>
+	</div>
+</div>
+
+{% css %}
+	.variant-attributes-container .save-button-container {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		padding-top: 1rem;
+	}
+
+	.table.data {
+		width: 100%;
+		margin-top: 1rem;
+	}
+
+	.value-input {
+		width: 100%;
+	}
+{% endcss %}
+
+{% js %}
+	{# So that we don't need to use a unique variable names #}
+	(function() {
+		const container = document.getElementById('{{ namespacedId }}-field');
+
+		const slideoutInstance = $(container).closest('.cp-screen').data('cpScreen');
+
+		const table = container.querySelector('.variant-attributes-table');
+		const saveButton = container.querySelector('.save-button');
+		const spinner = container.querySelector('.spinner');
+		const valueCells = table.querySelectorAll('td:nth-child(2)');
+
+		saveButton.addEventListener('click', function(e) {
+			e.preventDefault();
+
+			saveButton.disabled = true;
+			saveButton.classList.add('disabled');
+			spinner.classList.remove('hidden');
+
+			const attributes = [];
+			valueCells.forEach(cell => {
+				const input = cell.querySelector('.value-input');
+				const attributeName = cell.previousElementSibling.textContent;
+				attributes.push({
+					attributeName,
+					attributeValue: input.value,
+				});
+			});
+
+			fetch('/admin/variant-manager/save-variant-attributes/{{ variant.id }}', {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+					'X-Requested-With': 'XMLHttpRequest',
+				},
+				body: JSON.stringify({
+					attributes,
+				}),
+			}).then(response => {
+				if (response.ok) {
+					Craft.cp.displayNotice('Variant attributes saved');
+				} else {
+					Craft.cp.displayError('Failed to save variant attributes');
+				}
+			}).catch(() => {
+				Craft.cp.displayError('Failed to save variant attributes');
+			}).finally(() => {
+				spinner.classList.add('hidden');
+			});
+		});
+
+		valueCells.forEach(cell => {
+			cell.addEventListener('click', () => {
+				const input = cell.querySelector('.value-input');
+
+				input.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						saveButton.click();
+					}
+				});
+
+				input.addEventListener('input', () => {
+					saveButton.disabled = false;
+					saveButton.classList.remove('disabled');
+				});
+			});
+		});
+	})();
+{% endjs %}
