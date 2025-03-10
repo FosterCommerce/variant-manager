@@ -139,6 +139,7 @@ class Plugin extends BasePlugin
 				$registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
 				$registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
 				$registerUrlRulesEvent->rules['variant-manager/export'] = 'variant-manager/product-variants/export';
+				$registerUrlRulesEvent->rules['variant-manager/save-variant-attributes/<variantId:\d+>'] = 'variant-manager/product-variants/save-variant-attributes';
 			}
 		);
 	}
