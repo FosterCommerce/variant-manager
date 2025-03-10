@@ -2,13 +2,16 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
+use Craft;
 use craft\commerce\elements\Product;
+use craft\commerce\elements\Variant;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\helpers\Db;
 use craft\helpers\FileHelper;
 use craft\helpers\Queue;
 use craft\web\Controller;
 use craft\web\UploadedFile;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\jobs\Import as ImportJob;
 use fostercommerce\variantmanager\Plugin;
 use yii\base\InvalidConfigException;
@@ -24,6 +27,7 @@ class ProductVariantsController extends Controller
 		'product-exists' => self::ALLOW_ANONYMOUS_NEVER,
 		'upload' => self::ALLOW_ANONYMOUS_NEVER,
 		'export' => self::ALLOW_ANONYMOUS_NEVER,
+		'save-variant-attributes' => self::ALLOW_ANONYMOUS_NEVER,
 	];
 
 	/**
@@ -199,5 +203,47 @@ class ProductVariantsController extends Controller
 			$this->response->format = Response::FORMAT_JSON;
 			$this->response->data = array_map(static fn ($r) => $r['export'], $results);
 		}
+	}
+
+	public function actionSaveVariantAttributes(int $variantId): Response
+	{
+		$variant = Variant::find()->id($variantId)->one();
+		if (! $variant) {
+			return $this->asFailure('Variant not found');
+		}
+
+		$variantAttributesField = FieldHelper::getFirstVariantAttributesField($variant->fieldLayout);
+		if (! $variantAttributesField) {
+			return $this->asFailure('Variant attributes field not found');
+		}
+
+		$handle = $variantAttributesField->handle;
+
+		$variantAttributes = collect($variant->{$handle})
+			->flatMap(static fn ($attribute) => [
+				$attribute['attributeName'] => $attribute['attributeValue'],
+			]);
+		$allowedKeys = $variantAttributes->keys()->all();
+
+		// We need to make sure that the attributes we are updating are only the ones that already existed.
+		$updatedAttributes = collect($this->request->getRequiredBodyParam('attributes'))
+			->flatMap(static fn ($attribute) => [
+				$attribute['attributeName'] => $attribute['attributeValue'],
+			])
+			->only($allowedKeys);
+
+		$variantAttributes = $variantAttributes
+			->merge($updatedAttributes)
+			->map(static fn ($value, $key) => [
+				'attributeName' => $key,
+				'attributeValue' => $value,
+			])
+			->values();
+
+		$variant->{$handle} = $variantAttributes->toArray();
+
+		Craft::$app->elements->saveElement($variant, runValidation: false, updateSearchIndex: true);
+
+		return $this->asSuccess('Variant attributes updated');
 	}
 }

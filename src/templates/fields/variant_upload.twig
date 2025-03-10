@@ -1,217 +1,123 @@
-{% set canImport = currentUser.can("variant-manager:import") %}
-<input type="hidden" name="action" value="variant-manager/product-variants/upload">
-<input type="file" id="{{ id }}-file" name="{{ name }}" style="display: none;">
-<input type="hidden" id="{{ id }}-productType" name="productTypeHandle">
-<input type="hidden" id="{{ id }}-refreshVariants" name="refreshVariants">
-<button
-	type="button"
-	{% if not canImport %}disabled{% endif %}
-	class="btn {% if not canImport %}disabled{% endif %}"
-	data-icon="upload"
-	style="position: relative; overflow: hidden;"
-	id="{{ id }}-btn"
->{{ 'Upload Product'|t }}
-</button>
-
-<div id="upload-modal" class="modal-shade" style="">
-	<div class="modal-wrapper">
-		<div id="modal" class="modal fitted" style="">
-			<div class="body">
-				<div class="message" id="{{ id }}-message">ffooba</div>
-				<div class="actions {{ id }}-primary-actions" style="display: flex; flex-direction: column; align-items: flex-end; grid-gap: 1rem;">
-						<div id="{{ id }}-productTypeContainer" class="hidden"
-								style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
-							<div style="display: flex; flex-direction: column; place-content: center;">
-								Product Type
-							</div>
-							<div class="select">
-								<select name="productTypeHandle" id="{{ id }}-productType-selection">
-								</select>
-							</div>
-						</div>
-						<div style="display: flex; flex-direction: row; grid-gap: 1rem; align-items: center" id="{{ id }}-refreshVariantsContainer" class="hidden">
-							<label for="{{ id }}-refreshVariants-selection">
-								Refresh existing variants?
-							</label>
-							<input type="checkbox" name="refreshVariants" id="{{ id }}-refreshVariants-selection">
-						</div>
-						<div>
-							<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden;"
-											id="{{ id }}-confirm-btn"></button>
-							<button class="btn text {{ id }}-close-btn" style="position: relative; overflow: hidden;">Cancel</button>
-						</div>
-				</div>
-				<div class="actions {{ id }}-complete-actions hidden" style="grid-gap: 1rem;">
-					<button class="btn {{ id }}-close-btn" style="position: relative; overflow: hidden;">Close</button>
-				</div>
-			</div>
-		</div>
+{% if multipleFieldsExist == true %}
+	<div style="display: inline-block; background-color: #b44d12; color: white; padding: 0.725rem; border-radius: 0.5rem">
+		<p><strong>Warning:</strong> Multiple Variant Attributes fields have been applied.</p>
+		<p>This field will be ignored.</p>
 	</div>
-	<button type="button" class="btn icon remove {{ id }}-close-btn" data-icon="remove"
-					style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;"></button>
+{% endif %}
+
+<div class="variant-attributes-container">
+	<table class="table data variant-attributes-table">
+		<thead>
+		<tr>
+			<th class="singleline-cell textual text-right">Name</th>
+			<th class="singleline-cell textual">Value</th>
+		</tr>
+		</thead>
+
+		<tbody>
+		{% for attribute in attributes %}
+			<tr>
+				<td class="singleline-cell textual text-right">{{ attribute['attributeName'] }}</td>
+				<!-- When clicking on the value cell, it should change to an input field -->
+				<td class="singleline-cell textual">
+					<input type="text" class="value-input" value="{{ attribute['attributeValue'] }}" />
+				</td>
+			</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+	<div class="flex justify-end save-button-container">
+		<div class="spinner hidden"></div>
+		<button class="btn submit save-button disabled" disabled>Save Attributes</button>
+	</div>
 </div>
 
-{% if canImport %}
-	<script type="text/javascript">
-		document.addEventListener('DOMContentLoaded', () => {
-			let field = document.getElementById('{{ namespacedId }}-file');
-			let btn = document.getElementById('{{ namespacedId }}-btn');
+{% css %}
+	.variant-attributes-container .save-button-container {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		padding-top: 1rem;
+	}
 
-			let primaryActions = document.getElementsByClassName('{{ namespacedId }}-primary-actions')[0];
-			let completeActions = document.getElementsByClassName('{{ namespacedId }}-complete-actions')[0];
+	.table.data {
+		width: 100%;
+		margin-top: 1rem;
+	}
 
-			let message = document.getElementById('{{ namespacedId }}-message');
-			let productType = document.getElementById('{{ namespacedId }}-productType');
-			let refreshVariants = document.getElementById('{{ namespacedId }}-refreshVariants');
-			let productTypeSelection = document.getElementById('{{ namespacedId }}-productType-selection');
-			let refreshVariantsSelection = document.getElementById('{{ namespacedId }}-refreshVariants-selection');
-			let refreshVariantsContainer = document.getElementById('{{ namespacedId }}-refreshVariantsContainer');
-			let productTypeContainer = document.getElementById('{{ namespacedId }}-productTypeContainer');
-			let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
-			let closeBtn = document.getElementById('{{ namespacedId }}-close-btn');
+	.value-input {
+		width: 100%;
+	}
+{% endcss %}
 
-			let uploadSpinner = document.getElementById('upload-spinner');
+{% js %}
+	{# So that we don't need to use a unique variable names #}
+	(function() {
+		const container = document.getElementById('{{ namespacedId }}-field');
 
-			let productName = null;
+		const slideoutInstance = $(container).closest('.cp-screen').data('cpScreen');
 
-			for (const el of document.getElementsByClassName('{{ namespacedId }}-close-btn')) {
-				el.addEventListener('click', closeModal);
-			}
+		const table = container.querySelector('.variant-attributes-table');
+		const saveButton = container.querySelector('.save-button');
+		const spinner = container.querySelector('.spinner');
+		const valueCells = table.querySelectorAll('td:nth-child(2)');
 
-			let form = field.closest('form');
-			btn.addEventListener('click', openFileDialog);
-			field.addEventListener('change', showConfirmation);
-			confirmBtn.addEventListener('click', confirmChanges);
+		saveButton.addEventListener('click', function(e) {
+			e.preventDefault();
 
-			function showConfirmation(e) {
-				let file = e.target.files[0] ?? null;
+			saveButton.disabled = true;
+			saveButton.classList.add('disabled');
+			spinner.classList.remove('hidden');
 
-				if (!file) {
-					return;
+			const attributes = [];
+			valueCells.forEach(cell => {
+				const input = cell.querySelector('.value-input');
+				const attributeName = cell.previousElementSibling.textContent;
+				attributes.push({
+					attributeName,
+					attributeValue: input.value,
+				});
+			});
+
+			fetch('/admin/variant-manager/save-variant-attributes/{{ variant.id }}', {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
+					'X-Requested-With': 'XMLHttpRequest',
+				},
+				body: JSON.stringify({
+					attributes,
+				}),
+			}).then(response => {
+				if (response.ok) {
+					Craft.cp.displayNotice('Variant attributes saved');
+				} else {
+					Craft.cp.displayError('Failed to save variant attributes');
 				}
+			}).catch(() => {
+				Craft.cp.displayError('Failed to save variant attributes');
+			}).finally(() => {
+				spinner.classList.add('hidden');
+			});
+		});
 
-				btn.disabled = true;
-				btn.classList.add('disabled');
+		valueCells.forEach(cell => {
+			cell.addEventListener('click', () => {
+				const input = cell.querySelector('.value-input');
 
-				productName = file.name.split('.').slice(0, -1).join('.');
-				const fileType = file.name.split('.').slice(1, 2)[0];
-
-				async function checkExists() {
-					return fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
-						method: 'POST',
-						headers: {
-							'Accept': 'application/json',
-							'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-							'X-Requested-With': 'XMLHttpRequest',
-						},
-					}).then(async (response) => {
-						if (response.status > 299) {
-							let error = await response.json();
-							throw new Error(error.message);
-						}
-						const res = await response.json();
-						if (fileType === 'zip') {
-							return {zip: true, ...res};
-						}
-
-						return res
-					})
-				}
-
-				uploadSpinner.classList.remove('hidden');
-				checkExists().then((result) => {
-					uploadSpinner.classList.add('hidden');
-					if (result.zip) {
-						// Zip file
-						productTypeContainer.classList.remove("hidden");
-
-						productTypeSelection.innerHTML = result.productTypes.map((productType) => {
-							return `<option value="${productType[0]}">${productType[1]}</option>`;
-						}).join("");
-
-						confirmBtn.innerHTML = "Process Zip";
-						primaryActions.classList.remove('hidden');
-						completeActions.classList.add('hidden');
-						confirmBtn.classList.remove("edit", "hidden");
-						confirmBtn.classList.add("add");
-						refreshVariantsContainer.classList.remove("hidden");
-
-						message.innerHTML = "Are you sure you want to process this zip file?";
-					} else if (!result.exists) {
-						// New product
-						productTypeContainer.classList.remove("hidden");
-
-						productTypeSelection.innerHTML = result.productTypes.map((productType) => {
-							return `<option value="${productType[0]}">${productType[1]}</option>`;
-						}).join("");
-
-						confirmBtn.innerHTML = "Create Product";
-						primaryActions.classList.remove('hidden');
-						completeActions.classList.add('hidden');
-						confirmBtn.classList.remove("edit", "hidden");
-						confirmBtn.classList.add("add");
-						refreshVariantsContainer.classList.add("hidden");
-
-						message.innerHTML = "Are you sure you want to create a new product?";
-					} else {
-						// Existing product
-						productTypeContainer.classList.add("hidden");
-
-						confirmBtn.innerHTML = "Edit Product";
-						primaryActions.classList.remove('hidden');
-						completeActions.classList.add('hidden');
-						confirmBtn.classList.remove("add", "hidden");
-						confirmBtn.classList.add("edit");
-						refreshVariantsContainer.classList.remove("hidden");
-						message.innerHTML =
-							`Are you sure you want to edit an existing product named <strong>"${result.name}"</strong>?`;
-					}
-
-					modal.show();
-				}).catch((error) => {
-					modal.hide();
-					uploadSpinner.classList.add('hidden');
-					btn.disabled = false;
-					btn.classList.remove('disabled');
-
-					confirmBtn.classList.add("hidden");
-
-					if (error.statusText) {
-						Craft.cp.displayError(`An error occurred: ${error.statusText}`);
-					} else if (error.message) {
-						Craft.cp.displayError(error.message);
+				input.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						saveButton.click();
 					}
 				});
 
-				return true;
-			};
-
-			function closeModal(event) {
-				primaryActions.classList.remove('hidden');
-				completeActions.classList.add('hidden');
-				btn.disabled = false;
-				btn.classList.remove('disabled');
-
-				modal.hide();
-				window.location.reload();
-			}
-
-			function openFileDialog(event) {
-				field.click();
-			}
-
-			function confirmChanges(event) {
-				productType.value = productTypeSelection.value;
-				refreshVariants.value = refreshVariantsSelection.checked ? '1' : '0';
-				modal.hide();
-				form.submit();
-			}
+				input.addEventListener('input', () => {
+					saveButton.disabled = false;
+					saveButton.classList.remove('disabled');
+				});
+			});
 		});
-	</script>
-{% endif %}
-
-{% js %}
-confirmationToken = null;
-let modal = new Garnish.Modal($('#upload-modal'));
-modal.quickHide();
+	})();
 {% endjs %}

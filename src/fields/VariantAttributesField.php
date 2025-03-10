@@ -52,6 +52,7 @@ class VariantAttributesField extends Field
 		$name = $this->handle;
 		$id = Html::id($name);
 		$namespacedId = Craft::$app->view->namespaceInputId($id);
+		$uniquePrefix = explode('-', $namespacedId)[0];
 
 		return Craft::$app->getView()->renderTemplate('variant-manager/fields/variant_attributes', [
 			'id' => $id,
@@ -59,6 +60,8 @@ class VariantAttributesField extends Field
 			'name' => $name,
 			'attributes' => $value,
 			'multipleFieldsExist' => ! FieldHelper::isFirstVariantAttributesField($this, $element),
+			'variant' => $element,
+			'uniquePrefix' => $uniquePrefix,
 		]);
 	}
 
@@ -128,11 +131,13 @@ class VariantAttributesField extends Field
 
 	private function generateAssociativeFilter(string $contentColumn, array $filter, array &$whereParts): void
 	{
-		if (array_filter(
-			$filter,
-			static fn ($value, $key): bool => ! is_string($value),
-			ARRAY_FILTER_USE_BOTH
-		) !== []) {
+		if (
+			array_filter(
+				$filter,
+				static fn ($value, $key): bool => ! is_string($value),
+				ARRAY_FILTER_USE_BOTH
+			) !== []
+		) {
 			throw new \RuntimeException('filter values must be strings');
 		}
 
