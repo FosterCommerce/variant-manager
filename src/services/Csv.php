@@ -778,18 +778,20 @@ class Csv extends Component
 			return;
 		}
 
-		foreach ($titleRecord as $fieldHandle => $value) {
-			if ($fieldHandle === 'title') {
-				continue;
-			}
+		$settings = Plugin::getInstance()->getSettings();
+		$productTypeMapping = array_values($settings->getProductFieldMapping($product->type->handle));
 
-			if ($fieldHandle === 'slug') {
-				$product->slug = $value;
-				continue;
-			}
+		collect($titleRecord)
+			->only($productTypeMapping)
+			->filter(static fn ($value, $fieldHandle) => $fieldHandle !== 'title')
+			->each(function (mixed $value, string $fieldHandle) use ($product) {
+				if ($fieldHandle === 'slug') {
+					$product->slug = $value;
+					return;
+				}
 
-			$this->setFieldValue($product, $fieldHandle, $value);
-		}
+				$this->setFieldValue($product, $fieldHandle, $value);
+			});
 	}
 
 	private function setFieldValue(Element $element, string $fieldHandle, mixed $value): void
