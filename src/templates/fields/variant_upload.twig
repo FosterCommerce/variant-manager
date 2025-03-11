@@ -29,11 +29,19 @@
 								</select>
 							</div>
 						</div>
-						<div style="display: flex; flex-direction: row; grid-gap: 1rem; align-items: center" id="{{ id }}-refreshVariantsContainer" class="hidden">
-							<label for="{{ id }}-refreshVariants-selection">
-								Refresh existing variants?
-							</label>
-							<input type="checkbox" name="refreshVariants" id="{{ id }}-refreshVariants-selection">
+						<div style="display: flex; flex-direction: column; align-items: flex-end" id="{{ id }}-refreshVariantsContainer" class="hidden">
+							<div style="display: flex; flex-direction: row; grid-gap: 0.5rem;">
+								<label for="{{ id }}-refreshVariants-update">
+									Update &amp; remove extra variants <div class="info">Updates existing variants and deletes any that are not listed in the CSV.</div>
+								</label>
+								<input type="radio" name="refreshVariants" id="{{ id }}-refreshVariants-update" value="0" checked>
+							</div>
+							<div style="display: flex; flex-direction: row; grid-gap: 0.5rem;">
+								<label for="{{ id }}-refreshVariants-refresh">
+									Replace all variants <div class="info">Deletes all existing variants before importing only the ones in the CSV.</div>
+								</label>
+								<input type="radio" name="refreshVariants" id="{{ id }}-refreshVariants-refresh" value="1">
+							</div>
 						</div>
 						<div>
 							<button type="button" class="btn icon hidden" style="position: relative; overflow: hidden;"
@@ -64,7 +72,6 @@
 			let productType = document.getElementById('{{ namespacedId }}-productType');
 			let refreshVariants = document.getElementById('{{ namespacedId }}-refreshVariants');
 			let productTypeSelection = document.getElementById('{{ namespacedId }}-productType-selection');
-			let refreshVariantsSelection = document.getElementById('{{ namespacedId }}-refreshVariants-selection');
 			let refreshVariantsContainer = document.getElementById('{{ namespacedId }}-refreshVariantsContainer');
 			let productTypeContainer = document.getElementById('{{ namespacedId }}-productTypeContainer');
 			let confirmBtn = document.getElementById('{{ namespacedId }}-confirm-btn');
@@ -202,7 +209,8 @@
 
 			function confirmChanges(event) {
 				productType.value = productTypeSelection.value;
-				refreshVariants.value = refreshVariantsSelection.checked ? '1' : '0';
+				let refreshVariantsSelection = document.querySelector('input[name="refreshVariants"]:checked');
+				refreshVariants.value = refreshVariantsSelection.value;
 				modal.hide();
 				form.submit();
 			}
