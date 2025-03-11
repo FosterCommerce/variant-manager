@@ -20,7 +20,11 @@
 				<td class="singleline-cell textual text-right">{{ attribute['attributeName'] }}</td>
 				<!-- When clicking on the value cell, it should change to an input field -->
 				<td class="singleline-cell textual">
-					<input type="text" class="value-input" value="{{ attribute['attributeValue'] }}" />
+					{% if currentUser.can('variant-manager:import') %}
+						<input type="text" class="value-input" value="{{ attribute['attributeValue'] }}" />
+					{% else %}
+						<span class="value-input">{{ attribute['attributeValue'] }}</span>
+					{% endif %}
 				</td>
 			</tr>
 		{% endfor %}
@@ -28,7 +32,7 @@
 	</table>
 	<div class="flex justify-end save-button-container">
 		<div class="spinner hidden"></div>
-		<button class="btn submit save-button disabled" disabled>Save Attributes</button>
+		<button class="btn submit save-button disabled" disabled {% if not currentUser.can('variant-manager:import') %}title="You do not have permission to edit variant attributes"{% endif %}>Save Attributes</button>
 	</div>
 </div>
 
