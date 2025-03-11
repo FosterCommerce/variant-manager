@@ -207,6 +207,10 @@ class ProductVariantsController extends Controller
 
 	public function actionSaveVariantAttributes(int $variantId): Response
 	{
+		$this->requirePostRequest();
+
+		$this->requirePermission('variant-manager:import');
+
 		$variant = Variant::find()->id($variantId)->one();
 		if (! $variant) {
 			return $this->asFailure('Variant not found');

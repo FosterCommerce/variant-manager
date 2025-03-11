@@ -213,7 +213,7 @@ class Plugin extends BasePlugin
 				'heading' => Craft::t('variant-manager', 'Variant Manager'),
 				'permissions' => [
 					'variant-manager:import' => [
-						'label' => Craft::t('variant-manager', 'Import products and variants'),
+						'label' => Craft::t('variant-manager', 'Import/edit products and variants'),
 						'warning' => Craft::t('variant-manager', 'Imports can potentially overwrite existing variants.'),
 					],
 					'variant-manager:export' => [
