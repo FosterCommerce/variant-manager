@@ -21,7 +21,7 @@ class ActivitiesController extends Controller
 		if ($all) {
 			Plugin::getInstance()->activityLogs->clearActivityLogs();
 		} else {
-			Plugin::getInstance()->activityLogs->removeExpiredActivityLogs();
+			Plugin::getInstance()->activityLogs->deleteExpiredActivityLogs();
 		}
 		return ExitCode::OK;
 	}

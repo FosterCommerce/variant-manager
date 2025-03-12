@@ -218,7 +218,7 @@ class Plugin extends BasePlugin
 			Gc::class,
 			Gc::EVENT_RUN,
 			function (Event $_event): void {
-				$this->activityLogs->removeExpiredActivityLogs();
+				$this->activityLogs->gc();
 			},
 		);
 	}

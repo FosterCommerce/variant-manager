@@ -13,17 +13,17 @@ use yii\helpers\BaseConsole;
 
 final class ActivityLogs extends Component
 {
-	public function removeExpiredActivityLogs(): void
+	public function deleteExpiredActivityLogs(): void
 	{
 		$this->stdout('Deleting expired activity logs ... ');
-		$this->internalRemoveExpiredActivityLogs();
+		$this->internalDeleteExpiredActivityLogs();
 		$this->stdout("done\n", BaseConsole::FG_GREEN);
 	}
 
 	public function gc(): void
 	{
 		Console::stdout('    > deleting expired Variant Manager activity logs ... ');
-		$this->internalRemoveExpiredActivityLogs();
+		$this->internalDeleteExpiredActivityLogs();
 		Console::stdout("done\n", BaseConsole::FG_GREEN);
 	}
 
@@ -34,7 +34,7 @@ final class ActivityLogs extends Component
 		$this->stdout("done\n", BaseConsole::FG_GREEN);
 	}
 
-	private function internalRemoveExpiredActivityLogs(): bool
+	private function internalDeleteExpiredActivityLogs(): bool
 	{
 		$logRetention = Plugin::getInstance()->getSettings()->activityLogRetention;
 		if ($logRetention === false) {
