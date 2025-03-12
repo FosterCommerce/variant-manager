@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager\controllers;
 use Craft;
 use craft\web\Controller;
 use craft\web\twig\variables\Paginate;
+use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\VariantManagerAssetBundle;
 use yii\base\InvalidConfigException;
@@ -55,5 +56,16 @@ class DashboardController extends Controller
 				'totalPages' => ceil($total / self::ACTIVITIES_PER_PAGE),
 			]),
 		]);
+	}
+
+	public function actionClearActivityLogs(): Response
+	{
+		$this->requirePostRequest();
+		$this->requirePermission('variant-manager:manage');
+
+		Plugin::getInstance()->activityLogs->clearActivityLogs();
+
+		$this->setSuccessFlash('All activity logs cleared');
+		return $this->redirectToPostedUrl();
 	}
 }

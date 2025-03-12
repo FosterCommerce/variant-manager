@@ -18,6 +18,7 @@ return [
 	'emptyAttributeValue' => '',
 	'attributePrefix' => 'Attribute: ',
 	'inventoryPrefix' => 'Inventory',
+	'activityLogRetention' => '1 week',
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',
