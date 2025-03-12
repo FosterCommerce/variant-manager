@@ -13,12 +13,14 @@ use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\services\Fields;
+use craft\services\Gc;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\models\Settings;
+use fostercommerce\variantmanager\services\ActivityLogs;
 use fostercommerce\variantmanager\services\Csv;
 use fostercommerce\variantmanager\services\ProductVariants;
 use Twig\Error\LoaderError;
@@ -39,6 +41,7 @@ use yii\queue\Queue;
  * @property-read Settings $settings
  * @property-read ProductVariants $productVariants
  * @property-read Csv $csv
+ * @property-read ActivityLogs $activityLogs
  * @property-read null|array $cpNavItem
  */
 class Plugin extends BasePlugin
@@ -100,6 +103,8 @@ class Plugin extends BasePlugin
 			$this->registerFields();
 			$this->registerViewHooks();
 		}
+
+		$this->registerEvents();
 	}
 
 	private function registerQueue(): void
@@ -170,6 +175,7 @@ class Plugin extends BasePlugin
 		$this->setComponents([
 			'productVariants' => ProductVariants::class,
 			'csv' => Csv::class,
+			'activityLogs' => ActivityLogs::class,
 		]);
 	}
 
@@ -206,6 +212,17 @@ class Plugin extends BasePlugin
 		);
 	}
 
+	private function registerEvents(): void
+	{
+		Event::on(
+			Gc::class,
+			Gc::EVENT_RUN,
+			function (Event $_event): void {
+				$this->activityLogs->removeExpiredActivityLogs();
+			},
+		);
+	}
+
 	private function registerPermissions(): void
 	{
 		Event::on(UserPermissions::class, UserPermissions::EVENT_REGISTER_PERMISSIONS, static function (RegisterUserPermissionsEvent $registerUserPermissionsEvent): void {
@@ -218,6 +235,9 @@ class Plugin extends BasePlugin
 					],
 					'variant-manager:export' => [
 						'label' => Craft::t('variant-manager', 'Export products and variants'),
+					],
+					'variant-manager:manage' => [
+						'label' => Craft::t('variant-manager', 'Manage'),
 					],
 				],
 			];

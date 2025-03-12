@@ -6,7 +6,7 @@
 {% set title = "Variant Manager"|t('variant-manager') %}
 
 {% set additionalButtons %}
-	<form id="log-form" method="get">
+	<form id="log-form" method="GET">
 		{{ forms.selectField({
 			first: true,
 			id: 'log-status',
@@ -28,6 +28,11 @@
 			"namespacedId": "variant-uploads",
 			"name": "variant-uploads"
 		} %}
+	</form>
+	<form id="clear-logs-form" method="POST">
+		{{ csrfInput() }}
+		{{ actionInput('variant-manager/dashboard/clear-activity-logs') }}
+		<button type="submit" class="btn">{{ 'Clear activity logs'|t('variant-manager') }}</button>
 	</form>
 {% endset %}
 
@@ -82,6 +87,15 @@
 
 document.getElementById('log-status').addEventListener('change', function() {
 	document.getElementById('log-form').submit();
+});
+
+document.getElementById('clear-logs-form').addEventListener('submit', function(e) {
+	e.preventDefault();
+
+	if (confirm('Are you sure you want to clear all activity logs?')) {
+		this.submit();
+	}
+
 });
 
 {% endjs %}
