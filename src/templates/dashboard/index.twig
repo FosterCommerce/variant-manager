@@ -20,6 +20,11 @@
 			value: logStatus,
 		}) }}
 	</form>
+	<form id="clear-logs-form" method="POST">
+		{{ csrfInput() }}
+		{{ actionInput('variant-manager/dashboard/clear-activity-logs') }}
+		<button type="submit" data-icon="trash" class="btn">{{ 'Clear activity logs'|t('variant-manager') }}</button>
+	</form>
 	<form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: row;">
 		<div id="upload-spinner" class="spinner hidden" style="margin-right: 1rem;"></div>
 		{{ csrfInput() }}
@@ -28,11 +33,6 @@
 			"namespacedId": "variant-uploads",
 			"name": "variant-uploads"
 		} %}
-	</form>
-	<form id="clear-logs-form" method="POST">
-		{{ csrfInput() }}
-		{{ actionInput('variant-manager/dashboard/clear-activity-logs') }}
-		<button type="submit" class="btn">{{ 'Clear activity logs'|t('variant-manager') }}</button>
 	</form>
 {% endset %}
 
@@ -84,7 +84,6 @@
 {% endset %}
 
 {% js %}
-
 document.getElementById('log-status').addEventListener('change', function() {
 	document.getElementById('log-form').submit();
 });
@@ -95,7 +94,5 @@ document.getElementById('clear-logs-form').addEventListener('submit', function(e
 	if (confirm('Are you sure you want to clear all activity logs?')) {
 		this.submit();
 	}
-
 });
-
 {% endjs %}

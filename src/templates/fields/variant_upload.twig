@@ -6,7 +6,7 @@
 <button
 	type="button"
 	{% if not canImport %}disabled{% endif %}
-	class="btn {% if not canImport %}disabled{% endif %}"
+	class="btn submit {% if not canImport %}disabled{% endif %}"
 	data-icon="upload"
 	style="position: relative; overflow: hidden;"
 	id="{{ id }}-btn"
@@ -55,8 +55,7 @@
 			</div>
 		</div>
 	</div>
-	<button type="button" class="btn icon remove {{ id }}-close-btn" data-icon="remove"
-					style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;"></button>
+	<button type="button" class="btn icon remove {{ id }}-close-btn" data-icon="remove" style="position: absolute; top: 1rem; right: 1rem; background-color: #FFFFFF;"></button>
 </div>
 
 {% if canImport %}
