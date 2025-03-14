@@ -643,6 +643,20 @@ class Csv extends Component
 	}
 
 	/**
+	 * If the value is a boolean, we want to return a string representation of it, like '1' or '0'.
+	 *
+	 * Otherwise, we just return the value.
+	 */
+	private function normalizeBooleanOrIdentity(mixed $value): mixed
+	{
+		if (is_bool($value)) {
+			return $value ? '1' : '0';
+		}
+
+		return $value;
+	}
+
+	/**
 	 * @param Site[] $sites
 	 */
 	private function normalizeVariantExport(Variant $variant, array $mapping, array $sites): array
@@ -651,7 +665,13 @@ class Csv extends Component
 
 		// Add variant fields
 		foreach ($mapping['variant'] as [$fieldHandle, $header]) {
-			$row[] = $fieldHandle === 'stock' && $variant->inventoryTracked ? '' : $variant->{$fieldHandle};
+			if ($fieldHandle === 'stock' && $variant->inventoryTracked) {
+				// If inventory tracking is enabled, we don't want to set the stock field, because the inventory will manage stock levels.
+				$row[] = '';
+				continue;
+			}
+
+			$row[] = $this->normalizeBooleanOrIdentity($variant->{$fieldHandle});
 		}
 
 		// Map variant values per site
@@ -660,7 +680,7 @@ class Csv extends Component
 			$siteVariant = Variant::find()->id($variant->id)->site($site)->one();
 			$siteMapping = $mappedSiteValues[$site->handle] ?? [];
 			foreach ($siteMapping as $key => $value) {
-				$siteMapping[$key] = $siteVariant->{$key} ?? '';
+				$siteMapping[$key] = $this->normalizeBooleanOrIdentity($siteVariant->{$key});
 			}
 
 			$row = [
