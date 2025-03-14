@@ -281,11 +281,25 @@ class Csv extends Component
 
 			foreach ($sites as $siteHandle => $data) {
 				$variant = Variant::find()->sku($record[$skuColumn])->site($siteHandle)->one();
+
+				if ($data->firstWhere('field', 'availableForPurchase') === null) {
+					// If the availableForPurchase field does not exist, then we will default it to true
+					$variant->availableForPurchase = true;
+				}
+
 				foreach ($data as $fieldData) {
 					$field = $fieldData['field'];
 					$properties = [
 						$field => $record[$fieldData['index']],
 					];
+
+					if ($field === 'availableForPurchase') {
+						$value = $properties[$field];
+						if ($value === null || $value === '') {
+							// Default it to true if it's set but null or empty
+							$properties[$field] = true;
+						}
+					}
 
 					Typecast::properties(Variant::class, $properties);
 
@@ -391,7 +405,7 @@ class Csv extends Component
 	/**
 	 * @throws CsvException
 	 */
-	private function read(string $csvData): \League\Csv\TabularDataReader
+	private function read(string $csvData): TabularDataReader
 	{
 		$reader = Reader::createFromString($csvData);
 		$reader->setHeaderOffset(0);
