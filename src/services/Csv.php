@@ -643,11 +643,9 @@ class Csv extends Component
 	}
 
 	/**
-	 * If the value is a boolean, we want to return a string representation of it, like '1' or '0'.
-	 *
-	 * Otherwise, we just return the value.
+	 * Normalize a value to a better format for CSV.
 	 */
-	private function normalizeBooleanOrIdentity(mixed $value): mixed
+	private function normalizeValue(mixed $value): mixed
 	{
 		if (is_bool($value)) {
 			return $value ? '1' : '0';
@@ -671,7 +669,7 @@ class Csv extends Component
 				continue;
 			}
 
-			$row[] = $this->normalizeBooleanOrIdentity($variant->{$fieldHandle});
+			$row[] = $this->normalizeValue($variant->{$fieldHandle});
 		}
 
 		// Map variant values per site
@@ -680,7 +678,7 @@ class Csv extends Component
 			$siteVariant = Variant::find()->id($variant->id)->site($site)->one();
 			$siteMapping = $mappedSiteValues[$site->handle] ?? [];
 			foreach ($siteMapping as $key => $value) {
-				$siteMapping[$key] = $this->normalizeBooleanOrIdentity($siteVariant->{$key});
+				$siteMapping[$key] = $this->normalizeValue($siteVariant->{$key});
 			}
 
 			$row = [
@@ -902,7 +900,10 @@ class Csv extends Component
 				} elseif ($value instanceof Money) {
 					$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
 					$value = $formatter->format($value);
+				} else {
+					$value = $this->normalizeValue($value);
 				}
+
 				$row[] = $value;
 			}
 		}
