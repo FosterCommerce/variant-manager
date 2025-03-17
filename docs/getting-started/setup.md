@@ -3,21 +3,37 @@
 
 ## Requirements
 
-- Craft v4.4.6 or greater
-- Craft Commerce v4.2 or greater
-- PHP 8.1 or greater
+- Craft CMS 5.0 or later
+- Craft Commerce 5.0 or later
+- PHP 8.2 or greater
 
 ## Installation
 
-### Installing via Craft Plugin Store
+You can install this plugin from the Plugin Store or with Composer.
 
-To install Variant Manager, navigate to the Plugin Store in your site's Craft Control Panel, search for Variant Manager, and click the Try button.
+#### From the Plugin Store
 
-### Installing via Composer
+Go to the Plugin Store in your project’s Control Panel and search for “Variant Manager”. Then press “Install”.
 
-You can add the package to your project using Composer and the command line using the below as a reference.
+#### With Composer
 
-1. Open your terminal of choice and go to your Craft project: `cd /path/to/project`
-1. Tell Composer to require the plugin and then Craft to install it: `composer require fostercommerce/variant-manager && php craft plugin/install variant-manager`
+Open your terminal and run the following commands:
 
+```bash
+# go to the project directory
+cd /path/to/my-project.test
 
+# tell Composer to load the plugin
+composer require fostercommerce/variant-manager
+
+# tell Craft to install the plugin
+./craft plugin/install variant-manager
+```
+
+#### With DDEV
+
+Run the following command from DDEV:
+
+```bash
+ddev composer require fostercommerce/variant-manager -w && ddev exec php craft plugin/install variant-manager
+```

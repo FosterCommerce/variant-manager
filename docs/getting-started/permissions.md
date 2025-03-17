@@ -18,3 +18,9 @@ Allows users to import products through the Variant Manager dashboard.
 Allows users to export products from Craft Commerce's product list or from individual products.
 
 #### `variant-manager:export`
+
+## Manage
+
+Allows users to manage plugin data, such as clearing activity logs.
+
+#### `variant-manager:manage`
