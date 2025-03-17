@@ -13,13 +13,13 @@ The Variant Attributes field accepts 3 formats of filters:
 
 The following will return all variants which have the option `'Value'`:
 
-### PHP
+#### PHP
 
 ```php
 \craft\commerce\elements\Variant::find()->myVariantAttributes('Value')->all();
 ```
 
-### Twig
+#### Twig
 
 ```twig
 {% craft.variants().myVariantAttributes("Value").all() %}

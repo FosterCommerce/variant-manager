@@ -8,12 +8,20 @@ Create a `variant-manager.php` file in your `config` directory. The following sh
 return [
 	'emptyAttributeValue' => '',
 	'attributePrefix' => 'Attribute: ',
+	'inventoryPrefix' => 'Inventory: ',
 	'activityLogRetention' => '30 days',
+	'productFieldMap' => [
+		'*' => [
+			'title' => 'title',
+			'slug' => 'slug',
+		],
+	],
 	'variantFieldMap' => [
 		'*' => [
+			'title' => 'title',
 			'sku' => 'sku',
-			'stock' => 'stock',
-			'price' => 'price',
+			'inventoryTracked' => 'inventoryTracked',
+			'price' => 'basePrice',
 			'height' => 'height',
 			'width' => 'width',
 			'length' => 'length',
@@ -39,6 +47,10 @@ The value to use when a variant's attribute value is empty.
 
 The prefix to use to determine which columns correspond to variant attributes when importing/exporting product variants.
 
+####  `inventoryPrefix`
+
+The prefix to use to determine which columns correspond to variant inventory counts when importing/exporting product variants.
+
 #### `activityLogRetention`
 
 The duration for which activity logs should be retained. Accepts values like '1 week', '30 days', etc. Set to `null` or `false` to retain logs indefinitely.
@@ -46,6 +58,16 @@ The duration for which activity logs should be retained. Accepts values like '1 
 When enabled, activity logs outside the retention period are automatically removed during GC.
 
 Activity logs can also be removed using the `variant-manager/activities/clear` command. Pass `all` to the command to remove all activity logs.
+
+### `productFieldMap`
+
+The map of column names to product properties.
+
+Supported field types and formatting:
+<!-- TODO -->
+- title
+- slug
+- entries
 
 ### `variantFieldMap`
 

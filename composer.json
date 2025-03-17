@@ -23,8 +23,8 @@
 	},
 	"require": {
 		"php": ">=8.2.0",
-		"craftcms/cms": "^5.0@beta",
-		"craftcms/commerce": "^5.0@beta",
+		"craftcms/cms": "^5.0",
+		"craftcms/commerce": "^5.0",
 		"league/csv": "^9.0"
 	},
 	"require-dev": {
