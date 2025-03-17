@@ -2,9 +2,8 @@
 
 Variant Manager provides a "Variant Attributes" custom field type you need to add to your Craft Commerce variant field
 layouts. This field is used by Variant Manager to save the variant attribute name and value pairs when imports occur,
-and can be used in your twig templates to allow users to
-[filter variants based on a selection](../recipes/variant-filter.md) or
-[select a variant based on the variants attribute values](../recipes/variant-switcher.md).
+and can be used in your twig templates to allow users to [select a variant and add to cart](recipes/add-to-cart.md) or
+[filter variants based on a selection](../recipes/variant-filter.md).
 
 ![Screenshot](../../resources/img/field-display.png)
 

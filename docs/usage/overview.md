@@ -71,6 +71,6 @@ __[Querying Variants →](../element-queries/variant-queries.md)__
 You may want to use a bit of Javascript to filter and select variants without refreshing the page, so we have included
 some example recipes using Sprig and Alpine for you to use as examples for yout own code:
 
-__[Filter variants based on a selection examples →](../recipes/variant-filter.md)__
+__[Select a variant and add to cart](recipes/add-to-cart.md)__
 
-__[Select a variant based on a variants attributes examples →](../recipes/variant-switcher.md)__
+__[Filter variants based on a selection examples →](../recipes/variant-filter.md)__
