@@ -21,5 +21,5 @@
 
 ## Template Recipes
 
+1. [Select a variant and add to cart](recipes/add-to-cart.md)
 1. [Filter variants based on a selection examples](recipes/variant-filter.md)
-1. [Select a variant based on a variants attributes examples](recipes/variant-switcher.md)
