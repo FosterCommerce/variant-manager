@@ -12,9 +12,12 @@ use craft\commerce\enums\InventoryUpdateQuantityType;
 use craft\commerce\models\inventory\UpdateInventoryLevel;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
+use craft\elements\Asset;
+use craft\elements\db\AssetQuery;
 use craft\elements\db\EntryQuery;
 use craft\elements\Entry;
 use craft\errors\ElementNotFoundException;
+use craft\fields\Assets as AssetsField;
 use craft\fields\Entries;
 use craft\fields\Lightswitch;
 use craft\fields\Money as MoneyField;
@@ -875,6 +878,46 @@ class Csv extends Component
 			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
 			$value = (int) ($value * 100);
 			$element->setFieldValue($fieldHandle, new Money($value, new Currency($field->currency)));
+		} elseif ($field instanceof AssetsField) {
+			if (! is_string($value)) {
+				return;
+			}
+			// We're expecting a comma separated list of volume handles and asset paths in the format "volumeHandle:path/to/asset.jpg,volumeHandle:path/to/another/asset.jpg".
+			$assetIds = collect(explode(',', $value))
+				->map(static fn ($slug) => explode(':', $slug))
+				->map(static function ($parts) {
+					if (count($parts) === 1 && is_numeric($parts[0])) {
+						return Craft::$app->assets->getAssetById((int) $parts[0])?->id;
+					}
+
+					$volumeHandle = $parts[0] ?? null;
+					$assetPath = $parts[1] ?? null;
+
+					$volume = Craft::$app->getVolumes()->getVolumeByHandle($volumeHandle);
+
+					$filename = basename($assetPath);
+					$path = str_replace($filename, '', $assetPath);
+
+					if ($path === '') {
+						$folder = Craft::$app->assets->getRootFolderByVolumeId($volume->id);
+					} else {
+						$path = rtrim($path, '/') . '/'; // Add a trailing slash to the folder path.
+						$folder = Craft::$app->assets->findFolder([
+							'volumeId' => $volume->id,
+							'path' => $path,
+						]);
+					}
+					if ($folder === null) {
+						return null;
+					}
+
+					$asset = Asset::find()->folderId($folder->id)->filename($filename)->one();
+
+					return $asset?->id;
+				})
+				->all();
+
+			$element->setFieldValue($fieldHandle, $assetIds);
 		} elseif ($field instanceof Lightswitch) {
 			$element->setFieldValue($fieldHandle, $value === '1');
 		} else {
@@ -896,6 +939,10 @@ class Csv extends Component
 				if ($value instanceof EntryQuery) {
 					$value = collect($value->all())
 						->map(static fn ($element) => "{$element->section->handle}:{$element->slug}")
+						->join(',');
+				} elseif ($value instanceof AssetQuery) {
+					$value = collect($value->all())
+						->map(static fn ($asset) => "{$asset->volume->handle}:{$asset->path}")
 						->join(',');
 				} elseif ($value instanceof Money) {
 					$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
