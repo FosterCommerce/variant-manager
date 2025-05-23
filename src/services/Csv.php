@@ -111,8 +111,6 @@ class Csv extends Component
 		}
 
 		$product->setVariants($variants);
-		// runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
-		// See: https://github.com/craftcms/commerce/pull/3297
 		if (! Craft::$app->elements->saveElement($product, false, true, true)) {
 			$errors = $product->getErrorSummary(false);
 			$error = reset($errors);
@@ -129,7 +127,18 @@ class Csv extends Component
 			}
 		}
 
-		if (! Craft::$app->elements->saveElement($product, false, true, true)) {
+		// runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
+		// See: https://github.com/craftcms/commerce/pull/3297
+		// It also seems to include some logic that allows a products URL to be generated.
+		if (! Craft::$app->elements->saveElement($product, true, true, true)) {
+			if ($product->isNewForSite) {
+				// Make sure if we're importing a new product and it fails that we delete it.
+				foreach ($variants as $variant) {
+					Craft::$app->elements->deleteElement($variant, true);
+				}
+				Craft::$app->elements->deleteElement($product);
+			}
+
 			$errors = $product->getErrorSummary(false);
 			$error = reset($errors);
 			throw new \RuntimeException($error ?? 'Failed to save product');

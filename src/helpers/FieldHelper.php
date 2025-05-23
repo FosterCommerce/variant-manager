@@ -9,7 +9,7 @@ use fostercommerce\variantmanager\fields\VariantAttributesField;
 
 class FieldHelper extends Field
 {
-	public static function getFirstVariantAttributesField(FieldLayout $fieldLayout = null): ?VariantAttributesField
+	public static function getFirstVariantAttributesField(?FieldLayout $fieldLayout = null): ?VariantAttributesField
 	{
 		// Using getElementsByType(VariantAttributesField::class) gave inconsistent results. Maybe I was doing something wrong.
 		foreach ($fieldLayout->getCustomFields() as $field) {
@@ -21,7 +21,7 @@ class FieldHelper extends Field
 		return null;
 	}
 
-	public static function isFirstVariantAttributesField(VariantAttributesField $variantAttributesField, ElementInterface $element = null): bool
+	public static function isFirstVariantAttributesField(VariantAttributesField $variantAttributesField, ?ElementInterface $element = null): bool
 	{
 		// Using getElementsByType(VariantAttributesField::class) gave inconsistent results. Maybe I was doing something wrong.
 		$customFieldIndex = -1;
