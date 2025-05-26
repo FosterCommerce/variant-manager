@@ -99,6 +99,10 @@ class Csv extends Component
 
 		if ($product->isNewForSite) {
 			$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
+
+			if (Product::find()->slug($product->slug)->exists()) {
+				throw new \RuntimeException("Product with slug '{$product->slug}' already exists");
+			}
 		} else {
 			if ($refreshVariants) {
 				$variants = Variant::find()->product($product)->all();
@@ -245,24 +249,11 @@ class Csv extends Component
 	 * @param string[] $items
 	 * @throws InvalidConfigException
 	 */
-	protected function findProductVariantSkus(array $items): array
+	protected function findProductVariantSkus(array $items): Collection
 	{
-		$found = Variant::find()
-			->sku($items)
-			->all();
-
-		$mapped = [];
-		foreach ($found as $variant) {
-			/** @var Product $product */
-			$product = $variant->getOwner();
-			if (! array_key_exists($product->id, $mapped)) {
-				$mapped[$product->id] = [];
-			}
-
-			$mapped[$product->id][] = $variant->sku;
-		}
-
-		return $mapped;
+		return collect(Variant::find()->sku($items)->all())
+			->groupBy(fn ($variant) => $variant->getOwner()->id)
+			->map(static fn ($variants) => $variants->map(static fn ($variant) => $variant->sku)->all());
 	}
 
 	private function importSiteSpecificData(TabularDataReader $reader, $skuColumn, array $sitesMap): void
@@ -398,19 +389,21 @@ class Csv extends Component
 		$countedSkus = array_count_values($skus);
 		$duplicateSkus = array_filter($countedSkus, static fn ($count): bool => $count > 1);
 		if ($duplicateSkus !== []) {
-			throw new \RuntimeException('Duplicate SKUs found');
+			throw new \RuntimeException('Duplicate SKUs found: ' . implode(', ', array_keys($duplicateSkus)));
 		}
 
+		/** @var Collection<array-key, string[]> $foundSkus */
 		$foundSkus = $this->findProductVariantSkus($skus);
 
 		// If the product is a new product and the SKU exists already, return an error.
-		if ($product->isNewForSite && $foundSkus !== []) {
-			throw new \RuntimeException('One or more SKUs already exist');
+		if ($product->isNewForSite && ! $foundSkus->isEmpty()) {
+			throw new \RuntimeException('One or more SKUs already exist: ' . implode(', ', $foundSkus->flatten()->values()->all()));
 		}
 
 		// If the SKU already exists for a different product return an error.
-		if (array_filter($foundSkus, static fn ($key): bool => $key !== $product->id, ARRAY_FILTER_USE_KEY) !== []) {
-			throw new \RuntimeException('One or more SKUs already exist on different products');
+		$foundSkus = $foundSkus->filter(static fn ($key): bool => $key !== $product->id);
+		if (! $foundSkus->isEmpty()) {
+			throw new \RuntimeException('One or more SKUs already exist on different products: ' . implode(', ', $foundSkus->flatten()->values()->all()));
 		}
 	}
 
