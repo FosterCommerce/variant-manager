@@ -99,10 +99,6 @@ class Csv extends Component
 
 		if ($product->isNewForSite) {
 			$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
-
-			if (Product::find()->slug($product->slug)->exists()) {
-				throw new \RuntimeException("Product with slug '{$product->slug}' already exists");
-			}
 		} else {
 			if ($refreshVariants) {
 				$variants = Variant::find()->product($product)->all();
