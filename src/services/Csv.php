@@ -114,12 +114,17 @@ class Csv extends Component
 			$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
 		}
 
-		$product->setVariants($variants);
-		if (! Craft::$app->elements->saveElement($product, false, true, true)) {
+		// If this is a new product, we need to save it first so that the variants can be assigned to the product
+		if ($product->isNewForSite && ! Craft::$app->elements->saveElement($product, false, true, true)) {
 			$errors = $product->getErrorSummary(false);
 			$error = reset($errors);
 			throw new \RuntimeException($error ?? 'Failed to save product');
 		}
+
+		// Now we can set the variants
+		$product->setVariants($variants);
+		// And then apply the live scenario to the product and it's variants
+		$product->setScenario(Element::SCENARIO_LIVE);
 
 		// Save after product has been saved so that titles can be generated correctly if necessary.
 		foreach ($variants as $variant) {
@@ -401,7 +406,7 @@ class Csv extends Component
 		}
 
 		// If the SKU already exists for a different product return an error.
-		$foundSkus = $foundSkus->filter(static fn ($key): bool => $key !== $product->id);
+		$foundSkus = $foundSkus->filter(static fn ($_value, $key) => $key !== $product->id);
 		if (! $foundSkus->isEmpty()) {
 			throw new \RuntimeException('One or more SKUs already exist on different products: ' . implode(', ', $foundSkus->flatten()->values()->all()));
 		}
