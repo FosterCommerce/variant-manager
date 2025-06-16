@@ -339,6 +339,10 @@ class Csv extends Component
 
 			$variant = Variant::find()->sku($record[$skuColumn])->one();
 
+			if (! $variant->inventoryTracked) {
+				continue;
+			}
+
 			$inventories = [];
 			foreach ($inventoryMap as $index => $value) {
 				$locationHandle = $value[0];
