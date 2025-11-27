@@ -14,10 +14,12 @@ use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\elements\Asset;
 use craft\elements\db\AssetQuery;
+use craft\elements\db\ElementQuery;
 use craft\elements\db\EntryQuery;
 use craft\elements\Entry;
 use craft\errors\ElementNotFoundException;
 use craft\fields\Assets as AssetsField;
+use craft\fields\BaseRelationField;
 use craft\fields\Entries;
 use craft\fields\Lightswitch;
 use craft\fields\Money as MoneyField;
@@ -657,8 +659,23 @@ class Csv extends Component
 	 */
 	private function normalizeValue(mixed $value): mixed
 	{
-		if (is_bool($value)) {
-			return $value ? '1' : '0';
+		if ($value instanceof EntryQuery) {
+			$value = collect($value->all())
+				->map(static fn ($element) => "{$element->section->handle}:{$element->slug}")
+				->join(',');
+		} elseif ($value instanceof AssetQuery) {
+			$value = collect($value->all())
+				->map(static fn ($asset) => "{$asset->volume->handle}:{$asset->path}")
+				->join(',');
+		} elseif ($value instanceof ElementQuery) {
+			$value = collect($value->all())
+				->map(static fn ($element) => $element->slug)
+				->join(',');
+		} elseif ($value instanceof Money) {
+			$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
+			$value = $formatter->format($value);
+		} elseif (is_bool($value)) {
+			$value = $value ? '1' : '0';
 		}
 
 		return $value;
@@ -925,6 +942,17 @@ class Csv extends Component
 				->all();
 
 			$element->setFieldValue($fieldHandle, $assetIds);
+		} elseif ($field instanceof BaseRelationField) {
+			/** @var class-string<BaseRelationField> $fieldType */
+			$fieldType = get_class($field);
+			/** @var class-string<Element> $elementType */
+			$elementType = $fieldType::elementType();
+
+			$slugs = explode(',', $value);
+			$elementIds = collect($elementType::find()->slug($slugs)->all())
+				->map(static fn ($e) => $e->id)
+				->toArray();
+			$element->setFieldValue($fieldHandle, $elementIds);
 		} elseif ($field instanceof Lightswitch) {
 			$element->setFieldValue($fieldHandle, $value === '1');
 		} else {
@@ -943,20 +971,7 @@ class Csv extends Component
 				$row[] = $product->slug;
 			} else {
 				$value = $product->getFieldValue($fieldHandle);
-				if ($value instanceof EntryQuery) {
-					$value = collect($value->all())
-						->map(static fn ($element) => "{$element->section->handle}:{$element->slug}")
-						->join(',');
-				} elseif ($value instanceof AssetQuery) {
-					$value = collect($value->all())
-						->map(static fn ($asset) => "{$asset->volume->handle}:{$asset->path}")
-						->join(',');
-				} elseif ($value instanceof Money) {
-					$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
-					$value = $formatter->format($value);
-				} else {
-					$value = $this->normalizeValue($value);
-				}
+				$value = $this->normalizeValue($value);
 
 				$row[] = $value;
 			}
