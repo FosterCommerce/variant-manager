@@ -855,7 +855,8 @@ class Csv extends Component
 
 	private function setFieldValue(Element $element, string $fieldHandle, mixed $value): void
 	{
-		$field = $element->getFieldLayout()?->getFieldByHandle($fieldHandle);
+		$fieldLayout = Craft::$app->fields->getLayoutByType(get_class($element));
+		$field = $fieldLayout->getFieldByHandle($fieldHandle);
 		if ($field instanceof Entries) {
 			$sectionUids = $field->sources === '*'
 				? []
@@ -908,6 +909,8 @@ class Csv extends Component
 			}
 			// We're expecting a comma separated list of volume handles and asset paths in the format "volumeHandle:path/to/asset.jpg,volumeHandle:path/to/another/asset.jpg".
 			$assetIds = collect(explode(',', $value))
+				->map(static fn ($slug) => trim($slug))
+				->filter(static fn ($slug) => $slug !== '')
 				->map(static fn ($slug) => explode(':', $slug))
 				->map(static function ($parts) {
 					if (count($parts) === 1 && is_numeric($parts[0])) {
@@ -952,6 +955,7 @@ class Csv extends Component
 			$elementIds = collect($elementType::find()->slug($slugs)->all())
 				->map(static fn ($e) => $e->id)
 				->toArray();
+
 			$element->setFieldValue($fieldHandle, $elementIds);
 		} elseif ($field instanceof Lightswitch) {
 			$element->setFieldValue($fieldHandle, $value === '1');
