@@ -115,6 +115,7 @@ class Csv extends Component
 		// If this is a new product, we need to save it first so that the variants can be assigned to the product
 		if ($product->isNewForSite && ! Craft::$app->elements->saveElement($product, false, true, true)) {
 			$errors = $product->getErrorSummary(false);
+			/** @var ?string $error */
 			$error = reset($errors);
 			throw new \RuntimeException($error ?? 'Failed to save product');
 		}
@@ -129,6 +130,7 @@ class Csv extends Component
 			$variant->setOwner($product);
 			if (! Craft::$app->elements->saveElement($variant, false, true, true)) {
 				$errors = $variant->getErrorSummary(false);
+				/** @var ?string $error */
 				$error = reset($errors);
 				throw new \RuntimeException($error ?? 'Failed to save product');
 			}
@@ -147,6 +149,7 @@ class Csv extends Component
 			}
 
 			$errors = $product->getErrorSummary(false);
+			/** @var ?string $error */
 			$error = reset($errors);
 			throw new \RuntimeException($error ?? 'Failed to save product');
 		}

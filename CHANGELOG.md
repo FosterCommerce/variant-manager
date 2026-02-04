@@ -1,5 +1,9 @@
 # Release Notes for Variant Manager
 
+## 2.0.4 - 2026-02-04
+
+- Include a Variant element index view
+
 ## 2.0.3 - 2025-12-02
 
 - Fix an issue where custom fields weren't discovered on new variant imports

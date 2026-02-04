@@ -71,6 +71,24 @@ class Plugin extends BasePlugin
 		});
 	}
 
+	public function getCpNavItem(): ?array
+	{
+		$nav = parent::getCpNavItem();
+
+		$nav['subnav']['dashboard'] = [
+			'label' => 'Dashboard',
+			'url' => 'variant-manager/dashboard',
+		];
+
+
+		$nav['subnav']['variants'] = [
+			'label' => 'Variants',
+			'url' => 'variant-manager/variants',
+		];
+
+		return $nav;
+	}
+
 	protected function createSettingsModel(): ?Model
 	{
 		return new Settings();
@@ -141,10 +159,16 @@ class Plugin extends BasePlugin
 			UrlManager::class,
 			UrlManager::EVENT_REGISTER_CP_URL_RULES,
 			static function (RegisterUrlRulesEvent $registerUrlRulesEvent): void {
-				$registerUrlRulesEvent->rules['variant-manager/dashboard'] = 'variant-manager/dashboard';
-				$registerUrlRulesEvent->rules['variant-manager/product-exists'] = 'variant-manager/product-variants/product-exists';
-				$registerUrlRulesEvent->rules['variant-manager/export'] = 'variant-manager/product-variants/export';
-				$registerUrlRulesEvent->rules['variant-manager/save-variant-attributes/<variantId:\d+>'] = 'variant-manager/product-variants/save-variant-attributes';
+				$registerUrlRulesEvent->rules = [
+					...$registerUrlRulesEvent->rules,
+					'variant-manager/dashboard' => 'variant-manager/dashboard',
+					'variant-manager/product-exists' => 'variant-manager/product-variants/product-exists',
+					'variant-manager/export' => 'variant-manager/product-variants/export',
+					'variant-manager/save-variant-attributes/<variantId:\d+>' => 'variant-manager/product-variants/save-variant-attributes',
+					'variant-manager/variants' => [
+						'template' => 'variant-manager/variants/index.twig',
+					],
+				];
 			}
 		);
 	}
