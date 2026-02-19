@@ -22,9 +22,9 @@ final class ActivityLogs extends Component
 
 	public function gc(): void
 	{
-		Console::stdout('    > deleting expired Variant Manager activity logs ... ');
+		$this->stdout('    > deleting expired Variant Manager activity logs ... ');
 		$this->internalDeleteExpiredActivityLogs();
-		Console::stdout("done\n", BaseConsole::FG_GREEN);
+		$this->stdout("done\n", BaseConsole::FG_GREEN);
 	}
 
 	public function clearActivityLogs(): void
