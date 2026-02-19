@@ -1,5 +1,9 @@
 # Release Notes for Variant Manager
 
+## 2.0.5 - 2026-02-19
+
+- Fix an error that would be thrown when gc runs during a web request
+
 ## 2.0.4 - 2026-02-04
 
 - Include a Variant element index view
