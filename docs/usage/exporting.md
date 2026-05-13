@@ -11,3 +11,5 @@ column on the bottom there is an "Export Product" button.
 
 Click it, and Variant Manager will generate a CSV file of the current product's variant data and it will download
 automatically to your computer.
+
+The exported CSV includes columns for every entry in `productFieldMap` and `variantFieldMap`. If `productFieldMap` includes a `status` entry, the export writes `enabled` or `disabled` based on the current product status. See [Configuration](../getting-started/configuration.md) for the full column list.

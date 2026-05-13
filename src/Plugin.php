@@ -205,33 +205,25 @@ class Plugin extends BasePlugin
 
 	private function registerViewHooks(): void
 	{
-		Craft::$app->view->hook('cp.commerce.product.edit.details', static fn (array &$context) => Craft::$app->getView()->renderTemplate(
-			'variant-manager/fields/product_export',
-			[
-				'id' => 'product-export',
-				'namespacedId' => 'product-export',
-				'name' => 'product-export',
-				'product' => $context['product'],
-			]
-		));
-
 		Event::on(
 			Product::class,
 			Element::EVENT_DEFINE_SIDEBAR_HTML,
 			static function (DefineHtmlEvent $event): void {
-				$entry = $event->sender ?? null;
+				/** @var Product|null $product */
+				$product = $event->sender ?? null;
 
-				$html = Craft::$app->getView()->renderTemplate(
+				$view = Craft::$app->getView();
+				$view->registerAssetBundle(ProductExportAssetBundle::class);
+				$view->registerTranslations('variant-manager', [
+					'Export request failed with status {status}',
+				]);
+
+				$event->html .= $view->renderTemplate(
 					'variant-manager/fields/product_export',
 					[
-						'id' => 'product-export',
-						'namespacedId' => 'product-export',
-						'name' => 'product-export',
-						'product' => $entry,
+						'product' => $product,
 					]
 				);
-
-				$event->html .= $html;
 			}
 		);
 	}

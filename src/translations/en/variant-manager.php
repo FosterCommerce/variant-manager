@@ -15,4 +15,7 @@
  */
 return [
 	'Variant Manager plugin loaded' => 'Variant Manager plugin loaded',
+	'Variant Manager' => 'Variant Manager',
+	'Export Product' => 'Export Product',
+	'Export request failed with status {status}' => 'Export request failed with status {status}',
 ];

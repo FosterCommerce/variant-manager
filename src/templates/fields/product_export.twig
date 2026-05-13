@@ -1,37 +1,20 @@
-{% set canExport = currentUser.can("variant-manager:export") %}
-<div class="meta">
-	<div class="field">
-		<button
-			type="button"
-			{% if not canExport %}disabled{% endif %}
-			class="btn download icon {% if not canExport %}disabled{% endif %}"
-			data-icon="download" id="{{ id }}-btn">
-			{{ 'Export Product'|t }}
-		</button>
+{% set canExport = currentUser.can('variant-manager:export') %}
+<fieldset>
+	<legend class="h6">{{ 'Variant Manager'|t('variant-manager') }}</legend>
+	<div class="meta">
+		<div class="field">
+			<div class="input ltr">
+				<button
+					type="button"
+					{% if not canExport %}disabled{% endif %}
+					class="btn download icon js-variant-manager-export {% if not canExport %}disabled{% endif %}"
+					data-icon="download"
+					data-product-id="{{ product.id }}"
+					data-export-url="{{ cpUrl('variant-manager/export') }}"
+				>
+					{{ 'Export Product'|t('variant-manager') }}
+				</button>
+			</div>
+		</div>
 	</div>
-</div>
-
-<script type="text/javascript">
-	{% if canExport %}
-	function exportFile(event) {
-		fetch('/admin/variant-manager/export?ids={{ product.id }}&download=true', {
-			headers: {
-				'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-				'X-Requested-With': 'XMLHttpRequest',
-			},
-		}).then((response) => {
-			return response.blob().then((result) => {
-				let link = document.createElement("a");
-				// Note that we slice the download name because the split includes quotations which are converted to underscores
-				// when the download is initiated otherwise.
-				link.href = window.URL.createObjectURL(result);
-				link.download = response.headers.get('content-disposition').split('filename=')[1].split(';')[0].slice(1, -1);
-				link.click();
-			})
-		});
-	}
-
-	document.getElementById('{{ namespacedId }}-btn').addEventListener('click', exportFile);
-	{% endif %}
-</script>
-
+</fieldset>
