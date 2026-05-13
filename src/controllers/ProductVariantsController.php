@@ -46,6 +46,7 @@ class ProductVariantsController extends Controller
 		if ($productId !== null) {
 			$product = Product::find()
 				->id(Db::escapeParam($productId))
+				->status(null)
 				->one();
 
 			if ($product === null) {

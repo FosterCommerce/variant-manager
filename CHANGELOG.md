@@ -4,6 +4,7 @@
 
 - Add optional `status` column for product imports and exports.
 - Refactor the Export Product sidebar button.
+- Set `promotable` to true by default
 
 ## 2.0.5 - 2026-02-19
 

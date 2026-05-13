@@ -297,13 +297,18 @@ class Csv extends Component
 					$variant->availableForPurchase = true;
 				}
 
+				if ($data->firstWhere('field', 'promotable') === null) {
+					// If the promotable field does not exist, then we will default it to true
+					$variant->promotable = true;
+				}
+
 				foreach ($data as $fieldData) {
 					$field = $fieldData['field'];
 					$properties = [
 						$field => $record[$fieldData['index']],
 					];
 
-					if ($field === 'availableForPurchase') {
+					if ($field === 'availableForPurchase' || $field === 'promotable') {
 						$value = $properties[$field];
 						if ($value === null || $value === '') {
 							// Default it to true if it's set but null or empty
