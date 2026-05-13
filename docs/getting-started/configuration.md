@@ -14,6 +14,7 @@ return [
 		'*' => [
 			'title' => 'title',
 			'slug' => 'slug',
+			'status' => 'status',
 		],
 	],
 	'variantFieldMap' => [
@@ -67,7 +68,12 @@ Supported field types and formatting:
 <!-- TODO -->
 - title
 - slug
+- status
 - entries
+
+#### `status` column
+
+Optional. Exports write `enabled` or `disabled`. Imports accept `disabled` (case-insensitive, whitespace trimmed) as disabled; any other value or empty cell imports as enabled. Remove the `'status' => 'status'` entry from `productFieldMap` to skip.
 
 ### `variantFieldMap`
 

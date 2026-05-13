@@ -22,6 +22,8 @@ return [
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',
+			'slug' => 'slug',
+			'status' => 'status',
 			// Add default product fields here
 		],
 	],

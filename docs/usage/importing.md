@@ -16,6 +16,10 @@ If you have any plain text or number fields setup in your Commerce product type 
 your spreadsheet as well, these columns should also be present and use the name that is configured in the
 [Variant Manager configuration file](../getting-started/configuration.md) (ex. "notes", "reference", etc)
 
+### Product status column
+
+If `productFieldMap` includes a `status` entry, the `status` column controls whether the imported product is enabled. Write `disabled` to disable a product on import. Any other value, including an empty cell, imports the product as enabled. See [Configuration](../getting-started/configuration.md) for details.
+
 You will then need to export your spreadsheet as a CSV file from your spreadsheet program and save it.
 
 ### For new products

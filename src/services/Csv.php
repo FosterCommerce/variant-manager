@@ -166,8 +166,9 @@ class Csv extends Component
 	 */
 	public function export(string $productId): array|bool
 	{
+		// status(null) bypasses the default enabled-only filter so disabled products and variants are still exported.
 		/** @var Product|null $product */
-		$product = Product::find()->id($productId)->one();
+		$product = Product::find()->id($productId)->status(null)->one();
 
 		if (! isset($product)) {
 			return false;
@@ -175,7 +176,7 @@ class Csv extends Component
 
 		return [
 			'filename' => "{$product->id}__{$product->slug}",
-			'export' => $this->exportProduct($product, Variant::find()->product($product)->all()),
+			'export' => $this->exportProduct($product, Variant::find()->product($product)->status(null)->all()),
 		];
 	}
 
@@ -624,7 +625,7 @@ class Csv extends Component
 	private function resolveProductModel(string $title, ?string $productId, ?string $productTypeHandle): Product
 	{
 		if ($productId !== null) {
-			$product = Product::find()->id($productId)->one();
+			$product = Product::find()->id($productId)->status(null)->one();
 			if ($product === null) {
 				throw new \RuntimeException('Invalid product id');
 			}
@@ -852,6 +853,12 @@ class Csv extends Component
 					return;
 				}
 
+				if ($fieldHandle === 'status') {
+					$normalized = is_string($value) ? strtolower(trim($value)) : '';
+					$product->enabled = $normalized !== 'disabled';
+					return;
+				}
+
 				$this->setFieldValue($product, $fieldHandle, $value);
 			});
 	}
@@ -976,6 +983,8 @@ class Csv extends Component
 				$row[] = $product->title;
 			} elseif ($fieldHandle === 'slug') {
 				$row[] = $product->slug;
+			} elseif ($fieldHandle === 'status') {
+				$row[] = $product->enabled ? 'enabled' : 'disabled';
 			} else {
 				$value = $product->getFieldValue($fieldHandle);
 				$value = $this->normalizeValue($value);

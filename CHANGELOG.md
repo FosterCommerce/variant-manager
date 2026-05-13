@@ -1,5 +1,10 @@
 # Release Notes for Variant Manager
 
+## 2.1.0 - 2026-05-13
+
+- Add optional `status` column for product imports and exports.
+- Refactor the Export Product sidebar button.
+
 ## 2.0.5 - 2026-02-19
 
 - Fix an error that would be thrown when gc runs during a web request
