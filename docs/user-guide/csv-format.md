@@ -38,6 +38,8 @@ Classic Tee,,,,
 
 The first cell of row 2 (`Classic Tee`) is the product title. From row 3 onwards every row is one variant; leave the product title column empty on variant rows.
 
+Download: [`classic-tee-minimum.csv`](../examples/classic-tee-minimum.csv). Rename it to `Classic Tee.csv` (or whatever title you want the product to have) before uploading.
+
 A more complete file showing every column type:
 
 ```csv
@@ -48,6 +50,8 @@ Classic Tee,classic-tee,enabled,,,,,,,,
 ,,,TEE-BLUE-S,19.99,1,1,150,55,Blue,Small
 ,,,TEE-BLUE-M,19.99,1,1,150,60,Blue,Medium
 ```
+
+Download: [`classic-tee-complete.csv`](../examples/classic-tee-complete.csv). Rename to `Classic Tee.csv` before uploading.
 
 ## Column reference
 

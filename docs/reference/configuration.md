@@ -79,6 +79,8 @@ Expiry runs during Craft's garbage collection and via the `variant-manager/activ
 
 Maps CSV column headers (left) to product properties or field handles (right). Keys at the top level are product type handles, with `'*'` matching any product type not otherwise listed.
 
+Per-product-type entries do **not** inherit from `'*'`. The plugin picks one entry per import: the product type's own entry if it has one, otherwise `'*'`. List every column you want imported under each product type's entry, including the ones in `'*'`. For a DRY pattern, see [field maps for many product types](../recipes/field-maps-for-many-product-types.md).
+
 Three keys have special handling:
 
 - `title`: always treated as the product title. Required in row 2 of every CSV.
