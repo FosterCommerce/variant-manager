@@ -1,0 +1,6 @@
+title,slug,status,sku,basePrice[default],inventoryTracked[default],promotable[default],weight,Inventory[main]: available,Attribute: Color,Attribute: Size
+Classic Tee,classic-tee,enabled,,,,,,,,
+,,,TEE-RED-S,19.99,1,1,150,42,Red,Small
+,,,TEE-RED-M,19.99,1,1,150,38,Red,Medium
+,,,TEE-BLUE-S,19.99,1,1,150,55,Blue,Small
+,,,TEE-BLUE-M,19.99,1,1,150,60,Blue,Medium
