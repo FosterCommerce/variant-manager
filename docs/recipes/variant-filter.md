@@ -1,20 +1,22 @@
-# Variant filter
+# Recipe: filter variants based on a selection
 
-Filter variants based on a selection
+Storefront examples that filter a product's variants by attribute, showing the matching variants in a list. Two variations: filter by **all** selected values (AND), or by **any** of the selected values (OR). Each shown using Sprig and Alpine.js.
+
+Replace `variantAttributes` with the handle of your Variant Attributes field.
 
 ## Filter by all selected values
 
+Returns only variants that match every attribute the user has chosen.
+
 ### Sprig
 
 ```twig
 {% set product = craft.products.id(productId).one() %}
-{% set variantId = variantId ?? null %}
-{% set selection={} %}
+{% set selection = {} %}
 
 <h1>{{ product.title }}</h1>
 <div>
   {% for attribute in craft.variantManager.getAttributeOptions(productId) %}
-    {# Use _context to get a variable from a string #}
     {% set selected = _context['attributeValue_' ~ loop.index] ?? (selection[attribute.name] ?? null) %}
 
     {% if selected is not null and selected != '' %}
@@ -35,14 +37,8 @@ Filter variants based on a selection
 </div>
 
 <ul>
-  {# 
-    NOTE: The "variantAttributes" below in this example should be the handle of the
-    Variant Attributes field you created and have added to your variant fields layout
-  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
-    <li>
-      {{ variant.sku }} - {{ variant.price|commerceCurrency }}
-    </li>
+    <li>{{ variant.sku }} - {{ variant.price|commerceCurrency }}</li>
   {% endfor %}
 </ul>
 ```
@@ -51,8 +47,7 @@ Filter variants based on a selection
 
 ```twig
 {% set product = craft.products.id(productId).one() %}
-{% set variantId = variantId ?? null %}
-{% set selection={} %}
+{% set selection = {} %}
 
 <h1>{{ product.title }}</h1>
 <div>
@@ -77,41 +72,34 @@ Filter variants based on a selection
 </div>
 
 <ul>
-  {# 
-    NOTE: The "variantAttributes" below in this example should be the handle of the
-    Variant Attributes field you created and have added to your variant fields layout
-  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
-    <li>
-      {{ variant.sku }} - {{ variant.price|commerceCurrency }}
-    </li>
+    <li>{{ variant.sku }} - {{ variant.price|commerceCurrency }}</li>
   {% endfor %}
 </ul>
 
 {% js %}
-  function attributeChanged(e) {
-    let queryParams = new URLSearchParams(window.location.search)
-
-    queryParams.set(e.target.name, e.target.value);
-    window.location.search = queryParams.toString()
+  function attributeChanged(event) {
+    const queryParams = new URLSearchParams(window.location.search);
+    queryParams.set(event.target.name, event.target.value);
+    window.location.search = queryParams.toString();
   }
 {% endjs %}
 ```
 
-## Filter by any of the selected values
+## Filter by any selected value
 
-**Note** that the difference between the previous section and this section is that the selection is an array of objects instead of an object.
+The selection is built as a list of single-pair objects, which the field treats as an OR filter.
 
 ### Sprig
 
 ```twig
 {% set product = craft.products.id(productId).one() %}
-{% set selection=[] %}
+{% set selection = [] %}
 
 <h1>{{ product.title }}</h1>
 <div>
   {% for attribute in craft.variantManager.getAttributeOptions(productId) %}
-    {% set selected = _context['attributeValue_' ~ loop.index] ?? (selection[attribute.name] ?? null) %}
+    {% set selected = _context['attributeValue_' ~ loop.index] ?? null %}
 
     {% if selected is not null and selected != '' %}
       {% set selection = selection|merge([{(attribute.name): selected}]) %}
@@ -131,14 +119,8 @@ Filter variants based on a selection
 </div>
 
 <ul>
-  {# 
-    NOTE: The "variantAttributes" below in this example should be the handle of the
-    Variant Attributes field you created and have added to your variant fields layout
-  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
-    <li>
-      {{ variant.sku }} - {{ variant.price|commerceCurrency }}
-    </li>
+    <li>{{ variant.sku }} - {{ variant.price|commerceCurrency }}</li>
   {% endfor %}
 </ul>
 ```
@@ -147,12 +129,12 @@ Filter variants based on a selection
 
 ```twig
 {% set product = craft.products.id(productId).one() %}
-{% set selection=[] %}
+{% set selection = [] %}
 
 <h1>{{ product.title }}</h1>
 <div>
   {% for attribute in craft.variantManager.getAttributeOptions(productId) %}
-    {% set selected = craft.app.request.getParam('attributeValue_' ~ loop.index) ?? (selection[attribute.name] ?? null) %}
+    {% set selected = craft.app.request.getParam('attributeValue_' ~ loop.index) ?? null %}
 
     {% if selected is not null and selected != '' %}
       {% set selection = selection|merge([{(attribute.name): selected}]) %}
@@ -172,22 +154,22 @@ Filter variants based on a selection
 </div>
 
 <ul>
-  {# 
-    NOTE: The "variantAttributes" below in this example should be the handle of the
-    Variant Attributes field you created and have added to your variant fields layout
-  #}
   {% for variant in craft.variants().productId(productId).variantAttributes(selection).all() %}
-    <li>
-      {{ variant.sku }} - {{ variant.price|commerceCurrency }}
-    </li>
+    <li>{{ variant.sku }} - {{ variant.price|commerceCurrency }}</li>
   {% endfor %}
 </ul>
-{% js %}
-  function attributeChanged(e) {
-    let queryParams = new URLSearchParams(window.location.search)
 
-    queryParams.set(e.target.name, e.target.value);
-    window.location.search = queryParams.toString()
+{% js %}
+  function attributeChanged(event) {
+    const queryParams = new URLSearchParams(window.location.search);
+    queryParams.set(event.target.name, event.target.value);
+    window.location.search = queryParams.toString();
   }
 {% endjs %}
 ```
+
+## Related
+
+- [Template tags](../dev-guide/template-tags.md), the `getAttributeOptions` helper.
+- [Querying variants](../dev-guide/twig-queries.md), filter shapes accepted by `variantAttributes()`.
+- [Add to cart recipe](./add-to-cart.md), selecting one variant and posting to the cart.
