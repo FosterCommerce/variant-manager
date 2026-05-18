@@ -20,12 +20,15 @@ use craft\elements\Entry;
 use craft\errors\ElementNotFoundException;
 use craft\fields\Assets as AssetsField;
 use craft\fields\BaseRelationField;
+use craft\fields\Date as DateField;
 use craft\fields\Entries;
 use craft\fields\Lightswitch;
 use craft\fields\Money as MoneyField;
+use craft\helpers\DateTimeHelper;
 use craft\helpers\ElementHelper;
 use craft\helpers\Typecast;
 use craft\models\Site;
+use DateTimeInterface;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use Illuminate\Support\Collection;
@@ -683,6 +686,8 @@ class Csv extends Component
 		} elseif ($value instanceof Money) {
 			$formatter = new DecimalMoneyFormatter(new ISOCurrencies());
 			$value = $formatter->format($value);
+		} elseif ($value instanceof DateTimeInterface) {
+			$value = $value->format(DateTimeInterface::ATOM);
 		} elseif (is_bool($value)) {
 			$value = $value ? '1' : '0';
 		}
@@ -918,6 +923,20 @@ class Csv extends Component
 			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
 			$value = (int) ($value * 100);
 			$element->setFieldValue($fieldHandle, new Money($value, new Currency($field->currency)));
+		} elseif ($field instanceof DateField) {
+			if (is_string($value)) {
+				$value = trim($value);
+			}
+
+			if ($value === '' || $value === null) {
+				$element->setFieldValue($fieldHandle, null);
+				return;
+			}
+
+			$date = DateTimeHelper::toDateTime($value, true);
+			if ($date !== false) {
+				$element->setFieldValue($fieldHandle, $date);
+			}
 		} elseif ($field instanceof AssetsField) {
 			if (! is_string($value)) {
 				return;
