@@ -10,12 +10,12 @@
 		button.addEventListener('click', function (event) {
 			event.preventDefault();
 
-			var productId = button.getAttribute('data-product-id');
+			const productId = button.getAttribute('data-product-id');
 			if (! productId) {
 				return;
 			}
 
-			var exportUrl = button.getAttribute('data-export-url');
+			const exportUrl = button.getAttribute('data-export-url');
 			if (! exportUrl) {
 				return;
 			}
@@ -35,13 +35,13 @@
 				}
 
 				return response.blob().then(function (blob) {
-					var disposition = response.headers.get('content-disposition') || '';
+					const disposition = response.headers.get('content-disposition') || '';
 					// Capture only the filename value so surrounding quotes are not included.
 					// Browsers replace literal quote characters in the download filename with underscores.
-					var match = disposition.match(/filename="?([^";]+)"?/i);
-					var filename = match ? match[1] : 'export.csv';
+					const match = disposition.match(/filename="?([^";]+)"?/i);
+					const filename = match ? match[1] : 'export.csv';
 
-					var link = document.createElement('a');
+					const link = document.createElement('a');
 					link.href = window.URL.createObjectURL(blob);
 					link.download = filename;
 					document.body.appendChild(link);
@@ -60,8 +60,8 @@
 	}
 
 	function init() {
-		var buttons = document.querySelectorAll('.js-variant-manager-export');
-		for (var index = 0; index < buttons.length; index++) {
+		const buttons = document.querySelectorAll('.js-variant-manager-export');
+		for (let index = 0; index < buttons.length; index++) {
 			bindExportButton(buttons[index]);
 		}
 	}
