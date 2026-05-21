@@ -2,25 +2,17 @@
 	'use strict';
 
 	function bindExportButton(button) {
-		if (button.dataset.variantManagerBound === 'true') {
-			return;
-		}
-		button.dataset.variantManagerBound = 'true';
-
 		button.addEventListener('click', function (event) {
 			event.preventDefault();
 
-			const productId = button.getAttribute('data-product-id');
-			if (! productId) {
-				return;
-			}
+			const productId = button.dataset.productId;
+			const exportUrl = button.dataset.exportUrl;
+			const params = new URLSearchParams({
+				ids: productId,
+				download: 'true',
+			});
 
-			const exportUrl = button.getAttribute('data-export-url');
-			if (! exportUrl) {
-				return;
-			}
-
-			fetch(exportUrl + '?ids=' + encodeURIComponent(productId) + '&download=true', {
+			fetch(exportUrl + '?' + params.toString(), {
 				headers: {
 					'X-CSRF-Token': Craft.csrfTokenValue,
 					'X-Requested-With': 'XMLHttpRequest',
@@ -50,20 +42,14 @@
 					window.URL.revokeObjectURL(link.href);
 				});
 			}).catch(function (error) {
-				if (typeof Craft !== 'undefined' && Craft.cp && typeof Craft.cp.displayError === 'function') {
-					Craft.cp.displayError(error.message);
-				} else {
-					console.error(error);
-				}
+				Craft.cp.displayError(error.message);
 			});
 		});
 	}
 
 	function init() {
 		const buttons = document.querySelectorAll('.js-variant-manager-export');
-		for (let index = 0; index < buttons.length; index++) {
-			bindExportButton(buttons[index]);
-		}
+		buttons.forEach(bindExportButton);
 	}
 
 	if (document.readyState === 'loading') {
