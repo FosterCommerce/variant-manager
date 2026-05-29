@@ -43,6 +43,16 @@ class Settings extends Model
 	 */
 	public string|int|null|false $activityLogRetention = self::DEFAULT_CLEAR_ACTIVITY_LOGS_AFTER;
 
+	/**
+	 * @var list<string>
+	 */
+	public array $defaultVariantTableAttributes = [];
+
+	/**
+	 * @var list<string>
+	 */
+	public array $bulkEditableVariantFields = [];
+
 	public array $productFieldMap = [
 		'*' => [],
 	];

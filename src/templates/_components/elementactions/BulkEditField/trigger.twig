@@ -1,0 +1,31 @@
+{% import '_includes/forms' as forms %}
+<button type="button" class="btn menubtn" aria-label="{{ 'Bulk edit field'|t('variant-manager') }}">{{ 'Bulk edit field'|t('variant-manager') }}</button>
+<div class="menu menu--disclosure element-index-view-menu">
+	<div class="meta">
+		{% if fieldOptions|length > 1 %}
+			{{ forms.selectField({
+				first: true,
+				label: 'Field'|t('variant-manager'),
+				id: 'vm-bulk-edit-field',
+				name: 'fieldHandle',
+				options: fieldOptions,
+			}) }}
+			{{ forms.textField({
+				label: 'Value'|t('variant-manager'),
+				id: 'vm-bulk-edit-value',
+				name: 'value',
+			}) }}
+		{% else %}
+			<input type="hidden" id="vm-bulk-edit-field" value="{{ fieldOptions[0].value }}">
+			{{ forms.textField({
+				first: true,
+				label: fieldOptions[0].label,
+				id: 'vm-bulk-edit-value',
+				name: 'value',
+			}) }}
+		{% endif %}
+	</div>
+	<div class="flex menu-footer">
+		<button type="button" class="btn submit" data-vm-bulk-edit-submit>{{ 'Update'|t('variant-manager') }}</button>
+	</div>
+</div>

@@ -17,7 +17,9 @@ use craft\services\Gc;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
+use fostercommerce\variantmanager\elements\actions\BulkEditField;
 use fostercommerce\variantmanager\elements\actions\Export;
+use fostercommerce\variantmanager\elements\VariantManagerVariant;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ActivityLogs;
@@ -137,6 +139,16 @@ class Plugin extends BasePlugin
 			Element::EVENT_REGISTER_ACTIONS,
 			static function (RegisterElementActionsEvent $event): void {
 				$event->actions[] = Export::class;
+			}
+		);
+
+		Event::on(
+			VariantManagerVariant::class,
+			Element::EVENT_REGISTER_ACTIONS,
+			static function (RegisterElementActionsEvent $event): void {
+				if (Plugin::getInstance()->getSettings()->bulkEditableVariantFields !== []) {
+					$event->actions[] = BulkEditField::class;
+				}
 			}
 		);
 	}

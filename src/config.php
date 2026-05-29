@@ -19,6 +19,8 @@ return [
 	'attributePrefix' => 'Attribute: ',
 	'inventoryPrefix' => 'Inventory',
 	'activityLogRetention' => '1 week',
+	'defaultVariantTableAttributes' => [],
+	'bulkEditableVariantFields' => [],
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',

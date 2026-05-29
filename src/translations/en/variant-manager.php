@@ -18,4 +18,12 @@ return [
 	'Variant Manager' => 'Variant Manager',
 	'Export Product' => 'Export Product',
 	'Export request failed with status {status}' => 'Export request failed with status {status}',
+	'Bulk edit field' => 'Bulk edit field',
+	'Field' => 'Field',
+	'Value' => 'Value',
+	'Update' => 'Update',
+	'Variants updated.' => 'Variants updated.',
+	'Could not update one or more variants.' => 'Could not update one or more variants.',
+	'That field cannot be bulk edited.' => 'That field cannot be bulk edited.',
+	'You do not have permission to bulk edit variants.' => 'You do not have permission to bulk edit variants.',
 ];
