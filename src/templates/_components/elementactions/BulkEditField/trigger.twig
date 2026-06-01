@@ -1,29 +1,27 @@
 {% import '_includes/forms' as forms %}
 <button type="button" class="btn menubtn" aria-label="{{ 'Bulk edit field'|t('variant-manager') }}">{{ 'Bulk edit field'|t('variant-manager') }}</button>
 <div class="menu menu--disclosure element-index-view-menu">
-	<div class="meta">
+	<div class="meta" data-vm-bulk-edit-meta>
 		{% if fieldOptions|length > 1 %}
 			{{ forms.selectField({
 				first: true,
 				label: 'Field'|t('variant-manager'),
 				id: 'vm-bulk-edit-field',
-				name: 'fieldHandle',
-				options: fieldOptions,
-			}) }}
-			{{ forms.textField({
-				label: 'Value'|t('variant-manager'),
-				id: 'vm-bulk-edit-value',
-				name: 'value',
+				options: fieldOptions|map(option => { label: option.label, value: option.value }),
 			}) }}
 		{% else %}
 			<input type="hidden" id="vm-bulk-edit-field" value="{{ fieldOptions[0].value }}">
-			{{ forms.textField({
-				first: true,
-				label: fieldOptions[0].label,
-				id: 'vm-bulk-edit-value',
-				name: 'value',
-			}) }}
 		{% endif %}
+
+		{% for option in fieldOptions %}
+			{{ forms.field({
+				label: 'Value'|t('variant-manager'),
+				fieldClass: not loop.first ? 'hidden' : null,
+				fieldAttributes: {
+					data: { 'vm-bulk-edit-value-for': option.value },
+				},
+			}, option.input) }}
+		{% endfor %}
 	</div>
 	<div class="flex menu-footer">
 		<button type="button" class="btn submit" data-vm-bulk-edit-submit>{{ 'Update'|t('variant-manager') }}</button>
