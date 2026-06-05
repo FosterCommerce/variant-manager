@@ -8,13 +8,14 @@ use craft\base\FieldInterface;
 use craft\commerce\elements\Variant;
 use craft\elements\db\ElementQueryInterface;
 use craft\fields\Date;
+use craft\helpers\Cp;
 use craft\helpers\Json;
 use fostercommerce\variantmanager\Plugin;
 
 class BulkEditField extends ElementAction
 {
 	/**
-	 * The handle of the custom field to set on every selected variant.
+	 * The handle of the custom field or native attribute to set on every selected variant.
 	 */
 	public ?string $fieldHandle = null;
 
@@ -29,6 +30,17 @@ class BulkEditField extends ElementAction
 
 		$fieldOptions = [];
 		foreach (Plugin::getInstance()->getSettings()->bulkEditableVariantFields as $fieldHandle) {
+			if ($fieldHandle === 'inventoryTracked') {
+				$fieldOptions[] = [
+					'label' => Craft::t('variant-manager', 'Inventory tracked'),
+					'value' => $fieldHandle,
+					'input' => Cp::lightswitchHtml([
+						'name' => 'value',
+					]),
+				];
+				continue;
+			}
+
 			$field = $this->resolveField($fieldHandle);
 			if ($field === null) {
 				continue;
@@ -58,6 +70,10 @@ class BulkEditField extends ElementAction
     // popups and input focus; the date picker's calendar also renders outside the menu, so an outside
     // click would close it. Stop those mousedowns from reaching the menu so the inputs stay usable.
     document.addEventListener('mousedown', function(event) {
+        // The lightswitch toggles on mousedown, so let its event reach the toggle.
+        if (event.target.closest('.lightswitch')) {
+            return;
+        }
         if (event.target.closest('[data-vm-bulk-edit-meta]') || event.target.closest('.ui-datepicker')) {
             event.stopPropagation();
         }
@@ -79,11 +95,21 @@ class BulkEditField extends ElementAction
 
         const fieldHandle = document.getElementById('vm-bulk-edit-field').value;
         const container = document.querySelector('[data-vm-bulk-edit-value-for="' + fieldHandle + '"]');
-        const input = container.querySelector('textarea, select, input:not([type=hidden])');
+
+        // A lightswitch keeps its value in a hidden input, which the selector below skips, so read its
+        // on/off state from the toggle element instead.
+        const lightswitch = container.querySelector('.lightswitch');
+        let value;
+        if (lightswitch) {
+            value = lightswitch.classList.contains('on') ? '1' : '';
+        } else {
+            const input = container.querySelector('textarea, select, input:not([type=hidden])');
+            value = input ? input.value : '';
+        }
 
         Craft.elementIndex.submitAction({$type}, {
             fieldHandle: fieldHandle,
-            value: input ? input.value : '',
+            value: value,
         });
     });
 })();
@@ -112,7 +138,8 @@ EOT;
 			return false;
 		}
 
-		$field = $this->resolveField($this->fieldHandle);
+		$isInventoryTracked = $this->fieldHandle === 'inventoryTracked';
+		$field = $isInventoryTracked ? null : $this->resolveField($this->fieldHandle);
 		// Read raw, not as an action property: a Date value arrives as an array, which won't fit ?string.
 		$value = Craft::$app->getRequest()->getBodyParam('value');
 
@@ -135,7 +162,12 @@ EOT;
 				continue;
 			}
 
-			$variant->setFieldValue($this->fieldHandle, $value);
+			if ($isInventoryTracked) {
+				$variant->inventoryTracked = $value === '1';
+			} else {
+				$variant->setFieldValue($this->fieldHandle, $value);
+			}
+
 			if (! $elementsService->saveElement($variant, false, true, true)) {
 				++$failureCount;
 			}
