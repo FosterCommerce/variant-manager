@@ -10,6 +10,10 @@
 				options: fieldOptions|map(option => { label: option.label, value: option.value }),
 			}) }}
 		{% else %}
+			{{ forms.field({
+				first: true,
+				label: 'Field'|t('variant-manager'),
+			}, fieldOptions[0].label|e) }}
 			<input type="hidden" id="vm-bulk-edit-field" value="{{ fieldOptions[0].value }}">
 		{% endif %}
 
