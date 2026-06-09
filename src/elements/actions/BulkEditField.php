@@ -61,10 +61,20 @@ class BulkEditField extends ElementAction
 		$type = Json::encode(static::class);
 		$js = <<<EOT
 (function() {
-    new Craft.ElementActionTrigger({
-        type: {$type},
-        batch: true,
+	// This field is recreated so we need to always ensure that a handler is attached.
+    const fieldSelect = document.getElementById('vm-bulk-edit-field');
+    fieldSelect.addEventListener('change', function() {
+        document.querySelectorAll('[data-vm-bulk-edit-value-for]').forEach(function(container) {
+            container.classList.toggle('hidden', container.getAttribute('data-vm-bulk-edit-value-for') !== fieldSelect.value);
+        });
     });
+
+	// Prevents events being re-attached after each action is performed, which can cause multiple handlers for each event to exist.
+	if (window.disclosureMenuHandlersAdded) {
+		return;
+	}
+
+	window.disclosureMenuHandlersAdded = true;
 
     // Garnish's disclosure menu calls preventDefault() on mousedown, which blocks native <select>
     // popups and input focus; the date picker's calendar also renders outside the menu, so an outside
@@ -78,13 +88,6 @@ class BulkEditField extends ElementAction
             event.stopPropagation();
         }
     }, true);
-
-    const fieldSelect = document.getElementById('vm-bulk-edit-field');
-    fieldSelect.addEventListener('change', function() {
-        document.querySelectorAll('[data-vm-bulk-edit-value-for]').forEach(function(container) {
-            container.classList.toggle('hidden', container.getAttribute('data-vm-bulk-edit-value-for') !== fieldSelect.value);
-        });
-    });
 
     document.addEventListener('click', function(event) {
         if (! event.target.closest('[data-vm-bulk-edit-submit]')) {
