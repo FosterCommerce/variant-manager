@@ -62,12 +62,12 @@ class BulkEditField extends ElementAction
 		$js = <<<EOT
 (function() {
 	// This field is recreated so we need to always ensure that a handler is attached.
-    const fieldSelect = document.getElementById('vm-bulk-edit-field');
-    fieldSelect.addEventListener('change', function() {
-        document.querySelectorAll('[data-vm-bulk-edit-value-for]').forEach(function(container) {
-            container.classList.toggle('hidden', container.getAttribute('data-vm-bulk-edit-value-for') !== fieldSelect.value);
-        });
-    });
+	const fieldSelect = document.getElementById('vm-bulk-edit-field');
+	fieldSelect.addEventListener('change', function() {
+		document.querySelectorAll('[data-vm-bulk-edit-value-for]').forEach(function(container) {
+			container.classList.toggle('hidden', container.getAttribute('data-vm-bulk-edit-value-for') !== fieldSelect.value);
+		});
+	});
 
 	// Prevents events being re-attached after each action is performed, which can cause multiple handlers for each event to exist.
 	if (window.disclosureMenuHandlersAdded) {
@@ -76,45 +76,45 @@ class BulkEditField extends ElementAction
 
 	window.disclosureMenuHandlersAdded = true;
 
-    // Garnish's disclosure menu calls preventDefault() on mousedown, which blocks native <select>
-    // popups and input focus; the date picker's calendar also renders outside the menu, so an outside
-    // click would close it. Stop those mousedowns from reaching the menu so the inputs stay usable.
-    document.addEventListener('mousedown', function(event) {
-        // The lightswitch toggles on mousedown, so let its event reach the toggle.
-        if (event.target.closest('.lightswitch')) {
-            return;
-        }
-        if (event.target.closest('[data-vm-bulk-edit-meta]') || event.target.closest('.ui-datepicker')) {
-            event.stopPropagation();
-        }
-    }, true);
+	// Garnish's disclosure menu calls preventDefault() on mousedown, which blocks native <select>
+	// popups and input focus; the date picker's calendar also renders outside the menu, so an outside
+	// click would close it. Stop those mousedowns from reaching the menu so the inputs stay usable.
+	document.addEventListener('mousedown', function(event) {
+		// The lightswitch toggles on mousedown, so let its event reach the toggle.
+		if (event.target.closest('.lightswitch')) {
+			return;
+		}
+		if (event.target.closest('[data-vm-bulk-edit-meta]') || event.target.closest('.ui-datepicker')) {
+			event.stopPropagation();
+		}
+	}, true);
 
-    document.addEventListener('click', function(event) {
-        if (! event.target.closest('[data-vm-bulk-edit-submit]')) {
-            return;
-        }
+	document.addEventListener('click', function(event) {
+		if (! event.target.closest('[data-vm-bulk-edit-submit]')) {
+			return;
+		}
 
-        event.preventDefault();
+		event.preventDefault();
 
-        const fieldHandle = document.getElementById('vm-bulk-edit-field').value;
-        const container = document.querySelector('[data-vm-bulk-edit-value-for="' + fieldHandle + '"]');
+		const fieldHandle = document.getElementById('vm-bulk-edit-field').value;
+		const container = document.querySelector('[data-vm-bulk-edit-value-for="' + fieldHandle + '"]');
 
-        // A lightswitch keeps its value in a hidden input, which the selector below skips, so read its
-        // on/off state from the toggle element instead.
-        const lightswitch = container.querySelector('.lightswitch');
-        let value;
-        if (lightswitch) {
-            value = lightswitch.classList.contains('on') ? '1' : '';
-        } else {
-            const input = container.querySelector('textarea, select, input:not([type=hidden])');
-            value = input ? input.value : '';
-        }
+		// A lightswitch keeps its value in a hidden input, which the selector below skips, so read its
+		// on/off state from the toggle element instead.
+		const lightswitch = container.querySelector('.lightswitch');
+		let value;
+		if (lightswitch) {
+			value = lightswitch.classList.contains('on') ? '1' : '';
+		} else {
+			const input = container.querySelector('textarea, select, input:not([type=hidden])');
+			value = input ? input.value : '';
+		}
 
-        Craft.elementIndex.submitAction({$type}, {
-            fieldHandle: fieldHandle,
-            value: value,
-        });
-    });
+		Craft.elementIndex.submitAction({$type}, {
+			fieldHandle: fieldHandle,
+			value: value,
+		});
+	});
 })();
 EOT;
 
