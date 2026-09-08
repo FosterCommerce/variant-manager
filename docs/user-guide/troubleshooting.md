@@ -53,6 +53,18 @@ Row 2 of the CSV is empty (or the first column on row 2 is empty). The plugin re
 
 Fix: put the product title in the first cell of row 2.
 
+## "The CSV has no “sku” column"
+
+Every variant row is matched by SKU, so the column is required on both new and existing product imports.
+
+Fix: add a `sku` column, or rename the column you are using to `sku`. See [CSV format](./csv-format.md#variant-columns).
+
+## "No variant fields are mapped"
+
+`variantFieldMap` in `config/variant-manager.php` has an empty entry for this product type, or an empty `'*'` entry. Import and export both need at least one column.
+
+Fix: remove the entry to fall back on the defaults, or list the columns you want. See [`variantFieldMap`](../reference/configuration.md#variantfieldmap).
+
 ## "Invalid product type handle" or the product type dropdown was wrong
 
 For a new product the upload modal asks which product type to create the product under. If the chosen handle does not exist in Commerce the import fails.

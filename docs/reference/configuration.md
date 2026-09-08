@@ -24,7 +24,7 @@ return [
             'title' => 'title',
             'sku' => 'sku',
             'inventoryTracked' => 'inventoryTracked',
-            'price' => 'basePrice',
+            'basePrice' => 'basePrice',
             'height' => 'height',
             'width' => 'width',
             'length' => 'length',
@@ -75,7 +75,7 @@ Expiry runs during Craft's garbage collection and via the `variant-manager/activ
 ### `productFieldMap`
 
 - Type: `array`
-- Default: `['*' => []]`. With no entry, only the product title is read on import and written on export; `slug` and `status` columns are ignored.
+- Default: `['*' => ['title' => 'title', 'slug' => 'slug', 'status' => 'status']]`. Set the key to replace that map, not to add to it.
 
 Maps CSV column headers (left) to product properties or field handles (right). Keys at the top level are product type handles, with `'*'` matching any product type not otherwise listed.
 
@@ -111,7 +111,9 @@ Example per-product-type map:
 ### `variantFieldMap`
 
 - Type: `array`
-- Default: `['*' => []]`. Every standard variant field is still read using its own handle as the column header (`sku`, `weight`, `basePrice[default]`). Map a key only to rename a column, for example `'price' => 'basePrice'`.
+- Default: `['*' => ['title' => 'title', 'sku' => 'sku', 'inventoryTracked' => 'inventoryTracked', 'basePrice' => 'basePrice', 'height' => 'height', 'width' => 'width', 'length' => 'length', 'weight' => 'weight']]`. Set the key to replace that map, not to add to it.
+
+An empty map for a product type fails the import and the export with "No variant fields are mapped".
 
 Same shape as `productFieldMap`, but maps to variant properties or field handles. The `'*'` catch-all applies to product types not otherwise listed.
 
@@ -134,7 +136,7 @@ $defaults = [
     'title' => 'title',
     'sku' => 'sku',
     'inventoryTracked' => 'inventoryTracked',
-    'price' => 'basePrice',
+    'basePrice' => 'basePrice',
     'height' => 'height',
     'width' => 'width',
     'length' => 'length',

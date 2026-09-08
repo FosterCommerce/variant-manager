@@ -17,6 +17,23 @@ class Settings extends Model
 {
 	public const DEFAULT_CLEAR_ACTIVITY_LOGS_AFTER = '30 days';
 
+	public const DEFAULT_PRODUCT_FIELD_MAP = [
+		'title' => 'title',
+		'slug' => 'slug',
+		'status' => 'status',
+	];
+
+	public const DEFAULT_VARIANT_FIELD_MAP = [
+		'title' => 'title',
+		'sku' => 'sku',
+		'inventoryTracked' => 'inventoryTracked',
+		'basePrice' => 'basePrice',
+		'height' => 'height',
+		'width' => 'width',
+		'length' => 'length',
+		'weight' => 'weight',
+	];
+
 	public string $emptyAttributeValue = '';
 
 	public string $attributePrefix = 'Attribute: ';
@@ -50,11 +67,11 @@ class Settings extends Model
 	public string $defaultDisplayType = DisplayType::Dropdown->value;
 
 	public array $productFieldMap = [
-		'*' => [],
+		'*' => self::DEFAULT_PRODUCT_FIELD_MAP,
 	];
 
 	public array $variantFieldMap = [
-		'*' => [],
+		'*' => self::DEFAULT_VARIANT_FIELD_MAP,
 	];
 
 	public function setAttributes($values, $safeOnly = true): void
@@ -73,25 +90,13 @@ class Settings extends Model
 		}
 
 		// getProductTypeMapping() reads the catch-all key without a guard
-		if ($this->variantFieldMap === []) {
-			$this->variantFieldMap = [
-				'*' => [],
-			];
-		}
-
 		if (! array_key_exists('*', $this->variantFieldMap)) {
-			$this->variantFieldMap['*'] = [];
+			$this->variantFieldMap['*'] = self::DEFAULT_VARIANT_FIELD_MAP;
 		}
 
 		// getProductFieldMapping() reads the catch-all key without a guard
-		if ($this->productFieldMap === []) {
-			$this->productFieldMap = [
-				'*' => [],
-			];
-		}
-
 		if (! array_key_exists('*', $this->productFieldMap)) {
-			$this->productFieldMap['*'] = [];
+			$this->productFieldMap['*'] = self::DEFAULT_PRODUCT_FIELD_MAP;
 		}
 	}
 

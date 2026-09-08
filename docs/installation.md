@@ -29,7 +29,7 @@ After install the CP navigation gets a **Variant Manager** item with **Dashboard
 
 ## Configure
 
-Import and export settings live in a config file. Create `config/variant-manager.php`:
+Import and export settings live in a config file. The plugin runs without one. Create `config/variant-manager.php` to change any of the defaults:
 
 ```php
 <?php
@@ -51,7 +51,7 @@ return [
             'title' => 'title',
             'sku' => 'sku',
             'inventoryTracked' => 'inventoryTracked',
-            'price' => 'basePrice',
+            'basePrice' => 'basePrice',
             'height' => 'height',
             'width' => 'width',
             'length' => 'length',
@@ -61,7 +61,7 @@ return [
 ];
 ```
 
-The plugin runs without the file. `productFieldMap` starts empty, so `slug` and `status` columns are only imported once you map them. See [configuration reference](./reference/configuration.md) for what each key controls.
+Those values are the defaults, so the file above changes nothing. See [configuration reference](./reference/configuration.md) for what each key controls.
 
 Attribute display types and field layouts are set in the CP instead, at **Settings -> Plugins -> Variant Manager**, and stored in project config. See [variant attributes](./user-guide/variant-attributes.md).
 

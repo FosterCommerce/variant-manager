@@ -13,23 +13,7 @@ In the CP you should see a **Variant Manager** nav item with four subnav entries
 
 ## 2. Configure
 
-Create `config/variant-manager.php` and map the columns this walkthrough uses:
-
-```php
-<?php
-
-return [
-    'productFieldMap' => [
-        '*' => [
-            'title' => 'title',
-            'slug' => 'slug',
-            'status' => 'status',
-        ],
-    ],
-];
-```
-
-`productFieldMap` starts empty, so without those entries the `slug` and `status` columns are ignored on import. See the [configuration reference](./reference/configuration.md) for every key.
+The default `productFieldMap` and `variantFieldMap` already cover every column this walkthrough uses, so there is nothing to add. Create `config/variant-manager.php` when you want to map a custom field or rename a column. See the [configuration reference](./reference/configuration.md) for every key.
 
 ## 3. Add the Variant Attributes field
 

@@ -27,6 +27,13 @@
 
 ### Fixed
 
+- Fixed import and export producing no variant columns without a `config/variant-manager.php` file. `productFieldMap` and `variantFieldMap` now default to the `title`, `slug` and `status` product columns and the standard variant columns, so the file is only needed to change them.
+- Fixed an empty `variantFieldMap` entry writing a CSV with no variant columns. Import and export now fail with “No variant fields are mapped”.
+- Fixed the `src/config.php` template mapping `'price' => 'basePrice'`, which named the price column `price[default]` where the rest of the documentation says `basePrice[default]`.
+- Fixed a CSV column for a standard variant field the map does not list, such as `enabled` or `isDefault`, failing the import with an unknown field error.
+- Fixed a CSV with no `sku` column raising a PHP error instead of reporting the missing column.
+- Fixed a renamed product column, such as `'Product Name' => 'title'`, being ignored on import and written twice on export.
+- Fixed the **Export Product** button reporting only the HTTP status. It now shows the message the server returned.
 - Fixed a bug where importing a Money field could store a cent less than the CSV held, such as `19.99` becoming `19.98`, including on a straight export and reimport.
 - Fixed a bug where importing a Money field in a zero-decimal currency, such as JPY, stored an amount 100 times too large.
 - Fixed an error that occurred when a Money column held a value that was not a number.

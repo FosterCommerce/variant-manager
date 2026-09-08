@@ -29,6 +29,7 @@ use craft\helpers\ElementHelper;
 use craft\helpers\Typecast;
 use craft\models\Site;
 use DateTimeInterface;
+use fostercommerce\variantmanager\errors\FieldMapException;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use Illuminate\Support\Collection;
@@ -167,6 +168,7 @@ class Csv extends Component
 	/**
 	 * @throws CannotInsertRecord
 	 * @throws CsvException
+	 * @throws FieldMapException
 	 */
 	public function export(string $productId): array|bool
 	{
@@ -187,6 +189,7 @@ class Csv extends Component
 	/**
 	 * @throws CannotInsertRecord
 	 * @throws CsvException
+	 * @throws FieldMapException
 	 */
 	public function exportProduct(Product $product, array $variants): string
 	{
@@ -401,8 +404,12 @@ class Csv extends Component
 	 */
 	private function validateSkus(Product $product, array $mapping, TabularDataReader $tabularDataReader): void
 	{
+		$skuColumn = $mapping['variant']['sku'] ?? null;
+		if ($skuColumn === null) {
+			throw new \RuntimeException(Craft::t('variant-manager', 'import.missingSkuColumn'));
+		}
+
 		// Exit early if there are duplicate SKUs
-		$skuColumn = $mapping['variant']['sku'];
 		$skus = iterator_to_array($tabularDataReader->fetchColumnByOffset($skuColumn));
 
 		$countedSkus = array_count_values($skus);
@@ -550,12 +557,19 @@ class Csv extends Component
 		return $variantElement;
 	}
 
+	/**
+	 * @throws FieldMapException
+	 */
 	private function resolveVariantImportMapping(TabularDataReader $tabularDataReader, string $productTypeHandle): array
 	{
 		$settings = Plugin::getInstance()->getSettings();
 		$attributePrefix = $settings->attributePrefix;
 		$inventoryPrefix = $settings->inventoryPrefix;
 		$productTypeMap = $settings->getProductTypeMapping($productTypeHandle);
+		if ($productTypeMap === []) {
+			throw new FieldMapException(Craft::t('variant-manager', 'settings.emptyVariantFieldMap'));
+		}
+
 		$productType = CommercePlugin::getInstance()->productTypes->getProductTypeByHandle($productTypeHandle);
 
 		$crossSiteProductTypeMap = array_filter(
@@ -595,7 +609,8 @@ class Csv extends Component
 			$matchedVariantFieldMap = array_filter($variantSiteMap, static fn ($mapping): bool => str_starts_with($heading, (string) $mapping), ARRAY_FILTER_USE_KEY);
 
 			if ($matchedCrossSiteFieldMap !== []) {
-				$variantMap[$productTypeMap[$heading]] = $i;
+				// A standard field the map omits matches on its own name, and has no entry to look up
+				$variantMap[$productTypeMap[$heading] ?? $heading] = $i;
 			} elseif ($matchedVariantFieldMap !== []) {
 				$key = array_key_first($matchedVariantFieldMap);
 				$value = $matchedVariantFieldMap[$key];
@@ -764,6 +779,7 @@ class Csv extends Component
 	/**
 	 * @param Site[] $sites
 	 * @throws InvalidConfigException
+	 * @throws FieldMapException
 	 */
 	private function resolveVariantExportMapping(Product $product, array $sites): array
 	{
@@ -772,6 +788,9 @@ class Csv extends Component
 		$inventoryPrefix = $settings->inventoryPrefix;
 
 		$productTypeMapping = $settings->getProductTypeMapping($product->type->handle);
+		if ($productTypeMapping === []) {
+			throw new FieldMapException(Craft::t('variant-manager', 'settings.emptyVariantFieldMap'));
+		}
 
 		$variantMap = [];
 		$commerceVariantFieldMap = array_combine(self::STANDARD_PER_SITE_VARIANT_FIELDS, self::STANDARD_PER_SITE_VARIANT_FIELDS);
@@ -847,10 +866,13 @@ class Csv extends Component
 		}
 
 		$settings = Plugin::getInstance()->getSettings();
-		$productTypeMapping = array_values($settings->getProductFieldMapping($product->type->handle));
+		$productFieldMapping = $settings->getProductFieldMapping($product->type->handle);
 
 		collect($titleRecord)
-			->only($productTypeMapping)
+			->only(array_keys($productFieldMapping))
+			->mapWithKeys(static fn (mixed $value, string $heading) => [
+				$productFieldMapping[$heading] => $value,
+			])
 			->filter(static fn ($value, $fieldHandle) => $fieldHandle !== 'title')
 			->each(function (mixed $value, string $fieldHandle) use ($product) {
 				if ($fieldHandle === 'slug') {
@@ -1023,7 +1045,7 @@ class Csv extends Component
 			$productMap[$i] = [$fieldHandle, $heading];
 		}
 
-		$titleMap = collect($productMap)->filter(static fn ($mapping) => $mapping[1] === 'title')->first();
+		$titleMap = collect($productMap)->filter(static fn ($mapping) => $mapping[0] === 'title')->first();
 		if ($titleMap === null) {
 			$productMap = array_merge([['title', 'title']], $productMap);
 		}

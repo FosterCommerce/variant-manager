@@ -26,6 +26,9 @@ return [
 	'That field cannot be bulk edited.' => 'That field cannot be bulk edited.',
 	'You do not have permission to bulk edit variants.' => 'You do not have permission to bulk edit variants.',
 
+	// Importing
+	'import.missingSkuColumn' => 'The CSV has no “sku” column.',
+
 	// Variant attributes
 	'attributes.attribute' => 'Variant Attribute',
 	'attributes.attributeLower' => 'variant attribute',
@@ -50,6 +53,7 @@ return [
 	'settings.availableDisplayTypesIntro' => 'Display types an attribute can be set to.',
 	'settings.defaultDisplayType' => 'Default Display Type',
 	'settings.defaultDisplayTypeIntro' => 'Display type given to an attribute the first time an import or the backfill registers it.',
+	'settings.emptyVariantFieldMap' => 'No variant fields are mapped. Set “variantFieldMap” in config/variant-manager.php.',
 	'settings.saved' => 'Settings saved.',
 	'settings.saveFailed' => 'Couldn’t save settings.',
 	'settings.overriddenByConfig' => 'This is being overridden by the {setting} setting in config/variant-manager.php.',

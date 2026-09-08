@@ -36,7 +36,7 @@ return [
 			'title' => 'title',
 			'sku' => 'sku',
 			'inventoryTracked' => 'inventoryTracked',
-			'price' => 'basePrice',
+			'basePrice' => 'basePrice',
 			'height' => 'height',
 			'width' => 'width',
 			'length' => 'length',
