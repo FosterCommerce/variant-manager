@@ -1,6 +1,6 @@
 # Custom queue
 
-How to keep Variant Manager's import jobs from delaying other Craft queue work. Audience: developers running production sites with high queue volume.
+How to keep Variant Manager's import jobs from delaying other Craft queue work.
 
 Bulk imports can generate thousands of import jobs. By default they go on Craft's main queue, which means other Craft work (search index rebuilds, image transforms, emails) can sit behind a long import batch.
 

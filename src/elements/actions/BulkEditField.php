@@ -14,9 +14,6 @@ use fostercommerce\variantmanager\Plugin;
 
 class BulkEditField extends ElementAction
 {
-	/**
-	 * The handle of the custom field or native attribute to set on every selected variant.
-	 */
 	public ?string $fieldHandle = null;
 
 	public function getTriggerLabel(): string
@@ -61,7 +58,7 @@ class BulkEditField extends ElementAction
 		$type = Json::encode(static::class);
 		$js = <<<EOT
 (function() {
-	// This field is recreated so we need to always ensure that a handler is attached.
+	// The select is replaced on each render, so its handler is attached unguarded
 	const fieldSelect = document.getElementById('vm-bulk-edit-field');
 	fieldSelect.addEventListener('change', function() {
 		document.querySelectorAll('[data-vm-bulk-edit-value-for]').forEach(function(container) {
@@ -76,11 +73,9 @@ class BulkEditField extends ElementAction
 
 	window.disclosureMenuHandlersAdded = true;
 
-	// Garnish's disclosure menu calls preventDefault() on mousedown, which blocks native <select>
-	// popups and input focus; the date picker's calendar also renders outside the menu, so an outside
-	// click would close it. Stop those mousedowns from reaching the menu so the inputs stay usable.
+	// Keep mousedowns inside the menu, since Garnish's CustomSelect preventDefaults them
 	document.addEventListener('mousedown', function(event) {
-		// The lightswitch toggles on mousedown, so let its event reach the toggle.
+		// Let the lightswitch see its own mousedown, since it toggles on the mouseup that follows
 		if (event.target.closest('.lightswitch')) {
 			return;
 		}
@@ -99,8 +94,7 @@ class BulkEditField extends ElementAction
 		const fieldHandle = document.getElementById('vm-bulk-edit-field').value;
 		const container = document.querySelector('[data-vm-bulk-edit-value-for="' + fieldHandle + '"]');
 
-		// A lightswitch keeps its value in a hidden input, which the selector below skips, so read its
-		// on/off state from the toggle element instead.
+		// Read the on class, since the lightswitch's value sits in a hidden input
 		const lightswitch = container.querySelector('.lightswitch');
 		let value;
 		if (lightswitch) {
@@ -146,9 +140,8 @@ EOT;
 		// Read raw, not as an action property: a Date value arrives as an array, which won't fit ?string.
 		$value = Craft::$app->getRequest()->getBodyParam('value');
 
-		// The index menu submits only the date field's visible input, dropping its hidden timezone, so a
-		// bare string parses in the wrong zone. Reattach zone + locale. Other composite fields (Money,
-		// Time) likewise submit only their first input and are not reassembled here.
+		// Our trigger JS sends only the visible input, so rebuild the array a Date field expects
+		// Money and Time have the same gap and are not rebuilt here
 		if ($field instanceof Date) {
 			$value = [
 				'date' => $value,
@@ -187,8 +180,7 @@ EOT;
 	}
 
 	/**
-	 * Field layouts/elements are stored under the base Variant class, and a layout may override a
-	 * field's handle, so resolve against the layout's fields.
+	 * Search every Variant field layout, since a layout can rename the handle.
 	 */
 	private function resolveField(string $handle): ?FieldInterface
 	{

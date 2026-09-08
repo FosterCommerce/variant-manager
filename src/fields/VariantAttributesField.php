@@ -5,17 +5,21 @@ namespace fostercommerce\variantmanager\fields;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\base\PreviewableFieldInterface;
 use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
+use fostercommerce\variantmanager\elements\VariantAttribute;
+use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\helpers\FieldHelper;
+use fostercommerce\variantmanager\Plugin;
 use yii\db\ExpressionInterface;
 use yii\db\Schema;
 
 /**
  * @property-read string $contentColumnType
  */
-class VariantAttributesField extends Field
+class VariantAttributesField extends Field implements PreviewableFieldInterface
 {
 	public static function displayName(): string
 	{
@@ -43,25 +47,28 @@ class VariantAttributesField extends Field
 
 	public function serializeValue(mixed $value, ?ElementInterface $element = null): mixed
 	{
-		// Don't serialize the value, this is a JSON column.
+		// Store as-is, since the column is JSON
 		return $value;
+	}
+
+	public function getPreviewHtml(mixed $value, ElementInterface $element): string
+	{
+		// An unparseable JSON field value is the raw string
+		if (! is_array($value)) {
+			return '';
+		}
+
+		return Html::encode(implode(', ', array_column($value, 'attributeValue')));
 	}
 
 	public function getInputHtml(mixed $value, ?ElementInterface $element = null): string
 	{
-		$name = $this->handle;
-		$id = Html::id($name);
-		$namespacedId = Craft::$app->view->namespaceInputId($id);
-		$uniquePrefix = explode('-', $namespacedId)[0];
+		$namespacedId = Craft::$app->view->namespaceInputId(Html::id($this->handle));
 
 		return Craft::$app->getView()->renderTemplate('variant-manager/fields/variant_attributes', [
-			'id' => $id,
 			'namespacedId' => $namespacedId,
-			'name' => $name,
-			'attributes' => $value,
+			'rows' => $this->registryRows($value),
 			'multipleFieldsExist' => ! FieldHelper::isFirstVariantAttributesField($this, $element),
-			'variant' => $element,
-			'uniquePrefix' => $uniquePrefix,
 		]);
 	}
 
@@ -91,8 +98,7 @@ class VariantAttributesField extends Field
 			];
 			if (is_array($value)) {
 				if (! array_is_list($value)) {
-					// If the value is an associative array, then we need to filter out variants that don't have the combination
-					// of key/value pairs in their field.
+					// Match variants storing every name/value pair in the filter
 					$instance->generateAssociativeFilter($contentColumn, $value, $whereParts);
 				} else {
 					$whereParts = [
@@ -111,7 +117,7 @@ class VariantAttributesField extends Field
 					}
 				}
 			} elseif (is_string($value)) {
-				// If the value is a string, then we filter out variants that don't have that value in their fields attributeValue property.
+				// Match variants storing this value under any attribute name
 				$instance->generateStringFilter($contentColumn, $value, $whereParts);
 			} else {
 				throw new \RuntimeException('$value must be either an array or a string');
@@ -127,6 +133,45 @@ class VariantAttributesField extends Field
 		}
 
 		return $qb->buildCondition(implode(' OR ', $conditions), $params);
+	}
+
+	/**
+	 * Pair each stored attribute with its registry elements, or null where the pair is unregistered.
+	 *
+	 * @return list<array{attributeName: string, attributeValue: string, attribute: ?VariantAttribute, option: ?VariantAttributeOption}>
+	 */
+	private function registryRows(mixed $fieldValue): array
+	{
+		// An unparseable JSON field value is the raw string
+		if (! is_array($fieldValue)) {
+			return [];
+		}
+
+		$attributes = Plugin::getInstance()->getVariantAttributes()->getAttributesByNames(array_column($fieldValue, 'attributeName'));
+		$attributeIds = array_map(static fn (VariantAttribute $attribute): int => (int) $attribute->id, $attributes);
+		$options = [];
+
+		if ($attributeIds !== []) {
+			foreach (VariantAttributeOption::find()->attributeId(array_values($attributeIds))->all() as $option) {
+				$options["{$option->attributeId}\0{$option->valueKey}"] = $option;
+			}
+		}
+
+		$rows = [];
+
+		foreach ($fieldValue as $pair) {
+			$attribute = $attributes[VariantAttribute::normalizeName($pair['attributeName'])] ?? null;
+			$optionKey = $attribute?->id . "\0" . VariantAttributeOption::normalizeValue($pair['attributeValue']);
+
+			$rows[] = [
+				'attributeName' => $pair['attributeName'],
+				'attributeValue' => $pair['attributeValue'],
+				'attribute' => $attribute,
+				'option' => $options[$optionKey] ?? null,
+			];
+		}
+
+		return $rows;
 	}
 
 	private function generateAssociativeFilter(string $contentColumn, array $filter, array &$whereParts): void
@@ -156,10 +201,14 @@ EOQ;
 				$whereParts['params'][$keyParam] = $key;
 				$whereParts['params'][$valueParam] = $value;
 			} else {
-				$whereParts['conditions'][] = <<<EOQ
-"{$contentColumn}" @> {$valueParam}
-EOQ;
-				$whereParts['params'][$valueParam] = "[{\"attributeName\": \"{$key}\", \"attributeValue\": \"{$value}\"}]";
+				$fieldParam = ":af{$paramKey}";
+				// Content is keyed by field uid, so containment is checked against that key's array
+				$whereParts['conditions'][] = "{$contentColumn} -> {$fieldParam} @> {$valueParam}::jsonb";
+				$whereParts['params'][$fieldParam] = $fieldUid;
+				$whereParts['params'][$valueParam] = Json::encode([[
+					'attributeName' => $key,
+					'attributeValue' => $value,
+				]]);
 			}
 		}
 	}
@@ -171,16 +220,19 @@ EOQ;
 		$valueParam = ":av{$paramKey}";
 
 		if (Craft::$app->getDb()->getIsMysql()) {
-			// This query checks that the path returned by json_search on each side is the same path.
+			// Match any attributeValue in the field's JSON array
 			$whereParts['conditions'][] = <<<EOQ
 json_search({$contentColumn}->>"$.\"{$fieldUid}\"[*].attributeValue", 'one', {$valueParam}) is not null
 EOQ;
 			$whereParts['params'][$valueParam] = $value;
 		} else {
-			$whereParts['conditions'][] = <<<EOQ
-"{$contentColumn}" @> {$valueParam}
-EOQ;
-			$whereParts['params'][$valueParam] = "[{\"attributeValue\": \"{$value}\"}]";
+			$fieldParam = ":af{$paramKey}";
+			// Content is keyed by field uid, so containment is checked against that key's array
+			$whereParts['conditions'][] = "{$contentColumn} -> {$fieldParam} @> {$valueParam}::jsonb";
+			$whereParts['params'][$fieldParam] = $fieldUid;
+			$whereParts['params'][$valueParam] = Json::encode([[
+				'attributeValue' => $value,
+			]]);
 		}
 	}
 }

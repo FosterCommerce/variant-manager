@@ -34,7 +34,7 @@ class VariantManagerVariant extends CommerceVariant
 	{
 		return [
 			...parent::defineSortOptions(),
-			// Keep translations from Commerce for now
+			// Sort options are Commerce attributes, so their labels translate in Commerce
 			'price' => Craft::t('commerce', 'Price'),
 			'promotionalPrice' => Craft::t('commerce', 'Promotional Price'),
 			'stock' => Craft::t('commerce', 'Stock'),

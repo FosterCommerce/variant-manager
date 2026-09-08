@@ -1,6 +1,6 @@
 # Importing
 
-How to upload a CSV to create or update a product in Craft Commerce. Audience: anyone preparing product data in a spreadsheet.
+How to upload a CSV to create or update a product in Craft Commerce.
 
 If you have not built the CSV yet, start with [CSV format](./csv-format.md).
 
@@ -9,7 +9,7 @@ If you have not built the CSV yet, start with [CSV format](./csv-format.md).
 The filename decides what happens when you upload it.
 
 - **Creating a new product**: name the file with the product's exact title plus `.csv`. `Classic Tee.csv` creates a product titled `Classic Tee`.
-- **Updating an existing product**: name the file with the existing product's exact title plus `.csv`. Capitalisation, spacing, and punctuation all have to match what is in Commerce.
+- **Updating an existing product**: name the file with the existing product's exact title plus `.csv`. Capitalization, spacing, and punctuation all have to match what is in Commerce.
 - **Reimporting an export**: leave the filename Variant Manager generated. Exports are named `{id}__{slug}.csv` (for example `42__classic-tee.csv`); the number before `__` ties the upload back to the same product regardless of any title edits since export.
 
 If you are unsure, export the product first and edit that file rather than building a filename by hand.
@@ -88,6 +88,9 @@ The upload responds with "File {your-file}.csv has been queued for processing" a
 Watch the dashboard's activity log for the result:
 
 - A green status dot means the import succeeded. The message links to the new or updated product.
+
+![Screenshot](../../resources/img/product-import-success.png)
+
 - A red status dot means the import failed. The message contains the failure reason.
 
 If your queue is not running automatically, run `./craft queue/run` from the project directory.
@@ -107,5 +110,3 @@ If anything is wrong, the safest fix is to edit the source CSV and re-upload it;
 Failed imports show their error in the activity log. The two most common reasons are a misnamed CSV and a SKU that already exists on a different product. See [troubleshooting](./troubleshooting.md).
 
 **Failed queue jobs**: delete them. Retrying a failed import job will fail with the same error because the data in the job is the data that failed. Fix the CSV and re-upload it instead. See [cleaning up failed import jobs](./troubleshooting.md#cleaning-up-failed-import-jobs).
-
-![Screenshot](../../resources/img/product-import-success.png)

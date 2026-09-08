@@ -12,7 +12,6 @@ class m240222_084504_add_activity_error_col extends Migration
 {
 	public function safeUp(): bool
 	{
-		// Place migration code here...
 		$this->addColumn(Activity::TABLE_NAME, 'type', $this->string()->after('message'));
 		$this->update(Activity::TABLE_NAME, [
 			'type' => 'success',

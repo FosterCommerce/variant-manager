@@ -21,6 +21,8 @@ return [
 	'activityLogRetention' => '1 week',
 	'defaultVariantTableAttributes' => [],
 	'bulkEditableVariantFields' => [],
+	'availableDisplayTypes' => [],
+	'defaultDisplayType' => 'dropdown',
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',

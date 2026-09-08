@@ -3,15 +3,17 @@
 namespace fostercommerce\variantmanager\helpers;
 
 use craft\base\ElementInterface;
-use craft\base\Field;
 use craft\models\FieldLayout;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 
-class FieldHelper extends Field
+class FieldHelper
 {
-	public static function getFirstVariantAttributesField(?FieldLayout $fieldLayout = null): ?VariantAttributesField
+	public static function getFirstVariantAttributesField(?FieldLayout $fieldLayout): ?VariantAttributesField
 	{
-		// Using getElementsByType(VariantAttributesField::class) gave inconsistent results. Maybe I was doing something wrong.
+		if ($fieldLayout === null) {
+			return null;
+		}
+
 		foreach ($fieldLayout->getCustomFields() as $field) {
 			if ($field::class === VariantAttributesField::class) {
 				return $field;
@@ -21,9 +23,13 @@ class FieldHelper extends Field
 		return null;
 	}
 
-	public static function isFirstVariantAttributesField(VariantAttributesField $variantAttributesField, ?ElementInterface $element = null): bool
+	public static function isFirstVariantAttributesField(VariantAttributesField $variantAttributesField, ?ElementInterface $element): bool
 	{
-		// Using getElementsByType(VariantAttributesField::class) gave inconsistent results. Maybe I was doing something wrong.
+		// No element means nothing to rank, as when the input renders as a field preview
+		if ($element === null) {
+			return true;
+		}
+
 		$customFieldIndex = -1;
 		foreach ($element->getFieldLayout()->getCustomFields() as $customField) {
 			if ($customField::class === VariantAttributesField::class) {
@@ -35,7 +41,6 @@ class FieldHelper extends Field
 			}
 		}
 
-		// Shouldn't reach here ever. But if we do, then it's going to be false.
 		return false;
 	}
 }

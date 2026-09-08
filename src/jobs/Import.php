@@ -3,6 +3,7 @@
 namespace fostercommerce\variantmanager\jobs;
 
 use craft\errors\ElementNotFoundException;
+use craft\helpers\Html;
 use craft\queue\BaseJob;
 use craft\web\UploadedFile;
 use fostercommerce\variantmanager\Plugin;
@@ -59,22 +60,19 @@ class Import extends BaseJob
 		try {
 			$product = Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle, $this->refreshVariants);
 
-			// Do this after save so that we can get the correct edit URL from a new product
-			if ($product->isNewForSite) {
-				Activity::log(
-					$user,
-					"Imported new product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
-				);
-			} else {
-				Activity::log(
-					$user,
-					"Imported existing product <a class=\"go\" href=\"{$product->getCpEditUrl()}\">{$product->title}</a> into {$product->type->name}",
-				);
-			}
+			// getCpEditUrl() needs the saved product's ID
+			$link = Html::a(Html::encode($product->title), (string) $product->getCpEditUrl(), [
+				'class' => 'go',
+			]);
+			$productTypeName = Html::encode($product->type->name);
+			$verb = $product->isNewForSite ? 'new' : 'existing';
+
+			Activity::log($user, "Imported {$verb} product {$link} into {$productTypeName}");
 		} catch (\Throwable $throwable) {
+			// The dashboard renders the message with |raw, and a CSV filename becomes a product title
 			Activity::log(
 				$user,
-				"Failed to import <strong>{$this->filename}</strong>: {$throwable->getMessage()}",
+				'Failed to import ' . Html::tag('strong', Html::encode($this->filename)) . ': ' . Html::encode($throwable->getMessage()),
 				'error'
 			);
 			throw $throwable;

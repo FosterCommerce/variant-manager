@@ -22,14 +22,14 @@ composer require fostercommerce/variant-manager
 With DDEV:
 
 ```sh
-ddev composer require fostercommerce/variant-manager -w && ddev exec php craft plugin/install variant-manager
+ddev composer require fostercommerce/variant-manager -w && ddev craft plugin/install variant-manager
 ```
 
-After install you will see a **Variant Manager** item in the CP navigation with two subnav entries: **Dashboard** and **Variants**.
+After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** and **Attribute Options** appear for users with `variant-manager:manage-attributes`.
 
 ## Configure
 
-Settings live in a config file, not the Control Panel. Create `config/variant-manager.php`:
+Import and export settings live in a config file. Create `config/variant-manager.php`:
 
 ```php
 <?php
@@ -61,7 +61,9 @@ return [
 ];
 ```
 
-Every key has a default; the plugin runs without the file. See [configuration reference](./reference/configuration.md) for what each key controls.
+The plugin runs without the file. `productFieldMap` starts empty, so `slug` and `status` columns are only imported once you map them. See [configuration reference](./reference/configuration.md) for what each key controls.
+
+Attribute display types and field layouts are set in the CP instead, at **Settings -> Plugins -> Variant Manager**, and stored in project config. See [variant attributes](./user-guide/variant-attributes.md).
 
 ## Add the Variant Attributes field
 
@@ -77,15 +79,9 @@ See [Variant Attributes field reference](./reference/field-type.md) for how the 
 
 ## Permissions
 
-Grant the plugin's permissions on user groups in **Users -> {group} -> Permissions** or on individual users:
+Grant the plugin's permissions on user groups at **Users -> {group} -> Permissions** or on individual users. `accessPlugin-variant-manager` is required to see the plugin's CP section at all.
 
-- `variant-manager:import`, upload CSVs and create or update products and variants.
-- `variant-manager:export`, export products from the product edit page or the variants index.
-- `variant-manager:manage`, clear the activity log and manage plugin data.
-
-`accessPlugin-variant-manager` is required to see the plugin's CP section at all.
-
-See [permissions reference](./reference/permissions.md).
+See [permissions reference](./reference/permissions.md) for the full list.
 
 ## Console commands
 
@@ -93,4 +89,16 @@ See [permissions reference](./reference/permissions.md).
 ./craft variant-manager/activities/clear
 ```
 
-Deletes activity log entries older than `activityLogRetention`. Pass `--all` to wipe every entry regardless of age. Craft's garbage collection runs the same expiry pass automatically. See [console commands](./reference/console-commands.md).
+Deletes activity log entries older than `activityLogRetention`. Pass `1` to wipe every entry regardless of age. Craft's garbage collection runs the same expiry pass automatically. See [console commands](./reference/console-commands.md).
+
+```sh
+./craft variant-manager/attributes/backfill
+```
+
+Registers an attribute and option for every name and value already stored on a variant. Run this once after installing on a store that already has variant data.
+
+```sh
+./craft variant-manager/attributes/orphans
+```
+
+Lists attributes and options no longer used by any variant. Pass `--prune` to delete them.

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common problems when importing, by what you see. Audience: anyone uploading CSVs.
+Common problems when importing, by what you see.
 
 If nothing here matches, the dashboard's activity log (**Variant Manager -> Dashboard**) records the failure message from every failed import. Filter to **Errored activities** and read the message.
 
@@ -61,7 +61,7 @@ Fix: re-upload and pick the correct **Product Type** in the modal.
 
 ## Variants were updated, but extras I expected to keep got deleted
 
-The default import behaviour for an existing product is **Update and remove extra variants**, meaning any variant in Commerce that is not listed in the CSV by SKU is deleted. This suits full catalog updates, not partial edits.
+The default import behavior for an existing product is **Update and remove extra variants**, meaning any variant in Commerce that is not listed in the CSV by SKU is deleted. This suits full catalog updates, not partial edits.
 
 Fix: if you want to add or update only some variants, your CSV must list every variant you want to keep. Export the product first, edit the export, and reupload. The exported file contains every variant.
 
@@ -72,8 +72,8 @@ If you actually wanted to wipe everything and start fresh, see "Replace all vari
 Three causes, in order of likelihood:
 
 1. The variant's `inventoryTracked[siteHandle]` is not `1`. Untracked variants ignore inventory columns.
-2. The column header pattern is wrong. It must be `Inventory[locationHandle]: totalName` where `locationHandle` matches the handle in **Commerce -> Settings -> Inventory Locations** and `totalName` is one of `available`, `committed`, `reserved`, `damaged`, `safety`, `qualityControl`. The space after the colon matters.
-3. The variant has no inventory levels for the given location (for example a fresh import where the variant was just created with `inventoryTracked` off, then turned on later). Save the product once in the CP to materialise the inventory levels, then reimport.
+2. The column header pattern is wrong. It must be `Inventory[locationHandle]: totalName`. `locationHandle` is the handle from **Commerce -> Settings -> Inventory Locations**. `totalName` is one of `available`, `committed`, `reserved`, `damaged`, `safety`, `qualityControl`. The space after the colon matters.
+3. The variant has no inventory levels for the given location (for example a fresh import where the variant was just created with `inventoryTracked` off, then turned on later). Save the product once in the CP to materialize the inventory levels, then reimport.
 
 ## Variant attributes are missing or wrong on the imported variants
 
@@ -82,6 +82,12 @@ Likely causes:
 1. The column header does not start with the configured `attributePrefix` (default: `Attribute: ` with a trailing space). Headers like `Color` or `Option: Color` are ignored. Change the header to `Attribute: Color`.
 2. The product type's variant field layout does not include the Variant Attributes field. Add it under **Commerce -> Settings -> Product Types -> {type} -> Variant Fields**.
 3. Two Variant Attributes fields exist on the same variant field layout. Only the first one is used; remove the duplicates.
+
+## The Variant Attributes list is empty
+
+Attributes and options are created by CSV imports. A store with existing variant data has none until you backfill.
+
+Fix: run **Utilities -> Variant Attributes -> Start backfill**, or `./craft variant-manager/attributes/backfill`. See [variant attributes](./variant-attributes.md).
 
 ## "$value items must be associative arrays or strings" from a Twig template
 
@@ -94,8 +100,13 @@ The user does not have the matching permission.
 - Upload requires `variant-manager:import`.
 - Export requires `variant-manager:export`.
 - Clearing the activity log requires `variant-manager:manage`.
+- Viewing or editing variant attributes requires `variant-manager:manage-attributes`.
 
 Set permissions at **Users -> {group} -> Permissions** or on an individual user.
+
+## "That field cannot be bulk edited."
+
+The field handle is not listed in `bulkEditableVariantFields`. See [configuration reference](../reference/configuration.md#bulkeditablevariantfields).
 
 ## Cleaning up failed import jobs
 

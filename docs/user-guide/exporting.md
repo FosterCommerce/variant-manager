@@ -1,6 +1,6 @@
 # Exporting
 
-Get a CSV out of Craft Commerce so you can edit it in a spreadsheet and reimport. Audience: anyone maintaining product data.
+Get a CSV out of Craft Commerce so you can edit it in a spreadsheet and reimport.
 
 ## Two ways to export
 
@@ -19,17 +19,15 @@ That filename is important: when you reupload it, Variant Manager uses the `{id}
 
 ## Exporting many products
 
-1. **Variant Manager -> Variants**, which is the plugin's variants element index.
-2. Filter or search to narrow down the variants you want.
-3. Select the variants you want to export. Use the checkbox in the table header to select everything visible.
+1. **Commerce -> Products**.
+2. Filter or search to narrow the list. **Add a filter** offers one entry per attribute, such as **Variant Attribute: Size**.
+3. Select the products you want to export. Use the checkbox in the table header to select everything visible.
 4. Open the actions menu and choose **Export Variant Data**.
 
 Variant Manager finds the products that own those variants and exports one CSV per product:
 
 - **One product**: a single CSV downloads, named the same way as the single-product export.
 - **Multiple products**: a zip downloads, named `products_{YmdHis}.zip` (for example `products_20260513142301.zip`). Each CSV inside is named `{id}__{slug}.csv`.
-
-You can also trigger this action from the standard **Commerce -> Products -> Variants** element index, since the plugin registers itself on the same element type.
 
 ## What is in the exported CSV
 
@@ -65,7 +63,7 @@ Steps:
 
 When you reupload an existing product:
 
-- The modal will recognise it as an existing product and ask whether to **Update and remove extra variants** (default) or **Replace all variants**.
+- The modal recognizes it as an existing product and asks whether to **Update and remove extra variants** (default) or **Replace all variants**.
 - Choose **Update and remove extra variants** for the round-trip workflow. Any variant whose SKU is in the CSV gets updated; any variant whose SKU is missing gets deleted.
 
 See [importing](./importing.md#existing-product-update-options) for the difference between the two refresh options.

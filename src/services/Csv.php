@@ -43,6 +43,7 @@ use Money\Currencies\ISOCurrencies;
 use Money\Currency;
 use Money\Formatter\DecimalMoneyFormatter;
 use Money\Money;
+use Money\Parser\DecimalMoneyParser;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
 
@@ -115,7 +116,7 @@ class Csv extends Component
 			$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
 		}
 
-		// If this is a new product, we need to save it first so that the variants can be assigned to the product
+		// Save a new product first, since variants need its ID
 		if ($product->isNewForSite && ! Craft::$app->elements->saveElement($product, false, true, true)) {
 			$errors = $product->getErrorSummary(false);
 			/** @var ?string $error */
@@ -123,12 +124,10 @@ class Csv extends Component
 			throw new \RuntimeException($error ?? 'Failed to save product');
 		}
 
-		// Now we can set the variants
 		$product->setVariants($variants);
-		// And then apply the live scenario to the product and it's variants
 		$product->setScenario(Element::SCENARIO_LIVE);
 
-		// Save after product has been saved so that titles can be generated correctly if necessary.
+		// Variant titles are generated from the owner, so save each one after the product
 		foreach ($variants as $variant) {
 			$variant->setOwner($product);
 			if (! Craft::$app->elements->saveElement($variant, false, true, true)) {
@@ -139,12 +138,10 @@ class Csv extends Component
 			}
 		}
 
-		// runValidation needs to be `true` so that updateTitle and updateSku are run against Variants.
-		// See: https://github.com/craftcms/commerce/pull/3297
-		// It also seems to include some logic that allows a products URL to be generated.
+		// Validate, so an invalid product fails the import instead of saving half-formed
 		if (! Craft::$app->elements->saveElement($product, true, true, true)) {
 			if ($product->isNewForSite) {
-				// Make sure if we're importing a new product and it fails that we delete it.
+				// Roll back a new product, or a failed import leaves an empty one behind
 				foreach ($variants as $variant) {
 					Craft::$app->elements->deleteElement($variant, true);
 				}
@@ -160,6 +157,10 @@ class Csv extends Component
 		$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
 		$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
 
+		// Register after the save, so a failed import creates no registry rows
+		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
+		$variantAttributes->ensureFromAttributePairs(array_values($variantAttributes->attributePairs($variants)));
+
 		return $product;
 	}
 
@@ -169,7 +170,7 @@ class Csv extends Component
 	 */
 	public function export(string $productId): array|bool
 	{
-		// status(null) bypasses the default enabled-only filter so disabled products and variants are still exported.
+		// Export disabled products and variants too
 		/** @var Product|null $product */
 		$product = Product::find()->id($productId)->status(null)->one();
 
@@ -246,8 +247,7 @@ class Csv extends Component
 			if (count($row) < count($header)) {
 				$row = array_merge($row, array_fill(count($row), count($header) - count($row), ''));
 			}
-			// We need to make sure that the variant columns that share a name with product columns are not duplicated.
-			// This line of code removes it by creating an associative array first using the header values as keys and then converting it back to an indexed array.
+			// Collapse columns sharing a header, so a variant column never duplicates a product one
 			$row = array_values(array_combine($header, $row));
 			$writer->insertOne($row);
 		}
@@ -414,12 +414,10 @@ class Csv extends Component
 		/** @var Collection<array-key, string[]> $foundSkus */
 		$foundSkus = $this->findProductVariantSkus($skus);
 
-		// If the product is a new product and the SKU exists already, return an error.
 		if ($product->isNewForSite && ! $foundSkus->isEmpty()) {
 			throw new \RuntimeException('One or more SKUs already exist: ' . implode(', ', $foundSkus->flatten()->values()->all()));
 		}
 
-		// If the SKU already exists for a different product return an error.
 		$foundSkus = $foundSkus->filter(static fn ($_value, $key) => $key !== $product->id);
 		if (! $foundSkus->isEmpty()) {
 			throw new \RuntimeException('One or more SKUs already exist on different products: ' . implode(', ', $foundSkus->flatten()->values()->all()));
@@ -487,10 +485,8 @@ class Csv extends Component
 			$newVariants[] = $this->normalizeVariantImport($record, $mapping, $variant);
 		}
 
-
 		$removedVariants = $existingVariants->diff($newVariants);
 		foreach ($removedVariants as $variant) {
-			// Remove variants that weren't in the import.
 			Craft::$app->elements->deleteElement($variant);
 		}
 
@@ -705,7 +701,7 @@ class Csv extends Component
 		// Add variant fields
 		foreach ($mapping['variant'] as [$fieldHandle, $header]) {
 			if ($fieldHandle === 'stock' && $variant->inventoryTracked) {
-				// If inventory tracking is enabled, we don't want to set the stock field, because the inventory will manage stock levels.
+				// Leave stock empty when inventory is tracked, since the levels export separately
 				$row[] = '';
 				continue;
 			}
@@ -794,10 +790,9 @@ class Csv extends Component
 		$inventoryMap = [];
 		$mappedSites = [];
 		if ($product->variants !== []) {
-			// Get a variant that has tracked inventory so that we can get the inventory levels
+			// Prefer a tracked variant, since only it has inventory levels
 			$variant = Variant::find()->product($product)->inventoryTracked()->one();
 			if ($variant === null) {
-				// Otherwise get any variant.
 				$variant = Variant::find()->product($product)->one();
 			}
 
@@ -883,7 +878,7 @@ class Csv extends Component
 				: array_map(static fn ($source) => str_replace('section:', '', $source), $field->sources);
 			$sectionHandles = array_map(static fn ($uid) => Craft::$app->entries->getSectionByUid($uid)?->handle, $sectionUids);
 
-			// We have to assume that the value is an array of slugs
+			// The CSV identifies entries as sectionHandle:slug pairs
 			$slugs = collect(explode(',', $value))->map(static fn ($slug) => explode(':', $slug))->all();
 			$entries = [];
 			foreach ($slugs as $slug) {
@@ -894,15 +889,12 @@ class Csv extends Component
 					continue;
 				}
 
-
 				if ($sectionUids !== [] && ! in_array($sectionHandle, $sectionHandles, true)) {
-					// If the field defines sections, and the section is not in the list of allowed sections, skip.
 					continue;
 				}
 
 				$entry = Entry::find()->slug($slug)->section($sectionHandle)->one();
 				if ($entry === null) {
-					// If the entry is not found, skip.
 					continue;
 				}
 
@@ -920,9 +912,9 @@ class Csv extends Component
 				return;
 			}
 
-			// Money takes values like 15.00 and turns it into 0.15, so we need to give it the value in cents.
-			$value = (int) ($value * 100);
-			$element->setFieldValue($fieldHandle, new Money($value, new Currency($field->currency)));
+			// Parse the decimal string: a float multiply loses cents and assumes two subunits
+			$moneyParser = new DecimalMoneyParser(new ISOCurrencies());
+			$element->setFieldValue($fieldHandle, $moneyParser->parse((string) $value, new Currency($field->currency)));
 		} elseif ($field instanceof DateField) {
 			if (is_string($value)) {
 				$value = trim($value);

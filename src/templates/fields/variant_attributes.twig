@@ -1,5 +1,5 @@
 {% if multipleFieldsExist == true %}
-	<div style="display: inline-block; background-color: #b44d12; color: white; padding: 0.725rem; border-radius: 0.5rem">
+	<div class="variant-attributes-warning">
 		<p><strong>Warning:</strong> Multiple Variant Attributes fields have been applied.</p>
 		<p>This field will be ignored.</p>
 	</div>
@@ -15,113 +15,55 @@
 		</thead>
 
 		<tbody>
-		{% for attribute in attributes %}
+		{% for row in rows %}
 			<tr>
-				<td class="singleline-cell textual text-right">{{ attribute['attributeName'] }}</td>
-				<!-- When clicking on the value cell, it should change to an input field -->
+				<td class="singleline-cell textual text-right">
+					{%- if row.attribute -%}
+						{{ elementChip(row.attribute) }}
+					{%- else -%}
+						{{ row.attributeName }}
+					{%- endif -%}
+				</td>
 				<td class="singleline-cell textual">
-					{% if currentUser.can('variant-manager:import') %}
-						<input type="text" class="value-input" value="{{ attribute['attributeValue'] }}" />
-					{% else %}
-						<span class="value-input">{{ attribute['attributeValue'] }}</span>
-					{% endif %}
+					{%- if row.option -%}
+						{{ elementChip(row.option) }}
+					{%- else -%}
+						{{ row.attributeValue }}
+					{%- endif -%}
 				</td>
 			</tr>
 		{% endfor %}
 		</tbody>
 	</table>
-	<div class="flex justify-end save-button-container">
-		<div class="spinner hidden"></div>
-		<button class="btn submit save-button disabled" disabled {% if not currentUser.can('variant-manager:import') %}title="You do not have permission to edit variant attributes"{% endif %}>Save Attributes</button>
-	</div>
 </div>
 
 {% css %}
-	.variant-attributes-container .save-button-container {
-		display: flex;
-		flex-direction: row;
-		justify-content: flex-end;
-		padding-top: 1rem;
+	.variant-attributes-warning {
+		background-color: #b44d12;
+		border-radius: 0.5rem;
+		color: #fff;
+		display: inline-block;
+		padding: 0.725rem;
 	}
 
-	.table.data {
-		width: 100%;
+	.variant-attributes-container .table.data {
 		margin-top: 1rem;
-	}
-
-	.value-input {
 		width: 100%;
 	}
 {% endcss %}
 
 {% js %}
-	{# So that we don't need to use a unique variable names #}
 	(function() {
 		const container = document.getElementById('{{ namespacedId }}-field');
 
-		const slideoutInstance = $(container).closest('.cp-screen').data('cpScreen');
+		container.addEventListener('click', (clickEvent) => {
+			const chip = clickEvent.target.closest('.chip.element[data-editable]');
 
-		const table = container.querySelector('.variant-attributes-table');
-		const saveButton = container.querySelector('.save-button');
-		const spinner = container.querySelector('.spinner');
-		const valueCells = table.querySelectorAll('td:nth-child(2)');
-
-		saveButton.addEventListener('click', function(e) {
-			e.preventDefault();
-
-			saveButton.disabled = true;
-			saveButton.classList.add('disabled');
-			spinner.classList.remove('hidden');
-
-			const attributes = [];
-			valueCells.forEach(cell => {
-				const input = cell.querySelector('.value-input');
-				const attributeName = cell.previousElementSibling.textContent;
-				attributes.push({
-					attributeName,
-					attributeValue: input.value,
-				});
-			});
-
-			fetch('/admin/variant-manager/save-variant-attributes/{{ variant.id }}', {
-				method: 'POST',
-				headers: {
-					'Accept': 'application/json',
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': '{{ craft.app.request.csrfToken }}',
-					'X-Requested-With': 'XMLHttpRequest',
-				},
-				body: JSON.stringify({
-					attributes,
-				}),
-			}).then(response => {
-				if (response.ok) {
-					Craft.cp.displayNotice('Variant attributes saved');
-				} else {
-					Craft.cp.displayError('Failed to save variant attributes');
-				}
-			}).catch(() => {
-				Craft.cp.displayError('Failed to save variant attributes');
-			}).finally(() => {
-				spinner.classList.add('hidden');
-			});
-		});
-
-		valueCells.forEach(cell => {
-			cell.addEventListener('click', () => {
-				const input = cell.querySelector('.value-input');
-
-				input.addEventListener('keydown', (e) => {
-					if (e.key === 'Enter') {
-						saveButton.click();
-					}
-				});
-
-				input.addEventListener('input', () => {
-					saveButton.disabled = false;
-					saveButton.classList.remove('disabled');
-				});
-			});
+			if (chip) {
+				// Open a slideout instead of following the chip's edit link
+				clickEvent.preventDefault();
+				Craft.createElementEditor(chip.dataset.type, $(chip));
+			}
 		});
 	})();
 {% endjs %}
