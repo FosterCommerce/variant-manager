@@ -5,7 +5,7 @@ Get a CSV out of Craft Commerce so you can edit it in a spreadsheet and reimport
 ## Two ways to export
 
 - **One product at a time**: from the product edit page. Useful when you want to edit a single product's variants.
-- **Many products at once**: from the **Variants** element index, using a multi-select action. Useful for catalog-wide updates.
+- **Many products at once**: from **Commerce -> Products**, using a multi-select action. Useful for catalog-wide updates.
 
 ## Exporting one product
 
@@ -24,7 +24,7 @@ That filename is important: when you reupload it, Variant Manager uses the `{id}
 3. Select the products you want to export. Use the checkbox in the table header to select everything visible.
 4. Open the actions menu and choose **Export Variant Data**.
 
-Variant Manager finds the products that own those variants and exports one CSV per product:
+Variant Manager exports one CSV per selected product:
 
 - **One product**: a single CSV downloads, named the same way as the single-product export.
 - **Multiple products**: a zip downloads, named `products_{YmdHis}.zip` (for example `products_20260513142301.zip`). Each CSV inside is named `{id}__{slug}.csv`.

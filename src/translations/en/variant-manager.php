@@ -29,6 +29,12 @@ return [
 	// Importing
 	'import.missingSkuColumn' => 'The CSV has no “sku” column.',
 
+	// Variant Attributes field
+	'field.nameHeading' => 'Name',
+	'field.valueHeading' => 'Value',
+	'field.multipleFieldsWarning' => 'Multiple Variant Attributes fields have been applied.',
+	'field.multipleFieldsIgnored' => 'This field will be ignored.',
+
 	// Variant attributes
 	'attributes.attribute' => 'Variant Attribute',
 	'attributes.attributeLower' => 'variant attribute',

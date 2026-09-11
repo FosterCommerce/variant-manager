@@ -147,8 +147,10 @@ class VariantAttributeOption extends Element
 			$record->save(false);
 
 			if ($isNew) {
-				$attributeName = Html::encode((string) $this->getVariantAttribute()?->name);
-				Activity::log(Craft::$app->getUser()->getIdentity(), 'Created option ' . Html::encode($this->value) . " under {$attributeName}");
+				Activity::log(Craft::$app->getUser()->getIdentity(), Craft::t('variant-manager', 'options.activityCreated', [
+					'value' => Html::encode($this->value),
+					'attribute' => Html::encode((string) $this->getVariantAttribute()?->name),
+				]));
 			}
 		}
 

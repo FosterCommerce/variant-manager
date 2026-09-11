@@ -64,11 +64,3 @@ Then run the worker for the custom queue separately:
 ```
 
 See Craft's [custom queues guide](https://craftcms.com/docs/5.x/system/queue.html#custom-queues) for more on how Yii's queue components are wired up.
-
-## Verifying it works
-
-1. Upload a small CSV from **Variant Manager -> Dashboard**. The upload modal returns "File ... has been queued for processing" as usual.
-2. With the main queue worker stopped, check the dashboard activity log; the new row stays in its pending state because the main queue does not own the job.
-3. Start the custom queue worker: `./craft queue/run --queue=priorityQueue`.
-4. Refresh the dashboard. The activity log row flips to the green-dot success state once the worker drains the import.
-5. For the priority approach, push two jobs back to back (an import and a search index rebuild) and confirm the search rebuild runs first.

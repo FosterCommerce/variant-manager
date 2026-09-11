@@ -103,7 +103,7 @@
 				const fileType = file.name.split('.').slice(1, 2)[0];
 
 				async function checkExists() {
-					return fetch(`/admin/variant-manager/product-exists?name=${productName}`, {
+					return fetch(Craft.getCpUrl('variant-manager/product-exists', { name: productName }), {
 						method: 'POST',
 						headers: {
 							'Accept': 'application/json',

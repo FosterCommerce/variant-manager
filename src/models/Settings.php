@@ -76,9 +76,12 @@ class Settings extends Model
 
 	public function setAttributes($values, $safeOnly = true): void
 	{
-		// The “All” checkbox posts '*' on its own, and the typed property takes an array
-		if (isset($values['availableDisplayTypes']) && ! is_array($values['availableDisplayTypes'])) {
-			$values['availableDisplayTypes'] = [$values['availableDisplayTypes']];
+		// The “All” checkbox posts '*' on its own, and an unchecked group posts ''
+		if (isset($values['availableDisplayTypes'])) {
+			$values['availableDisplayTypes'] = array_values(array_filter(
+				(array) $values['availableDisplayTypes'],
+				static fn (string $displayType): bool => $displayType !== ''
+			));
 		}
 
 		parent::setAttributes($values, $safeOnly);

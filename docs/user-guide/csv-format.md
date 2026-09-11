@@ -28,7 +28,7 @@ Variant Manager expects:
 A minimum file looks like this:
 
 ```csv
-title,sku,basePrice,Attribute: Color,Attribute: Size
+title,sku,basePrice[default],Attribute: Color,Attribute: Size
 Classic Tee,,,,
 ,TEE-RED-S,19.99,Red,Small
 ,TEE-RED-M,19.99,Red,Medium
@@ -36,7 +36,7 @@ Classic Tee,,,,
 ,TEE-BLUE-M,19.99,Blue,Medium
 ```
 
-The first cell of row 2 (`Classic Tee`) is the product title. From row 3 onwards every row is one variant; leave the product title column empty on variant rows.
+The first cell of row 2 (`Classic Tee`) is the product title. From row 3 onwards every row is one variant; leave the product title column empty on variant rows. `basePrice[default]` is per-site; replace `default` with your site's handle if it is different.
 
 Download: [`classic-tee-minimum.csv`](../examples/classic-tee-minimum.csv). Rename it to `Classic Tee.csv` (or whatever title you want the product to have) before uploading.
 
@@ -154,6 +154,6 @@ These are the imports that fail or behave strangely:
 - **Mixed prefixes**: every attribute column must use the same prefix you have in config. You cannot mix `Attribute: ` and `Option: ` in one file.
 - **SKU collisions**: an SKU on a different product blocks the whole import with an error. SKUs must be unique across the entire store.
 - **Duplicate SKUs inside the file**: the same SKU on two rows in the same CSV also blocks the import.
-- **Product title differs from filename**: `Heritage Mug.csv` with `Classic Tee` in row 2 creates a product named `Heritage Mug`, then renames it to `Classic Tee` on save. The filename decides create-vs-update; the cell decides the final title. Match them. Pick one. The filename wins for the create-vs-update decision; the cell wins for the final title.
+- **Product title differs from filename**: `Heritage Mug.csv` with `Classic Tee` in row 2 creates a product named `Heritage Mug`, then renames it to `Classic Tee` on save. The filename decides create-vs-update; the cell decides the final title. Match them.
 
 See [troubleshooting](./troubleshooting.md) for what to do when an import goes wrong.

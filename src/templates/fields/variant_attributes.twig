@@ -1,7 +1,7 @@
 {% if multipleFieldsExist == true %}
 	<div class="variant-attributes-warning">
-		<p><strong>Warning:</strong> Multiple Variant Attributes fields have been applied.</p>
-		<p>This field will be ignored.</p>
+		<p>{{ 'field.multipleFieldsWarning'|t('variant-manager') }}</p>
+		<p>{{ 'field.multipleFieldsIgnored'|t('variant-manager') }}</p>
 	</div>
 {% endif %}
 
@@ -9,8 +9,8 @@
 	<table class="table data variant-attributes-table">
 		<thead>
 		<tr>
-			<th class="singleline-cell textual text-right">Name</th>
-			<th class="singleline-cell textual">Value</th>
+			<th class="singleline-cell textual text-right">{{ 'field.nameHeading'|t('variant-manager') }}</th>
+			<th class="singleline-cell textual">{{ 'field.valueHeading'|t('variant-manager') }}</th>
 		</tr>
 		</thead>
 
@@ -36,21 +36,6 @@
 		</tbody>
 	</table>
 </div>
-
-{% css %}
-	.variant-attributes-warning {
-		background-color: #b44d12;
-		border-radius: 0.5rem;
-		color: #fff;
-		display: inline-block;
-		padding: 0.725rem;
-	}
-
-	.variant-attributes-container .table.data {
-		margin-top: 1rem;
-		width: 100%;
-	}
-{% endcss %}
 
 {% js %}
 	(function() {

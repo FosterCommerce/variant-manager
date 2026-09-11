@@ -14,4 +14,4 @@ Admins bypass every check.
 
 See [user-guide/permissions](../user-guide/permissions.md) for who typically gets what.
 
-Display types and field layouts at **Settings -> Plugins -> Variant Manager** require an admin account. `variant-manager:manage-attributes` covers the attribute and option elements themselves, and Craft's own `utility:variant-manager-attributes` permission controls whether the utility is listed.
+Field layouts at **Settings -> Plugins -> Variant Manager** require an admin account. `variant-manager:manage-attributes` covers the attribute and option elements, including an attribute's display type, and Craft's own `utility:variant-manager-attributes` permission controls whether the utility is listed.

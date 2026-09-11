@@ -13,6 +13,7 @@ use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
+use fostercommerce\variantmanager\VariantAttributesFieldAssetBundle;
 use yii\db\ExpressionInterface;
 use yii\db\Schema;
 
@@ -63,9 +64,11 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 
 	public function getInputHtml(mixed $value, ?ElementInterface $element = null): string
 	{
-		$namespacedId = Craft::$app->view->namespaceInputId(Html::id($this->handle));
+		$view = Craft::$app->getView();
+		$view->registerAssetBundle(VariantAttributesFieldAssetBundle::class);
+		$namespacedId = $view->namespaceInputId(Html::id($this->handle));
 
-		return Craft::$app->getView()->renderTemplate('variant-manager/fields/variant_attributes', [
+		return $view->renderTemplate('variant-manager/fields/variant_attributes', [
 			'namespacedId' => $namespacedId,
 			'rows' => $this->registryRows($value),
 			'multipleFieldsExist' => ! FieldHelper::isFirstVariantAttributesField($this, $element),

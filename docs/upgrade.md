@@ -32,6 +32,6 @@ On a site that imports CSVs this is a catch-up for data that predates 3.x. On a 
 
 Existing user groups do not have `variant-manager:manage-attributes`. Grant it at **Users -> {group} -> Permissions** to anyone who should see the **Variant Attributes** and **Attribute Options** sections or run the utility. See [permissions](./reference/permissions.md).
 
-## Set display types in development
+## Set field layouts in development
 
-An attribute's display type and its two field layouts are project config. Set them in your development environment and deploy them. The screen is read-only where `allowAdminChanges` is off, so they cannot be set in production directly.
+An attribute's two field layouts are project config. Set them in your development environment and deploy them. The screen is read-only where `allowAdminChanges` is off, so they cannot be set in production directly.

@@ -35,8 +35,6 @@ Each attribute is its own filter. **Add a filter** offers **Variant Attribute: S
 
 The filters appear on variant listings, including the Variants index and a product's **Variants** tab. On product listings, a product matches when one of its variants does.
 
-The name and value shown on a variant are not editable there. Each is a chip that opens the attribute or option in a slideout, where its display name and custom fields are edited.
-
 ## Showing values on a variant card
 
 A variant's values can also be shown on its card, and as a column on element indexes.

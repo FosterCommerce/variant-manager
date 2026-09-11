@@ -10,7 +10,7 @@ See [permissions reference](../reference/permissions.md) for the full list.
 
 - **Product team**: grant `accessPlugin-variant-manager`, `variant-manager:import`, and `variant-manager:export`. They get the full import-edit-export round trip without touching plugin internals.
 - **Support or read-only roles**: grant `accessPlugin-variant-manager` alone. They can see imports happen but cannot upload or export.
-- **Merchandisers**: add `variant-manager:manage-attributes` on top of the product team set, so they can edit attribute and option titles and their custom fields without running imports. Display types and field layouts stay admin-only.
+- **Merchandisers**: add `variant-manager:manage-attributes` on top of the product team set, so they can edit attribute and option titles, display types and custom fields without running imports. Field layouts stay admin-only.
 - **Admins or operations leads**: grant everything, including `variant-manager:manage` for clearing logs and `variant-manager:manage-attributes` for editing attributes and running the utility.
 
 Site admins bypass every permission check; they always have full access.

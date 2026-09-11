@@ -1,0 +1,12 @@
+.variant-attributes-warning {
+	background-color: #b44d12;
+	border-radius: 0.5rem;
+	color: #fff;
+	display: inline-block;
+	padding: 0.725rem;
+}
+
+.variant-attributes-container .table.data {
+	margin-top: 1rem;
+	width: 100%;
+}

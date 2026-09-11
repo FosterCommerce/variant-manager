@@ -1,6 +1,6 @@
 # Installation
 
-A Craft CMS plugin that manages Craft Commerce product variants from CSV files.
+A Craft CMS plugin that imports and exports Craft Commerce product **variants** from CSV files.
 
 ## Requirements
 

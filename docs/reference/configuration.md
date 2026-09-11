@@ -206,7 +206,7 @@ When `productFieldMap` or `variantFieldMap` maps a column to a custom field, the
 | Number | Raw number. |
 | Date | Any date string PHP can parse (`2026-03-15`, `2026-03-15 14:30`). Exported in ATOM format. |
 | Lightswitch | `1` for on, anything else for off. |
-| Money | Decimal value (`15.00`). The plugin multiplies by 100 and creates a Money object in the field's currency. |
+| Money | Decimal value (`15.00`), parsed in the field's currency. Thousands separators fail the import. |
 | Entries | Comma-separated `sectionHandle:slug` (`articles:summer-launch,faqs:returns`). |
 | Assets | Comma-separated `volumeHandle:path/to/file.jpg`. Numeric asset IDs are also accepted. |
 | Other relation fields | Comma-separated slugs. |
