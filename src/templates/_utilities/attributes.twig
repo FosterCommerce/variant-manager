@@ -1,0 +1,27 @@
+<h2>{{ 'attributes.backfillTitle'|t('variant-manager') }}</h2>
+<p>{{ 'attributes.backfillIntro'|t('variant-manager') }}</p>
+
+<form method="POST">
+	{{ csrfInput() }}
+	{{ actionInput('variant-manager/attributes/backfill') }}
+	<button type="submit" class="btn submit">{{ 'attributes.backfillStart'|t('variant-manager') }}</button>
+</form>
+
+<hr>
+
+<h2>{{ 'attributes.pruneTitle'|t('variant-manager') }}</h2>
+<p>{{ 'attributes.pruneIntro'|t('variant-manager') }}</p>
+
+<form method="POST">
+	{{ csrfInput() }}
+	{{ actionInput('variant-manager/attributes/prune-orphans') }}
+	<button type="submit" class="btn" id="variant-manager-prune">{{ 'attributes.pruneStart'|t('variant-manager') }}</button>
+</form>
+
+{% js %}
+	document.getElementById('variant-manager-prune').addEventListener('click', (clickEvent) => {
+		if (! confirm({{ 'attributes.pruneConfirm'|t('variant-manager')|json_encode|raw }})) {
+			clickEvent.preventDefault();
+		}
+	});
+{% endjs %}

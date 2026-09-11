@@ -1,0 +1,9 @@
+{% extends '_layouts/elementindex' %}
+{% set title = 'options.options'|t('variant-manager') %}
+{% set selectedSubnavItem = 'attribute-options' %}
+{% set elementType = 'fostercommerce\\variantmanager\\elements\\VariantAttributeOption' %}
+{% set canHaveDrafts = false %}
+
+{% set crumbs = [
+	{ label: 'Variant Manager', url: url('variant-manager/dashboard') },
+] %}

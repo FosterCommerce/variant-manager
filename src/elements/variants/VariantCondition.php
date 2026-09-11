@@ -13,7 +13,9 @@ class VariantCondition extends ElementCondition
 {
 	public ?string $elementType = VariantManagerVariant::class;
 
-	// Resolve field layouts against base Variant so custom-field filtering works.
+	/**
+	 * Resolve against the base Variant class, since layouts are stored under it.
+	 */
 	public function getFieldLayouts(): array
 	{
 		return Craft::$app->getFields()->getLayoutsByType(CommerceVariant::class);

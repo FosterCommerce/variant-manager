@@ -4,4 +4,6 @@ includes:
 parameters:
     paths:
         - src
+    scanFiles:
+        - stubs/CustomFieldBehavior.php
     level: 5

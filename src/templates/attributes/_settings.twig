@@ -1,0 +1,42 @@
+{% extends '_layouts/cp.twig' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set readOnly = readOnly ?? false %}
+{% set fullPageForm = not readOnly %}
+{% set title = attribute.name %}
+
+{% set crumbs = [
+	{ label: 'Settings'|t('app'), url: url('settings') },
+	{ label: 'Plugins'|t('app'), url: url('settings/plugins') },
+	{ label: 'Variant Manager', url: url('variant-manager/settings') },
+] %}
+
+{% if readOnly %}
+	{% set contentNotice = readOnlyNotice() %}
+{% endif %}
+
+{% block content %}
+	{% if not readOnly %}
+		{{ actionInput('variant-manager/attributes/save-settings') }}
+		{{ redirectInput('variant-manager/settings') }}
+		{{ hiddenInput('attributeId', attribute.id) }}
+	{% endif %}
+
+	{{ forms.fieldLayoutDesignerField({
+		fieldLayout: attributeFieldLayout,
+		label: 'attributes.attributeLayout'|t('variant-manager'),
+		instructions: 'attributes.attributeLayoutInstructions'|t('variant-manager'),
+		disabled: readOnly,
+	}) }}
+
+	<hr>
+
+	{% namespace 'option-layout' %}
+		{{ forms.fieldLayoutDesignerField({
+			fieldLayout: optionFieldLayout,
+			label: 'attributes.optionLayout'|t('variant-manager'),
+			instructions: 'attributes.optionLayoutInstructions'|t('variant-manager'),
+			disabled: readOnly,
+		}) }}
+	{% endnamespace %}
+{% endblock %}

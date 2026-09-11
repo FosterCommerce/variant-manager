@@ -3,33 +3,46 @@
 namespace fostercommerce\variantmanager;
 
 use Craft;
+use craft\base\conditions\BaseCondition;
 use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\commerce\elements\Product;
+use craft\commerce\elements\Variant;
+use craft\elements\conditions\ElementCondition;
+use craft\events\DefineFieldLayoutFieldsEvent;
 use craft\events\DefineHtmlEvent;
 use craft\events\RegisterComponentTypesEvent;
+use craft\events\RegisterConditionRulesEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\fieldlayoutelements\TitleField;
+use craft\helpers\UrlHelper;
+use craft\models\FieldLayout;
+use craft\services\Elements;
 use craft\services\Fields;
 use craft\services\Gc;
 use craft\services\UserPermissions;
+use craft\services\Utilities;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
+use fostercommerce\variantmanager\db\Table;
 use fostercommerce\variantmanager\elements\actions\BulkEditField;
 use fostercommerce\variantmanager\elements\actions\Export;
+use fostercommerce\variantmanager\elements\conditions\VariantAttributeConditionRule;
+use fostercommerce\variantmanager\elements\VariantAttribute;
+use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\elements\VariantManagerVariant;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ActivityLogs;
+use fostercommerce\variantmanager\services\AttributeConfigs;
 use fostercommerce\variantmanager\services\Csv;
 use fostercommerce\variantmanager\services\ProductVariants;
-use Twig\Error\LoaderError;
-use Twig\Error\RuntimeError;
-use Twig\Error\SyntaxError;
+use fostercommerce\variantmanager\services\VariantAttributes;
+use fostercommerce\variantmanager\utilities\AttributesUtility;
 use yii\base\Event;
-use yii\base\Exception;
 use yii\di\Instance;
 use yii\queue\Queue;
 
@@ -44,13 +57,17 @@ use yii\queue\Queue;
  * @property-read ProductVariants $productVariants
  * @property-read Csv $csv
  * @property-read ActivityLogs $activityLogs
+ * @property-read VariantAttributes $variantAttributes
+ * @property-read AttributeConfigs $attributeConfigs
  * @property-read null|array $cpNavItem
  */
 class Plugin extends BasePlugin
 {
-	public string $schemaVersion = '1.0.0';
+	public string $schemaVersion = '1.4.0';
 
-	public bool $hasCpSettings = false;
+	public bool $hasCpSettings = true;
+
+	public bool $hasReadOnlyCpSettings = true;
 
 	public bool $hasCpSection = true;
 
@@ -68,6 +85,7 @@ class Plugin extends BasePlugin
 
 		Craft::$app->onInit(function (): void {
 			$this->registerComponents();
+			$this->getAttributeConfigs()->registerOverriddenFieldHandles();
 			$this->registerQueue();
 			$this->attachEventHandlers();
 		});
@@ -88,26 +106,46 @@ class Plugin extends BasePlugin
 			'url' => 'variant-manager/variants',
 		];
 
+		if (Craft::$app->getUser()->checkPermission('variant-manager:manage-attributes')) {
+			$nav['subnav']['attributes'] = [
+				'label' => Craft::t('variant-manager', 'attributes.attributes'),
+				'url' => 'variant-manager/attributes',
+			];
+
+			$nav['subnav']['attribute-options'] = [
+				'label' => Craft::t('variant-manager', 'options.options'),
+				'url' => 'variant-manager/attribute-options',
+			];
+		}
+
 		return $nav;
+	}
+
+	public function getVariantAttributes(): VariantAttributes
+	{
+		/** @var VariantAttributes */
+		return $this->get('variantAttributes');
+	}
+
+	public function getAttributeConfigs(): AttributeConfigs
+	{
+		/** @var AttributeConfigs */
+		return $this->get('attributeConfigs');
+	}
+
+	public function getSettingsResponse(): mixed
+	{
+		return Craft::$app->getResponse()->redirect(UrlHelper::cpUrl('variant-manager/settings'));
+	}
+
+	public function getReadOnlySettingsResponse(): mixed
+	{
+		return $this->getSettingsResponse();
 	}
 
 	protected function createSettingsModel(): ?Model
 	{
 		return new Settings();
-	}
-
-	/**
-	 * @throws SyntaxError
-	 * @throws RuntimeError
-	 * @throws Exception
-	 * @throws LoaderError
-	 */
-	protected function settingsHtml(): ?string
-	{
-		return Craft::$app->getView()->renderTemplate('variantmanager/_settings', [
-			'plugin' => $this,
-			'settings' => $this->getSettings(),
-		]);
 	}
 
 	private function attachEventHandlers(): void
@@ -124,6 +162,10 @@ class Plugin extends BasePlugin
 			$this->registerViewHooks();
 		}
 
+		$this->registerConditionRules();
+		$this->registerElements();
+		$this->registerNativeFields();
+		$this->registerUtilities();
 		$this->registerEvents();
 	}
 
@@ -176,10 +218,19 @@ class Plugin extends BasePlugin
 					'variant-manager/dashboard' => 'variant-manager/dashboard',
 					'variant-manager/product-exists' => 'variant-manager/product-variants/product-exists',
 					'variant-manager/export' => 'variant-manager/product-variants/export',
-					'variant-manager/save-variant-attributes/<variantId:\d+>' => 'variant-manager/product-variants/save-variant-attributes',
 					'variant-manager/variants' => [
 						'template' => 'variant-manager/variants/index.twig',
 					],
+					'variant-manager/settings' => 'variant-manager/settings/index',
+					'variant-manager/attributes' => [
+						'template' => 'variant-manager/attributes/index.twig',
+					],
+					'variant-manager/attributes/<elementId:\d+>' => 'elements/edit',
+					'variant-manager/attribute-options' => [
+						'template' => 'variant-manager/attribute-options/index.twig',
+					],
+					'variant-manager/attribute-options/<elementId:\d+>' => 'elements/edit',
+					'variant-manager/attributes/<attributeId:\d+>/settings' => 'variant-manager/attributes/settings',
 				];
 			}
 		);
@@ -212,7 +263,73 @@ class Plugin extends BasePlugin
 			'productVariants' => ProductVariants::class,
 			'csv' => Csv::class,
 			'activityLogs' => ActivityLogs::class,
+			'variantAttributes' => VariantAttributes::class,
+			'attributeConfigs' => AttributeConfigs::class,
 		]);
+	}
+
+	private function registerConditionRules(): void
+	{
+		Event::on(
+			ElementCondition::class,
+			BaseCondition::EVENT_REGISTER_CONDITION_RULES,
+			static function (RegisterConditionRulesEvent $registerConditionRulesEvent): void {
+				/** @var ElementCondition $condition */
+				$condition = $registerConditionRulesEvent->sender;
+				$elementType = $condition->elementType;
+
+				if ($elementType === null || (! is_a($elementType, Variant::class, true) && ! is_a($elementType, Product::class, true))) {
+					return;
+				}
+
+				foreach (Plugin::getInstance()->getVariantAttributes()->getAllAttributes() as $attribute) {
+					$registerConditionRulesEvent->conditionRules[] = [
+						'class' => VariantAttributeConditionRule::class,
+						'attributeId' => $attribute->id,
+					];
+				}
+			}
+		);
+	}
+
+	private function registerElements(): void
+	{
+		Event::on(
+			Elements::class,
+			Elements::EVENT_REGISTER_ELEMENT_TYPES,
+			static function (RegisterComponentTypesEvent $registerComponentTypesEvent): void {
+				$registerComponentTypesEvent->types[] = VariantAttribute::class;
+				$registerComponentTypesEvent->types[] = VariantAttributeOption::class;
+			}
+		);
+	}
+
+	private function registerNativeFields(): void
+	{
+		Event::on(
+			FieldLayout::class,
+			FieldLayout::EVENT_DEFINE_NATIVE_FIELDS,
+			static function (DefineFieldLayoutFieldsEvent $defineFieldLayoutFieldsEvent): void {
+				/** @var FieldLayout $fieldLayout */
+				$fieldLayout = $defineFieldLayoutFieldsEvent->sender;
+
+				// Add a Title field, since Craft doesn't supply one for these element types
+				if (in_array($fieldLayout->type, [VariantAttribute::class, VariantAttributeOption::class], true)) {
+					$defineFieldLayoutFieldsEvent->fields[] = TitleField::class;
+				}
+			}
+		);
+	}
+
+	private function registerUtilities(): void
+	{
+		Event::on(
+			Utilities::class,
+			Utilities::EVENT_REGISTER_UTILITIES,
+			static function (RegisterComponentTypesEvent $registerComponentTypesEvent): void {
+				$registerComponentTypesEvent->types[] = AttributesUtility::class;
+			}
+		);
 	}
 
 	private function registerViewHooks(): void
@@ -245,8 +362,14 @@ class Plugin extends BasePlugin
 		Event::on(
 			Gc::class,
 			Gc::EVENT_RUN,
-			function (Event $_event): void {
-				$this->activityLogs->gc();
+			static function (Event $_event): void {
+				Plugin::getInstance()->activityLogs->gc();
+
+				$garbageCollector = Craft::$app->getGc();
+				$garbageCollector->deletePartialElements(VariantAttribute::class, Table::ATTRIBUTES, 'id');
+				$garbageCollector->deletePartialElements(VariantAttributeOption::class, Table::ATTRIBUTE_OPTIONS, 'id');
+
+				Plugin::getInstance()->getAttributeConfigs()->removeOrphaned();
 			},
 		);
 	}
@@ -266,6 +389,9 @@ class Plugin extends BasePlugin
 					],
 					'variant-manager:manage' => [
 						'label' => Craft::t('variant-manager', 'Manage'),
+					],
+					'variant-manager:manage-attributes' => [
+						'label' => Craft::t('variant-manager', 'permissions.manageAttributes'),
 					],
 				],
 			];

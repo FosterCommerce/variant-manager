@@ -9,53 +9,15 @@ composer require fostercommerce/variant-manager
 ./craft plugin/install variant-manager
 ```
 
-In the CP you should see a **Variant Manager** nav item with two subnav entries: **Dashboard** and **Variants**.
+In the CP you should see a **Variant Manager** nav item with four subnav entries: **Dashboard**, **Variants**, **Variant Attributes** and **Attribute Options**.
 
 ## 2. Configure
 
-Create `config/variant-manager.php`:
-
-```php
-<?php
-
-return [
-    'emptyAttributeValue' => '',
-    'attributePrefix' => 'Attribute: ',
-    'inventoryPrefix' => 'Inventory',
-    'activityLogRetention' => '30 days',
-    'productFieldMap' => [
-        '*' => [
-            'title' => 'title',
-            'slug' => 'slug',
-            'status' => 'status',
-        ],
-    ],
-    'variantFieldMap' => [
-        '*' => [
-            'title' => 'title',
-            'sku' => 'sku',
-            'inventoryTracked' => 'inventoryTracked',
-            'price' => 'basePrice',
-            'height' => 'height',
-            'width' => 'width',
-            'length' => 'length',
-            'weight' => 'weight',
-        ],
-    ],
-];
-```
-
-All keys have defaults; you can skip the file entirely and revisit it once you know which fields you want to import.
+The default `productFieldMap` and `variantFieldMap` already cover every column this walkthrough uses, so there is nothing to add. Create `config/variant-manager.php` when you want to map a custom field or rename a column. See the [configuration reference](./reference/configuration.md) for every key.
 
 ## 3. Add the Variant Attributes field
 
-The plugin needs a place to store option name and value pairs (Color: Red, Size: Small) on each variant.
-
-1. **Settings -> Fields -> New field**.
-2. **Field Type**: **Variant Attributes**. Name it **Variant Attributes**, handle `variantAttributes`. No further settings needed.
-3. **Commerce -> Settings -> Product Types -> {your product type} -> Variant Fields**. Drag the new field onto the layout. Save.
-
-You only need one Variant Attributes field per product type's variant layout. Extras are ignored.
+The plugin needs a place to store option name and value pairs (Color: Red, Size: Small) on each variant. Create a **Variant Attributes** field with the handle `variantAttributes` and add it to your product type's variant field layout. See [installation](./installation.md#add-the-variant-attributes-field) for the steps.
 
 ## 4. Build your first CSV
 
@@ -94,7 +56,15 @@ Check the variants tab:
 - Each has its price set to 19.99 and inventory tracking on.
 - Open one variant. Scroll to the Variant Attributes field; you should see Color and Size with the value for that variant.
 
-## 7. Round-trip: export, edit, reimport
+## 7. See the attributes the import registered
+
+**Variant Manager -> Variant Attributes**. The import created `Color` and `Size`. **Variant Manager -> Attribute Options** lists `Red`, `Blue`, `Small` and `Medium`, each with the attribute it belongs to.
+
+Open `Red`. Its **CSV Value** is read-only; its title is not. The **Used by** count shows how many variants store `Red`. Rename the title to `Crimson` and save. No variant changed, and a template reading `option.title` now shows `Crimson`.
+
+See [variant attributes](./user-guide/variant-attributes.md).
+
+## 8. Round-trip: export, edit, reimport
 
 This is the workflow you will use to bulk-edit existing products.
 
@@ -103,17 +73,19 @@ This is the workflow you will use to bulk-edit existing products.
 3. Change something. Bump the price on DEMO-RED-S to 21.99.
 4. Save the file. **Do not rename it.**
 5. Back to **Variant Manager -> Dashboard -> Upload Product** and pick the same file.
-6. The modal recognises the existing product and asks "Are you sure you want to edit an existing product named \"Demo Shirt\"?" with a **Refresh variants** radio group. Leave it on **Update and remove extra variants** (the default) and click **Edit Product**.
+6. The modal recognizes the existing product and asks "Are you sure you want to edit an existing product named \"Demo Shirt\"?" with a **Refresh variants** radio group. Leave it on **Update and remove extra variants** (the default) and click **Edit Product**.
 7. Activity log shows another green-dot row. Reopen the product; DEMO-RED-S is now 21.99.
 
-## 8. Where to go next
+## 9. Where to go next
 
 For deeper reading:
 
-- [CSV format](./user-guide/csv-format.md), every column the import recognises, with formatting rules.
+- [CSV format](./user-guide/csv-format.md), every column the import recognizes, with formatting rules.
 - [Importing](./user-guide/importing.md), the upload flow in detail, including the choice between updating and replacing variants.
 - [Exporting](./user-guide/exporting.md), single-product and bulk export.
 - [Bulk import](./user-guide/bulk-import.md), uploading a zip of CSVs.
 - [Troubleshooting](./user-guide/troubleshooting.md), when imports fail.
 - [Variant Attributes field](./reference/field-type.md), how the attribute data is stored and read.
+- [Variant attributes](./user-guide/variant-attributes.md), attaching swatches and notes to attribute values.
 - [Template tags](./dev-guide/template-tags.md) and [recipes](./recipes/add-to-cart.md), using the attributes on the storefront.
+- [Upgrading to 3.x](./upgrade.md), if you are coming from 2.x.

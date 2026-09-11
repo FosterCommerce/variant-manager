@@ -1,6 +1,6 @@
 # Recipe: field maps for a catalog with many product types
 
-How to organise `productFieldMap` and `variantFieldMap` on a store with a dozen product types that each have their own custom fields on top of a shared core. Audience: developers maintaining `config/variant-manager.php` on a multi-product-type Commerce site.
+How to organize `productFieldMap` and `variantFieldMap` on a store with a dozen product types that each have their own custom fields on top of a shared core.
 
 ## The gotcha to know first
 
@@ -10,7 +10,7 @@ This means: as soon as you add one custom field for one product type, the entry 
 
 ## The pattern
 
-Define shared field groups as PHP arrays at the top of the file, then spread them into each per-product-type entry. The file stays DRY, and every entry is explicit about its full field set so the no-merge behaviour cannot surprise you.
+Define shared field groups as PHP arrays at the top of the file, then spread them into each per-product-type entry. The file stays DRY, and every entry is explicit about its full field set so the no-merge behavior cannot surprise you.
 
 ```php
 <?php

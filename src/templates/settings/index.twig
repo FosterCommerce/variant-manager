@@ -1,0 +1,89 @@
+{% extends '_layouts/cp.twig' %}
+
+{# @var attributes \fostercommerce\variantmanager\elements\VariantAttribute[] #}
+{# @var settings \fostercommerce\variantmanager\models\Settings #}
+
+{% import '_includes/forms' as forms %}
+
+{% set title = 'Variant Manager' %}
+
+{% set crumbs = [
+	{ label: 'Settings'|t('app'), url: url('settings') },
+	{ label: 'Plugins'|t('app'), url: url('settings/plugins') },
+] %}
+
+{% set fullPageForm = not readOnly %}
+
+{% macro configWarning(setting) -%}
+	{%- apply spaceless %}
+		{% if craft.app.config.getConfigFromFile('variant-manager')[setting] is defined %}
+			{{ 'settings.overriddenByConfig'|t('variant-manager', { setting: setting }) }}
+		{% else %}
+			{{ false }}
+		{% endif %}
+	{% endapply -%}
+{%- endmacro %}
+
+{% from _self import configWarning %}
+
+{% block content %}
+	{% if not readOnly %}
+		{{ actionInput('variant-manager/settings/save') }}
+		{{ redirectInput('variant-manager/settings') }}
+	{% endif %}
+
+	{% set availableDisplayTypes = settings.availableDisplayTypes %}
+	{% set displayTypeValues = (availableDisplayTypes is empty or '*' in availableDisplayTypes) ? '*' : availableDisplayTypes %}
+
+	{{ forms.checkboxSelectField({
+		label: 'settings.availableDisplayTypes'|t('variant-manager'),
+		instructions: 'settings.availableDisplayTypesIntro'|t('variant-manager'),
+		name: 'settings[availableDisplayTypes]',
+		options: displayTypeOptions,
+		values: displayTypeValues,
+		showAllOption: true,
+		disabled: readOnly,
+		errors: settings.getErrors('availableDisplayTypes'),
+		warning: configWarning('availableDisplayTypes'),
+	}) }}
+
+	{{ forms.selectField({
+		label: 'settings.defaultDisplayType'|t('variant-manager'),
+		instructions: 'settings.defaultDisplayTypeIntro'|t('variant-manager'),
+		name: 'settings[defaultDisplayType]',
+		options: defaultDisplayTypeOptions,
+		value: settings.defaultDisplayType,
+		disabled: readOnly,
+		errors: settings.getErrors('defaultDisplayType'),
+		warning: configWarning('defaultDisplayType'),
+	}) }}
+
+	<hr>
+
+	<h2>{{ 'attributes.attributes'|t('variant-manager') }}</h2>
+
+	<p>{{ 'attributes.settingsIntro'|t('variant-manager') }}</p>
+
+	{% if attributes is empty %}
+		<p class="light">{{ 'attributes.noAttributes'|t('variant-manager') }}</p>
+	{% else %}
+		<table class="data fullwidth collapsible">
+			<thead>
+				<tr>
+					<th scope="col">{{ 'attributes.name'|t('variant-manager') }}</th>
+					<th scope="col">{{ 'attributes.displayType'|t('variant-manager') }}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for attribute in attributes %}
+					<tr>
+						<th scope="row" data-title="{{ 'attributes.name'|t('variant-manager') }}">
+							<a href="{{ url('variant-manager/attributes/' ~ attribute.id ~ '/settings') }}">{{ attribute.name }}</a>
+						</th>
+						<td data-title="{{ 'attributes.displayType'|t('variant-manager') }}">{{ attribute.getDisplayType().label }}</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	{% endif %}
+{% endblock %}

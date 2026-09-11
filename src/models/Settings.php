@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Model;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
+use fostercommerce\variantmanager\enums\DisplayType;
 
 /**
  * Variant Manager settings
@@ -16,28 +17,33 @@ class Settings extends Model
 {
 	public const DEFAULT_CLEAR_ACTIVITY_LOGS_AFTER = '30 days';
 
-	/**
-	 * The value to use for empty attribute values.
-	 */
+	public const DEFAULT_PRODUCT_FIELD_MAP = [
+		'title' => 'title',
+		'slug' => 'slug',
+		'status' => 'status',
+	];
+
+	public const DEFAULT_VARIANT_FIELD_MAP = [
+		'title' => 'title',
+		'sku' => 'sku',
+		'inventoryTracked' => 'inventoryTracked',
+		'basePrice' => 'basePrice',
+		'height' => 'height',
+		'width' => 'width',
+		'length' => 'length',
+		'weight' => 'weight',
+	];
+
 	public string $emptyAttributeValue = '';
 
-	/**
-	 * The prefix to use for attribute fields.
-	 */
 	public string $attributePrefix = 'Attribute: ';
 
-	/**
-	 * The prefix to use for inventory fields.
-	 */
 	public string $inventoryPrefix = 'Inventory';
 
 	/**
-	 * If set, how long to keep individual activity logs for.
+	 * How long to keep activity logs: an int is days, a string is a relative time like '1 week'.
 	 *
-	 * For integer values, it will be number of days.
-	 * For string values, it refers to a relative time string like '1 hour', '1 day', '1 week', '1 month', '1 year'.
-	 *
-	 * Note that activity logs are only cleared during Craft's garbage collection or when the `clear-activity-logs` console command is run.
+	 * Logs are cleared during garbage collection, or by `./craft variant-manager/activities/clear`.
 	 *
 	 * @see https://www.php.net/manual/en/datetime.formats.php#datetime.formats.relative
 	 */
@@ -53,16 +59,31 @@ class Settings extends Model
 	 */
 	public array $bulkEditableVariantFields = [];
 
+	/**
+	 * @var list<string>
+	 */
+	public array $availableDisplayTypes = [];
+
+	public string $defaultDisplayType = DisplayType::Dropdown->value;
+
 	public array $productFieldMap = [
-		'*' => [],
+		'*' => self::DEFAULT_PRODUCT_FIELD_MAP,
 	];
 
 	public array $variantFieldMap = [
-		'*' => [],
+		'*' => self::DEFAULT_VARIANT_FIELD_MAP,
 	];
 
 	public function setAttributes($values, $safeOnly = true): void
 	{
+		// The “All” checkbox posts '*' on its own, and an unchecked group posts ''
+		if (isset($values['availableDisplayTypes'])) {
+			$values['availableDisplayTypes'] = array_values(array_filter(
+				(array) $values['availableDisplayTypes'],
+				static fn (string $displayType): bool => $displayType !== ''
+			));
+		}
+
 		parent::setAttributes($values, $safeOnly);
 
 		if ($this->activityLogRetention !== false && $this->activityLogRetention !== null) {
@@ -71,27 +92,38 @@ class Settings extends Model
 			}
 		}
 
-		// Make sure that the catch-all type always exists
-		if ($this->variantFieldMap === []) {
-			$this->variantFieldMap = [
-				'*' => [],
-			];
-		}
-
+		// getProductTypeMapping() reads the catch-all key without a guard
 		if (! array_key_exists('*', $this->variantFieldMap)) {
-			$this->variantFieldMap['*'] = [];
+			$this->variantFieldMap['*'] = self::DEFAULT_VARIANT_FIELD_MAP;
 		}
 
-		// Make sure that the catch-all type always exists for product field map
-		if ($this->productFieldMap === []) {
-			$this->productFieldMap = [
-				'*' => [],
-			];
-		}
-
+		// getProductFieldMapping() reads the catch-all key without a guard
 		if (! array_key_exists('*', $this->productFieldMap)) {
-			$this->productFieldMap['*'] = [];
+			$this->productFieldMap['*'] = self::DEFAULT_PRODUCT_FIELD_MAP;
 		}
+	}
+
+	/**
+	 * @return list<DisplayType>
+	 */
+	public function getAvailableDisplayTypes(?string $currentDisplayType = null): array
+	{
+		$displayTypes = $this->availableDisplayTypes === [] || in_array('*', $this->availableDisplayTypes, true)
+			? DisplayType::cases()
+			: array_values(array_filter(array_map(DisplayType::tryFrom(...), $this->availableDisplayTypes)));
+
+		// Keep a stored type the config no longer lists, or the select posts a different one on the next save
+		$currentDisplayType = $currentDisplayType === null ? null : DisplayType::tryFrom($currentDisplayType);
+		if ($currentDisplayType instanceof DisplayType && ! in_array($currentDisplayType, $displayTypes, true)) {
+			$displayTypes[] = $currentDisplayType;
+		}
+
+		return $displayTypes;
+	}
+
+	public function getDefaultDisplayType(): DisplayType
+	{
+		return DisplayType::tryFrom($this->defaultDisplayType) ?? DisplayType::Dropdown;
 	}
 
 	public function getAvailableProductTypes(): array

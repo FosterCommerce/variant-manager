@@ -1,6 +1,6 @@
 # Querying variants
 
-How to filter Commerce variants by their Variant Attributes field. Audience: developers building storefront templates or PHP code that queries variants.
+How to filter Commerce variants by their Variant Attributes field.
 
 Substitute the handle you gave your Variant Attributes field (`variantAttributes`, `myVariantAttributes`, anything you chose) for `variantAttributes` in the examples below.
 

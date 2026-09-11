@@ -1,5 +1,49 @@
 # Release Notes for Variant Manager
 
+## 3.0.0 - 2026-09-11
+
+> {tip} Run `./craft variant-manager/attributes/backfill` to take advantage of new features.
+
+### Added
+
+- Added Variant Attribute and Attribute Option elements for the names and values your variants store, listed under “Variant Attributes” and “Attribute Options”.
+- Added a display type per attribute, set on the attribute itself, and a field layout for the attribute and one for its options, set at “Settings” -> “Plugins” -> “Variant Manager” and stored in project config.
+- Added element chips to the Variant Attributes field, which open an attribute or option in a slideout.
+- Added a “Variant Attribute: {name}” filter for each attribute, on variant and product listings.
+- Added a “Variant Attributes” utility, plus `variant-manager/attributes/backfill` and `variant-manager/attributes/orphans` commands, for populating and pruning the registry.
+- Added the `variant-manager:manage-attributes` permission.
+- Added `craft.variantManager.getAttributeRegistry()`, which pairs a product's attribute names and values with their elements.
+- Added support for showing a variant's attribute values in its card and as an element index column.
+- Added a “Bulk edit field” action to the Variants index, configured with `bulkEditableVariantFields`.
+- Added `defaultVariantTableAttributes`, for extra default columns on the Variants index.
+- Added an “Available Display Types” setting, at “Settings” -> “Plugins” -> “Variant Manager”, which narrows the display types an attribute can be set to. It can also be set with `availableDisplayTypes` in `config/variant-manager.php`.
+- Added a “Default Display Type” setting, on the same screen, which is the display type a newly registered attribute is given. It can also be set with `defaultDisplayType`.
+
+### Changed
+
+- Attributes and options can no longer be deleted from the control panel. Use “Prune orphans”, which removes only the rows no variant uses.
+- The `variant-manager:manage` permission now also gates bulk editing variants.
+- A Money column written with thousands separators, such as `1,234.56`, now fails the import instead of being read as a smaller amount.
+- `productFieldMap` and `variantFieldMap` now default to the `title`, `slug` and `status` product columns and the standard variant columns, so `config/variant-manager.php` is only needed to change them.
+
+### Fixed
+
+- Fixed a bug where import and export produced no variant columns without a `config/variant-manager.php` file.
+- Fixed a bug where an empty `variantFieldMap` entry exported a CSV with no variant columns.
+- Fixed the `src/config.php` template mapping `'price' => 'basePrice'`, which named the price column `price[default]` where the rest of the documentation says `basePrice[default]`.
+- Fixed a CSV column for a standard variant field the map does not list, such as `enabled` or `isDefault`, failing the import with an unknown field error.
+- Fixed a CSV with no `sku` column raising a PHP error instead of reporting the missing column.
+- Fixed a renamed product column, such as `'Product Name' => 'title'`, being ignored on import and written twice on export.
+- Fixed a bug where the “Export Product” button reported only the HTTP status of a failed export.
+- Fixed a bug where importing a Money field could store a cent less than the CSV held, such as `19.99` becoming `19.98`, including on a straight export and reimport.
+- Fixed a bug where importing a Money field in a zero-decimal currency, such as JPY, stored an amount 100 times too large.
+- Fixed an error that occurred when a Money column held a value that was not a number.
+- Fixed a bug where “Upload Product” failed on sites with a `cpTrigger` other than `admin`.
+
+### Removed
+
+- Removed inline editing of attribute values on a variant, along with the `variant-manager/product-variants/save-variant-attributes` action and its route. A value now changes for every variant using it, edited from the option's slideout, or for one variant through a CSV import.
+
 ## 2.1.0 - 2026-05-13
 
 - Add optional `status` column for product imports and exports.

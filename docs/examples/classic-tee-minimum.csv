@@ -1,4 +1,4 @@
-title,sku,basePrice,Attribute: Color,Attribute: Size
+title,sku,basePrice[default],Attribute: Color,Attribute: Size
 Classic Tee,,,,
 ,TEE-RED-S,19.99,Red,Small
 ,TEE-RED-M,19.99,Red,Medium

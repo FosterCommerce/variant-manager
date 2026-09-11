@@ -2,19 +2,16 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
-use Craft;
 use craft\commerce\elements\Product;
-use craft\commerce\elements\Variant;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\helpers\Db;
 use craft\helpers\FileHelper;
 use craft\helpers\Queue;
 use craft\web\Controller;
 use craft\web\UploadedFile;
-use fostercommerce\variantmanager\helpers\FieldHelper;
+use fostercommerce\variantmanager\errors\FieldMapException;
 use fostercommerce\variantmanager\jobs\Import as ImportJob;
 use fostercommerce\variantmanager\Plugin;
-use yii\base\InvalidConfigException;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -27,7 +24,6 @@ class ProductVariantsController extends Controller
 		'product-exists' => self::ALLOW_ANONYMOUS_NEVER,
 		'upload' => self::ALLOW_ANONYMOUS_NEVER,
 		'export' => self::ALLOW_ANONYMOUS_NEVER,
-		'save-variant-attributes' => self::ALLOW_ANONYMOUS_NEVER,
 	];
 
 	/**
@@ -98,9 +94,7 @@ class ProductVariantsController extends Controller
 					$baseName = $pathinfo['filename'];
 					$extension = $pathinfo['extension'] ?? null;
 					if (! str_starts_with($baseName, '.') && $extension === 'csv') {
-						// Only extract csv files from the zip.
-						// Don't extract any hidden files. This helps catch OSX specific files such as DS_Store, etc. It
-						// also prevents extracting files from the __MACOSX dir.
+						// Skip dotfiles and __MACOSX entries so only real CSVs are extracted
 						$filenames[] = $filename;
 					}
 				}
@@ -136,7 +130,7 @@ class ProductVariantsController extends Controller
 	/**
 	 * @throws \JsonException
 	 * @throws NotFoundHttpException
-	 * @throws InvalidConfigException
+	 * @throws ServerErrorHttpException
 	 * @throws BadRequestHttpException
 	 */
 	public function actionExport(): void
@@ -154,7 +148,12 @@ class ProductVariantsController extends Controller
 		$csvService = Plugin::getInstance()->csv;
 		$results = [];
 		foreach (explode('|', (string) $ids) as $id) {
-			$result = $csvService->export($id);
+			try {
+				$result = $csvService->export($id);
+			} catch (FieldMapException $fieldMapException) {
+				// Craft renders the message only for a UserException, and this one names the setting to fix
+				throw new ServerErrorHttpException($fieldMapException->getMessage(), 0, $fieldMapException);
+			}
 
 			if ($result === false) {
 				throw new NotFoundHttpException("Product with ID {$id} not found");
@@ -165,7 +164,6 @@ class ProductVariantsController extends Controller
 
 		if ($download) {
 			if (count($results) === 1) {
-				// If there is just a single product, then download that file
 				$result = $results[0];
 				$filename = "{$result['filename']}.csv";
 				$result = $result['export'];
@@ -177,7 +175,6 @@ class ProductVariantsController extends Controller
 					'mimeType' => 'text/csv',
 				]);
 			} else {
-				// If there are multiple products then download a zip file of the content
 				$zipPath = tempnam(sys_get_temp_dir(), 'export_');
 				$zipArchive = new \ZipArchive();
 				if ($zipArchive->open($zipPath, \ZipArchive::CREATE) !== true) {
@@ -204,51 +201,5 @@ class ProductVariantsController extends Controller
 			$this->response->format = Response::FORMAT_JSON;
 			$this->response->data = array_map(static fn ($r) => $r['export'], $results);
 		}
-	}
-
-	public function actionSaveVariantAttributes(int $variantId): Response
-	{
-		$this->requirePostRequest();
-
-		$this->requirePermission('variant-manager:import');
-
-		$variant = Variant::find()->id($variantId)->one();
-		if (! $variant) {
-			return $this->asFailure('Variant not found');
-		}
-
-		$variantAttributesField = FieldHelper::getFirstVariantAttributesField($variant->fieldLayout);
-		if (! $variantAttributesField) {
-			return $this->asFailure('Variant attributes field not found');
-		}
-
-		$handle = $variantAttributesField->handle;
-
-		$variantAttributes = collect($variant->{$handle})
-			->flatMap(static fn ($attribute) => [
-				$attribute['attributeName'] => $attribute['attributeValue'],
-			]);
-		$allowedKeys = $variantAttributes->keys()->all();
-
-		// We need to make sure that the attributes we are updating are only the ones that already existed.
-		$updatedAttributes = collect($this->request->getRequiredBodyParam('attributes'))
-			->flatMap(static fn ($attribute) => [
-				$attribute['attributeName'] => $attribute['attributeValue'],
-			])
-			->only($allowedKeys);
-
-		$variantAttributes = $variantAttributes
-			->merge($updatedAttributes)
-			->map(static fn ($value, $key) => [
-				'attributeName' => $key,
-				'attributeValue' => $value,
-			])
-			->values();
-
-		$variant->{$handle} = $variantAttributes->toArray();
-
-		Craft::$app->elements->saveElement($variant, runValidation: false, updateSearchIndex: true);
-
-		return $this->asSuccess('Variant attributes updated');
 	}
 }

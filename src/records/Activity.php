@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager\records;
 use craft\db\ActiveRecord;
 use craft\elements\User;
 use craft\helpers\Db;
+use fostercommerce\variantmanager\db\Table;
 
 /**
  * @property int $id
@@ -14,7 +15,7 @@ use craft\helpers\Db;
  */
 class Activity extends ActiveRecord
 {
-	final public const TABLE_NAME = '{{%variant_manager_activities}}';
+	final public const TABLE_NAME = Table::ACTIVITIES;
 
 	public static function tableName(): string
 	{

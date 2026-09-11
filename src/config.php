@@ -21,6 +21,8 @@ return [
 	'activityLogRetention' => '1 week',
 	'defaultVariantTableAttributes' => [],
 	'bulkEditableVariantFields' => [],
+	'availableDisplayTypes' => [],
+	'defaultDisplayType' => 'dropdown',
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',
@@ -34,7 +36,7 @@ return [
 			'title' => 'title',
 			'sku' => 'sku',
 			'inventoryTracked' => 'inventoryTracked',
-			'price' => 'basePrice',
+			'basePrice' => 'basePrice',
 			'height' => 'height',
 			'width' => 'width',
 			'length' => 'length',

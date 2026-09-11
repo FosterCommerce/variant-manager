@@ -14,16 +14,23 @@
 
 			fetch(exportUrl + '?' + params.toString(), {
 				headers: {
+					// Craft only renders an error as JSON when the request accepts it
+					'Accept': 'application/json, text/csv',
 					'X-CSRF-Token': Craft.csrfTokenValue,
 					'X-Requested-With': 'XMLHttpRequest',
 				},
 			}).then(function (response) {
 				if (! response.ok) {
-					throw new Error(
-						Craft.t('variant-manager', 'Export request failed with status {status}', {
-							status: response.status,
-						})
-					);
+					return response.json().catch(function () {
+						return {};
+					}).then(function (body) {
+						throw new Error(
+							body.message ||
+							Craft.t('variant-manager', 'Export request failed with status {status}', {
+								status: response.status,
+							})
+						);
+					});
 				}
 
 				return response.blob().then(function (blob) {

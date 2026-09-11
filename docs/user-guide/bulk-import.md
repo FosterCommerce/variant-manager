@@ -1,6 +1,6 @@
 # Bulk import
 
-Upload many products at once by zipping their CSVs together. Audience: anyone doing a catalog-scale import.
+Upload many products at once by zipping their CSVs together.
 
 ## When to use it
 
@@ -30,7 +30,7 @@ The plugin ignores:
 2. Put them all in a single folder.
 3. Zip the folder, or select all the CSVs and create a zip from them.
 
-A zip with subfolders works, but folder paths are ignored; only the CSV's own filename is used to find or create the product. Avoid relying on folder structure to organise products.
+A zip with subfolders works, but folder paths are ignored; only the CSV's own filename is used to find or create the product. Avoid relying on folder structure to organize products.
 
 ## Uploading
 

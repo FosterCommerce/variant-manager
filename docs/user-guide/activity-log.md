@@ -1,6 +1,6 @@
 # Activity log
 
-Where to find a record of past imports, and how to keep it from growing forever. Audience: anyone running imports.
+Where to find a record of past imports, and how to keep it from growing forever.
 
 ## What gets logged
 
@@ -8,6 +8,7 @@ Every import attempt writes one row to the activity log, success or failure:
 
 - **Successful imports** (green status dot): "Imported new product {title} into {product type}" or "Imported existing product {title} into {product type}". The product title is a link to the product edit page.
 - **Failed imports** (red status dot): "Failed to import {filename}: {error message}". The error message is the same one the import threw, useful for diagnosing what went wrong.
+- **New attributes and options**: "Created attribute Color" and "Created option Red under Color", written when an import or the backfill registers a name or value for the first time. See [variant attributes](./variant-attributes.md).
 
 Each row records the user who triggered the import and the date.
 
@@ -48,7 +49,7 @@ Two ways:
   ./craft variant-manager/activities/clear
 
   # Wipe every row regardless of age.
-  ./craft variant-manager/activities/clear --all
+  ./craft variant-manager/activities/clear 1
   ```
 
 Either way, cleared rows are gone permanently; there is no trash to restore from.

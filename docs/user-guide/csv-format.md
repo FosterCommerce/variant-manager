@@ -1,6 +1,6 @@
 # CSV format
 
-How to shape a CSV file so Variant Manager imports it cleanly the first time. Audience: anyone preparing product data in a spreadsheet for upload.
+How to shape a CSV file so Variant Manager imports it cleanly the first time.
 
 ## The filename matters
 
@@ -11,7 +11,7 @@ The CSV's filename is how Variant Manager decides whether to **create a new prod
   - `Heritage Mug.csv` creates a product titled `Heritage Mug`.
 - **Existing product**: name the file with the product's exact title in Commerce.
   - `Classic Tee.csv` updates the existing `Classic Tee` product.
-  - Capitalisation, spaces, and punctuation must all match. `classic tee.csv` will **not** find `Classic Tee`; it will create a new product called `classic tee` instead.
+  - Capitalization, spaces, and punctuation must all match. `classic tee.csv` will **not** find `Classic Tee`; it will create a new product called `classic tee` instead.
 - **Exporting then re-uploading**: exported files are named `{id}__{slug}.csv` (for example `42__classic-tee.csv`). Leave this filename alone. The number before `__` ties the upload back to the same product even if its title has been edited in the meantime.
 - **Hidden files**: filenames beginning with `.` are ignored, and zip uploads skip files in `__MACOSX/` folders that macOS adds automatically. Both are safe to leave in your zip.
 
@@ -28,7 +28,7 @@ Variant Manager expects:
 A minimum file looks like this:
 
 ```csv
-title,sku,basePrice,Attribute: Color,Attribute: Size
+title,sku,basePrice[default],Attribute: Color,Attribute: Size
 Classic Tee,,,,
 ,TEE-RED-S,19.99,Red,Small
 ,TEE-RED-M,19.99,Red,Medium
@@ -36,7 +36,7 @@ Classic Tee,,,,
 ,TEE-BLUE-M,19.99,Blue,Medium
 ```
 
-The first cell of row 2 (`Classic Tee`) is the product title. From row 3 onwards every row is one variant; leave the product title column empty on variant rows.
+The first cell of row 2 (`Classic Tee`) is the product title. From row 3 onwards every row is one variant; leave the product title column empty on variant rows. `basePrice[default]` is per-site; replace `default` with your site's handle if it is different.
 
 Download: [`classic-tee-minimum.csv`](../examples/classic-tee-minimum.csv). Rename it to `Classic Tee.csv` (or whatever title you want the product to have) before uploading.
 
@@ -132,7 +132,9 @@ Empty cells become the `emptyAttributeValue` configured in the plugin config (de
 
 ### Other custom fields
 
-Plain text and number fields you have added to your variant or product field layouts can be included by adding their handles to `variantFieldMap` or `productFieldMap`. The plugin also recognises:
+Plain text and number fields you have added to your variant or product field layouts can be included by adding their handles to `variantFieldMap` or `productFieldMap`. The plugin also recognizes:
+
+- **Date fields**: any date string PHP can parse (`2026-03-15`).
 
 - **Money fields**: decimal value (`15.00`).
 - **Lightswitch fields**: `1` for on, anything else for off.
@@ -145,13 +147,13 @@ Plain text and number fields you have added to your variant or product field lay
 These are the imports that fail or behave strangely:
 
 - **Smart quotes in column headers**: typing column headers in a word processor turns `"Attribute: Color"` into `"Attribute: Color"` with curly quotes. Header matching is exact. Stick to a spreadsheet editor or a plain-text editor.
-- **A BOM at the start of the file**: some spreadsheet apps add a byte-order mark, which makes the first column header unrecognisable. Save as "CSV (comma-delimited)" or "CSV UTF-8" without BOM.
+- **A BOM at the start of the file**: some spreadsheet apps add a byte-order mark, which makes the first column header unrecognizable. Save as "CSV (comma-delimited)" or "CSV UTF-8" without BOM.
 - **Semicolon as the separator**: spreadsheet apps in some regions default to `;`. Variant Manager only reads commas. Re-export with comma as the delimiter.
 - **Inventory column on an untracked variant**: the cell is ignored. Set `inventoryTracked[default]` to `1` first.
 - **Wrong attribute prefix**: `Option: Color` does nothing if `attributePrefix` is `Attribute: `. Match the config.
 - **Mixed prefixes**: every attribute column must use the same prefix you have in config. You cannot mix `Attribute: ` and `Option: ` in one file.
 - **SKU collisions**: an SKU on a different product blocks the whole import with an error. SKUs must be unique across the entire store.
 - **Duplicate SKUs inside the file**: the same SKU on two rows in the same CSV also blocks the import.
-- **Product title differs from filename**: if `title` in row 2 says `Classic Tee` but the filename is `Heritage Mug.csv`, the file creates a product named `Heritage Mug` and writes `Classic Tee` over its title once saved. Pick one. The filename wins for the create-vs-update decision; the cell wins for the final title.
+- **Product title differs from filename**: `Heritage Mug.csv` with `Classic Tee` in row 2 creates a product named `Heritage Mug`, then renames it to `Classic Tee` on save. The filename decides create-vs-update; the cell decides the final title. Match them.
 
 See [troubleshooting](./troubleshooting.md) for what to do when an import goes wrong.
