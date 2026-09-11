@@ -1,6 +1,6 @@
 # Release Notes for Variant Manager
 
-## 3.0.0 - 2026-09-08
+## 3.0.0 - 2026-09-11
 
 > {tip} Run `./craft variant-manager/attributes/backfill` to take advantage of new features.
 
@@ -38,6 +38,7 @@
 - Fixed a bug where importing a Money field could store a cent less than the CSV held, such as `19.99` becoming `19.98`, including on a straight export and reimport.
 - Fixed a bug where importing a Money field in a zero-decimal currency, such as JPY, stored an amount 100 times too large.
 - Fixed an error that occurred when a Money column held a value that was not a number.
+- Fixed a bug where “Upload Product” failed on sites with a `cpTrigger` other than `admin`.
 
 ### Removed
 
