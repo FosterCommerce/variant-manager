@@ -9,20 +9,27 @@ use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
+use craft\console\Controller as ConsoleController;
+use craft\console\controllers\ResaveController;
 use craft\elements\conditions\ElementCondition;
+use craft\events\DefineConsoleActionsEvent;
 use craft\events\DefineFieldLayoutFieldsEvent;
 use craft\events\DefineHtmlEvent;
+use craft\events\ElementEvent;
+use craft\events\MoveElementEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterConditionRulesEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fieldlayoutelements\TitleField;
+use craft\helpers\ElementHelper;
 use craft\helpers\UrlHelper;
 use craft\models\FieldLayout;
 use craft\services\Elements;
 use craft\services\Fields;
 use craft\services\Gc;
+use craft\services\Structures;
 use craft\services\UserPermissions;
 use craft\services\Utilities;
 use craft\web\twig\variables\CraftVariable;
@@ -32,7 +39,6 @@ use fostercommerce\variantmanager\elements\actions\BulkEditField;
 use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\elements\conditions\VariantAttributeConditionRule;
 use fostercommerce\variantmanager\elements\VariantAttribute;
-use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\elements\VariantManagerVariant;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\models\Settings;
@@ -63,7 +69,7 @@ use yii\queue\Queue;
  */
 class Plugin extends BasePlugin
 {
-	public string $schemaVersion = '1.4.0';
+	public string $schemaVersion = '1.5.0';
 
 	public bool $hasCpSettings = true;
 
@@ -111,11 +117,6 @@ class Plugin extends BasePlugin
 				'label' => Craft::t('variant-manager', 'attributes.attributes'),
 				'url' => 'variant-manager/attributes',
 			];
-
-			$nav['subnav']['attribute-options'] = [
-				'label' => Craft::t('variant-manager', 'options.options'),
-				'url' => 'variant-manager/attribute-options',
-			];
 		}
 
 		return $nav;
@@ -150,7 +151,9 @@ class Plugin extends BasePlugin
 
 	private function attachEventHandlers(): void
 	{
-		if (! Craft::$app->getRequest()->getIsConsoleRequest()) {
+		if (Craft::$app->getRequest()->getIsConsoleRequest()) {
+			$this->registerResaveCommand();
+		} else {
 			if (Craft::$app->getRequest()->getIsCpRequest()) {
 				$this->registerCpRoutes();
 				$this->registerActions();
@@ -167,6 +170,24 @@ class Plugin extends BasePlugin
 		$this->registerNativeFields();
 		$this->registerUtilities();
 		$this->registerEvents();
+	}
+
+	private function registerResaveCommand(): void
+	{
+		Event::on(
+			ResaveController::class,
+			ConsoleController::EVENT_DEFINE_ACTIONS,
+			static function (DefineConsoleActionsEvent $defineConsoleActionsEvent): void {
+				$defineConsoleActionsEvent->actions['variant-attributes'] = [
+					'action' => static function (): int {
+						/** @var ResaveController $controller */
+						$controller = Craft::$app->controller;
+						return $controller->resaveElements(VariantAttribute::class);
+					},
+					'helpSummary' => 'Re-saves variant attributes and their options.',
+				];
+			}
+		);
 	}
 
 	private function registerQueue(): void
@@ -226,10 +247,6 @@ class Plugin extends BasePlugin
 						'template' => 'variant-manager/attributes/index.twig',
 					],
 					'variant-manager/attributes/<elementId:\d+>' => 'elements/edit',
-					'variant-manager/attribute-options' => [
-						'template' => 'variant-manager/attribute-options/index.twig',
-					],
-					'variant-manager/attribute-options/<elementId:\d+>' => 'elements/edit',
 					'variant-manager/attributes/<attributeId:\d+>/settings' => 'variant-manager/attributes/settings',
 				];
 			}
@@ -299,7 +316,6 @@ class Plugin extends BasePlugin
 			Elements::EVENT_REGISTER_ELEMENT_TYPES,
 			static function (RegisterComponentTypesEvent $registerComponentTypesEvent): void {
 				$registerComponentTypesEvent->types[] = VariantAttribute::class;
-				$registerComponentTypesEvent->types[] = VariantAttributeOption::class;
 			}
 		);
 	}
@@ -314,8 +330,11 @@ class Plugin extends BasePlugin
 				$fieldLayout = $defineFieldLayoutFieldsEvent->sender;
 
 				// Add a Title field, since Craft doesn't supply one for these element types
-				if (in_array($fieldLayout->type, [VariantAttribute::class, VariantAttributeOption::class], true)) {
-					$defineFieldLayoutFieldsEvent->fields[] = TitleField::class;
+				if ($fieldLayout->type === VariantAttribute::class) {
+					$defineFieldLayoutFieldsEvent->fields[] = [
+						'class' => TitleField::class,
+						'label' => Craft::t('variant-manager', 'attributes.displayName'),
+					];
 				}
 			}
 		);
@@ -360,6 +379,47 @@ class Plugin extends BasePlugin
 	private function registerEvents(): void
 	{
 		Event::on(
+			Elements::class,
+			Elements::EVENT_AFTER_SAVE_ELEMENT,
+			static function (ElementEvent $elementEvent): void {
+				$element = $elementEvent->element;
+
+				// Skip a propagated save, since it repeats the first site's values
+				// Skip a draft or revision, since its values may never be published
+				if (! $element instanceof Variant || $element->propagating || ElementHelper::isDraftOrRevision($element)) {
+					return;
+				}
+
+				// Nothing else registers a value written outside an import or the backfill
+				$variantAttributes = Plugin::getInstance()->getVariantAttributes();
+				$variantAttributes->ensureFromAttributePairs(array_values($variantAttributes->attributePairs([$element])));
+			},
+		);
+
+		Event::on(
+			Structures::class,
+			Structures::EVENT_BEFORE_UPDATE_ELEMENT,
+			static function (MoveElementEvent $moveElementEvent): void {
+				$element = $moveElementEvent->element;
+
+				if (! $element instanceof VariantAttribute) {
+					return;
+				}
+
+				$target = $moveElementEvent->getTargetElement();
+
+				$newAttributeId = match (true) {
+					! $target instanceof VariantAttribute => 0,
+					in_array($moveElementEvent->action, [Structures::ACTION_PREPEND, Structures::ACTION_APPEND], true) => (int) $target->id,
+					default => $target->attributeId,
+				};
+
+				// The key is attributeId plus nameKey, so a move to another attribute would change it
+				$moveElementEvent->isValid = $newAttributeId === $element->attributeId;
+			},
+		);
+
+		Event::on(
 			Gc::class,
 			Gc::EVENT_RUN,
 			static function (Event $_event): void {
@@ -367,7 +427,6 @@ class Plugin extends BasePlugin
 
 				$garbageCollector = Craft::$app->getGc();
 				$garbageCollector->deletePartialElements(VariantAttribute::class, Table::ATTRIBUTES, 'id');
-				$garbageCollector->deletePartialElements(VariantAttributeOption::class, Table::ATTRIBUTE_OPTIONS, 'id');
 
 				Plugin::getInstance()->getAttributeConfigs()->removeOrphaned();
 			},

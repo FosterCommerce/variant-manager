@@ -158,10 +158,6 @@ class Csv extends Component
 		$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
 		$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
 
-		// Register after the save, so a failed import creates no registry rows
-		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
-		$variantAttributes->ensureFromAttributePairs(array_values($variantAttributes->attributePairs($variants)));
-
 		return $product;
 	}
 

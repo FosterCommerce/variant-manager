@@ -8,11 +8,12 @@ Variants keep storing names and values as plain text, so imports and exports are
 
 | Source | When |
 |--------|------|
+| A variant save | Any save that stores a name and value on a variant registers them, including an integration writing through Craft's API. |
 | CSV import | Every import registers the names and values it contains. |
 | **Utilities -> Variant Attributes** | Reads every variant in one pass. Run it once after installing. |
 | `./craft variant-manager/attributes/backfill` | The same work from the command line. |
 
-Each new attribute and option is recorded in the [activity log](./activity-log.md).
+Each new attribute and option is recorded in the [activity log](./activity-log.md). A save with no signed-in user, such as a console command or a queue job, is logged against `Unknown`.
 
 ## Names
 
@@ -20,14 +21,18 @@ Each attribute and option has two names.
 
 | Name | Editable | Shown to |
 |------|----------|----------|
-| **CSV Name** / **CSV Value** | No | The import. It is the exact text in your CSV. |
-| Title | Yes | Shoppers, if your templates use it. |
+| **System Name** | No | Whatever wrote the value. It is the exact text stored on the variant. |
+| **Display Name** | Yes | Shoppers, if your templates use it. |
 
-Rename an option's title to change what shoppers read. Every product using that value picks it up, with no import and no change to any variant.
+Rename an option's display name to change what shoppers read. Every product using that value picks it up, with no import and no change to any variant. Templates read it as `option.title`.
+
+The control panel labels a row by its system name, and adds the display name in brackets once the two differ: `PBS200 (Pebble Stone)`. Search matches either one.
 
 ## Where to find them
 
-**Variant Manager -> Variant Attributes** lists every attribute. **Variant Manager -> Attribute Options** lists every value, with a sidebar entry per attribute for narrowing the list. An option shows how many variants use it.
+**Variant Manager -> Variant Attributes** lists every attribute with its options nested under it, the way entries in a Structure section are. An option shows how many variants use it.
+
+An option belongs to the attribute it sits under, so `Blue` under `Color` and `Blue` under `Paint chips` are separate rows with their own fields. Drag a row to reorder it among the rows sharing its attribute. Dragging an option onto a different attribute is refused, since that would change which value it stands for.
 
 In the Variant Attributes field on a variant, each name and value is a chip. Click one to open its row in a slideout. A name or value with no row yet shows as plain text until an import or the backfill registers it.
 

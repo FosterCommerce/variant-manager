@@ -61,7 +61,7 @@ class AttributesController extends Controller
 		$orphans = $variantAttributes->findOrphans($this->batchSize);
 
 		foreach ($orphans['options'] as $option) {
-			$this->stdout("option    {$option->getVariantAttribute()?->name} / {$option->value}" . PHP_EOL);
+			$this->stdout("option    {$option->getParentAttribute()?->name} / {$option->name}" . PHP_EOL);
 		}
 
 		foreach ($orphans['attributes'] as $attribute) {

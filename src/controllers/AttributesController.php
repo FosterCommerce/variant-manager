@@ -6,7 +6,6 @@ use Craft;
 use craft\helpers\Queue;
 use craft\web\Controller;
 use fostercommerce\variantmanager\elements\VariantAttribute;
-use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\jobs\BackfillAttributes;
 use fostercommerce\variantmanager\jobs\PruneAttributeOrphans;
 use fostercommerce\variantmanager\Plugin;
@@ -24,7 +23,7 @@ class AttributesController extends Controller
 	{
 		$this->requireAdmin(false);
 
-		$attribute = VariantAttribute::find()->id($attributeId)->one();
+		$attribute = VariantAttribute::find()->attributeId(0)->id($attributeId)->one();
 
 		if (! $attribute instanceof VariantAttribute) {
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'attributes.notFound'));
@@ -49,7 +48,7 @@ class AttributesController extends Controller
 		$this->requireAdmin();
 
 		$attributeId = (int) $this->request->getRequiredBodyParam('attributeId');
-		$attribute = VariantAttribute::find()->id($attributeId)->one();
+		$attribute = VariantAttribute::find()->attributeId(0)->id($attributeId)->one();
 
 		if (! $attribute instanceof VariantAttribute) {
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'attributes.notFound'));
@@ -61,7 +60,7 @@ class AttributesController extends Controller
 		$fieldLayout->type = VariantAttribute::class;
 
 		$optionFieldLayout = $fieldsService->assembleLayoutFromPost('option-layout');
-		$optionFieldLayout->type = VariantAttributeOption::class;
+		$optionFieldLayout->type = VariantAttribute::class;
 
 		if (! Plugin::getInstance()->getAttributeConfigs()->save($attribute->nameKey, $fieldLayout, $optionFieldLayout)) {
 			$this->setFailFlash(Craft::t('variant-manager', 'attributes.settingsSaveFailed'));

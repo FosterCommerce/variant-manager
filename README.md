@@ -27,7 +27,7 @@ composer require fostercommerce/variant-manager
 ./craft plugin/install variant-manager
 ```
 
-See [`docs/installation.md`](./docs/installation.md) for the full installation and configuration guide, and [`docs/upgrade.md`](./docs/upgrade.md) if you are coming from 2.x.
+See [`docs/installation.md`](./docs/installation.md) for the full installation and configuration guide, and [`docs/upgrade.md`](./docs/upgrade.md) if you are coming from 2.x or 3.x.
 
 ## Importing
 

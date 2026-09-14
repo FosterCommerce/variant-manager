@@ -7,6 +7,7 @@ use fostercommerce\variantmanager\db\Table;
 
 /**
  * @property int $id
+ * @property int $attributeId
  * @property string $name
  * @property string $nameKey
  * @property string $displayType

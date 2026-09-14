@@ -7,7 +7,6 @@ use craft\behaviors\CustomFieldBehavior;
 use craft\helpers\StringHelper;
 use craft\models\FieldLayout;
 use fostercommerce\variantmanager\elements\VariantAttribute;
-use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use yii\base\Component;
 
 /**
@@ -53,7 +52,7 @@ class AttributeConfigs extends Component
 
 	public function getOptionFieldLayout(string $nameKey): FieldLayout
 	{
-		return $this->layout($nameKey, 'optionFieldLayouts', VariantAttributeOption::class);
+		return $this->layout($nameKey, 'optionFieldLayouts', VariantAttribute::class);
 	}
 
 	/**
@@ -69,7 +68,7 @@ class AttributeConfigs extends Component
 	 */
 	public function getAllOptionLayouts(): array
 	{
-		return $this->getAllLayouts('optionFieldLayouts', VariantAttributeOption::class);
+		return $this->getAllLayouts('optionFieldLayouts', VariantAttribute::class);
 	}
 
 	public function save(string $nameKey, FieldLayout $fieldLayout, FieldLayout $optionFieldLayout): bool
@@ -119,7 +118,7 @@ class AttributeConfigs extends Component
 
 		$nameKeys = array_flip(array_map(
 			static fn (VariantAttribute $attribute): string => $attribute->nameKey,
-			VariantAttribute::find()->trashed(null)->all()
+			VariantAttribute::find()->attributeId(0)->trashed(null)->all()
 		));
 
 		foreach (array_keys($configs) as $nameKey) {

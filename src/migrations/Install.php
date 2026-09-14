@@ -2,8 +2,10 @@
 
 namespace fostercommerce\variantmanager\migrations;
 
+use Craft;
 use craft\db\Migration;
 use craft\db\Table as CraftTable;
+use craft\models\Structure;
 use fostercommerce\variantmanager\db\Table;
 
 class Install extends Migration
@@ -22,6 +24,7 @@ class Install extends Migration
 
 		$this->createTable(Table::ATTRIBUTES, [
 			'id' => $this->integer()->notNull(),
+			'attributeId' => $this->integer()->notNull()->defaultValue(0),
 			'name' => $this->string()->notNull(),
 			'nameKey' => $this->string()->notNull(),
 			'displayType' => $this->string()->notNull()->defaultValue('dropdown'),
@@ -31,30 +34,35 @@ class Install extends Migration
 			'PRIMARY KEY([[id]])',
 		]);
 
-		$this->createIndex(null, Table::ATTRIBUTES, ['nameKey'], true);
+		// The key is the attribute plus the name, so Blue under two attributes is two rows
+		// An attribute uses 0 rather than null, since MySQL treats null attributeIds as distinct
+		$this->createIndex(null, Table::ATTRIBUTES, ['attributeId', 'nameKey'], true);
 		$this->addForeignKey(null, Table::ATTRIBUTES, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
 
-		$this->createTable(Table::ATTRIBUTE_OPTIONS, [
+		$this->createTable(Table::STRUCTURES, [
 			'id' => $this->integer()->notNull(),
-			'attributeId' => $this->integer()->notNull(),
-			'value' => $this->string()->notNull(),
-			'valueKey' => $this->string()->notNull(),
-			'dateCreated' => $this->dateTime()->notNull(),
-			'dateUpdated' => $this->dateTime()->notNull(),
 			'uid' => $this->uid(),
 			'PRIMARY KEY([[id]])',
 		]);
 
-		$this->createIndex(null, Table::ATTRIBUTE_OPTIONS, ['attributeId', 'valueKey'], true);
-		$this->addForeignKey(null, Table::ATTRIBUTE_OPTIONS, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
-		$this->addForeignKey(null, Table::ATTRIBUTE_OPTIONS, ['attributeId'], Table::ATTRIBUTES, ['id'], 'CASCADE');
+		$this->addForeignKey(null, Table::STRUCTURES, ['id'], CraftTable::STRUCTURES, ['id'], 'CASCADE');
+
+		$structure = new Structure([
+			'maxLevels' => 2,
+		]);
+
+		Craft::$app->getStructures()->saveStructure($structure);
+
+		$this->insert(Table::STRUCTURES, [
+			'id' => $structure->id,
+		]);
 
 		return true;
 	}
 
 	public function safeDown(): bool
 	{
-		$this->dropTableIfExists(Table::ATTRIBUTE_OPTIONS);
+		$this->dropTableIfExists(Table::STRUCTURES);
 		$this->dropTableIfExists(Table::ATTRIBUTES);
 
 		if ($this->db->tableExists(Table::ACTIVITIES)) {

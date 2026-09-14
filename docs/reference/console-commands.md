@@ -38,6 +38,21 @@ Reads every variant in batches. Anything already registered is skipped, so the c
 
 The **Utilities -> Variant Attributes** utility runs the same work in the queue.
 
+## `resave/variant-attributes`
+
+Re-save every attribute and option.
+
+```sh
+./craft resave/variant-attributes --update-search-index
+```
+
+Craft's own resave command, with an action this plugin adds. `--update-search-index` rewrites the search keywords for each row, which is what picks up a system name stored before the row was last saved. `resave/all` includes it.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--update-search-index` | `false` | Rewrite each row's search keywords. |
+| `--queue` | `false` | Run in the queue instead of the console. |
+
 ## `variant-manager/attributes/orphans`
 
 List attributes and options whose name or value is no longer stored on any variant.

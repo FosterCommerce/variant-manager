@@ -25,7 +25,7 @@ With DDEV:
 ddev composer require fostercommerce/variant-manager -w && ddev craft plugin/install variant-manager
 ```
 
-After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** and **Attribute Options** appear for users with `variant-manager:manage-attributes`.
+After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** appears for users with `variant-manager:manage-attributes`.
 
 ## Configure
 

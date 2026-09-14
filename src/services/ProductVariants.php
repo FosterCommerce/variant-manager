@@ -5,7 +5,6 @@ namespace fostercommerce\variantmanager\services;
 use craft\base\Component;
 use craft\commerce\elements\Product;
 use fostercommerce\variantmanager\elements\VariantAttribute;
-use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use yii\base\InvalidConfigException;
@@ -39,7 +38,7 @@ class ProductVariants extends Component
 	 *
 	 * @param Product|int $product The product to fetch variant attributes for.
 	 * @param array|string|null $only If set, limits the options returned to just the ones in the argument.
-	 * @return array<int, array{name: string, values: list<string>, attribute: ?VariantAttribute, options: array<string, VariantAttributeOption>}>
+	 * @return array<int, array{name: string, values: list<string>, attribute: ?VariantAttribute, options: array<string, VariantAttribute>}>
 	 * @throws InvalidConfigException
 	 */
 	public function getAttributeRegistry(Product|int $product, array|string|null $only = null): array

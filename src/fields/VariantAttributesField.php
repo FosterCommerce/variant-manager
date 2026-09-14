@@ -10,7 +10,6 @@ use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use fostercommerce\variantmanager\elements\VariantAttribute;
-use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\VariantAttributesFieldAssetBundle;
@@ -141,7 +140,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 	/**
 	 * Pair each stored attribute with its registry elements, or null where the pair is unregistered.
 	 *
-	 * @return list<array{attributeName: string, attributeValue: string, attribute: ?VariantAttribute, option: ?VariantAttributeOption}>
+	 * @return list<array{attributeName: string, attributeValue: string, attribute: ?VariantAttribute, option: ?VariantAttribute}>
 	 */
 	private function registryRows(mixed $fieldValue): array
 	{
@@ -155,8 +154,8 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 		$options = [];
 
 		if ($attributeIds !== []) {
-			foreach (VariantAttributeOption::find()->attributeId(array_values($attributeIds))->all() as $option) {
-				$options["{$option->attributeId}\0{$option->valueKey}"] = $option;
+			foreach (VariantAttribute::find()->attributeId(array_values($attributeIds))->all() as $option) {
+				$options["{$option->attributeId}\0{$option->nameKey}"] = $option;
 			}
 		}
 
@@ -164,7 +163,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 
 		foreach ($fieldValue as $pair) {
 			$attribute = $attributes[VariantAttribute::normalizeName($pair['attributeName'])] ?? null;
-			$optionKey = $attribute?->id . "\0" . VariantAttributeOption::normalizeValue($pair['attributeValue']);
+			$optionKey = $attribute?->id . "\0" . VariantAttribute::normalizeName($pair['attributeValue']);
 
 			$rows[] = [
 				'attributeName' => $pair['attributeName'],

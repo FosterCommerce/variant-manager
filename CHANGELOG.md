@@ -1,5 +1,29 @@
 # Release Notes for Variant Manager
 
+## 4.0.0 - 2026-09-14
+
+> {tip} This release removes the `VariantAttributeOption` element type. See [upgrading to 4.x](./docs/upgrade.md) before updating.
+
+### Added
+
+- Added drag ordering to the “Variant Attributes” listing, for arranging an attribute's options in the order a storefront should render them.
+- Added a `resave/variant-attributes` command, for re-saving attributes and options and rewriting their search keywords.
+
+### Changed
+
+- Nested attribute options under their attribute in a single “Variant Attributes” listing, replacing the separate “Attribute Options” section.
+- Renamed the read-only “CSV Name” and “CSV Value” labels to “System Name”, and the Title field on an attribute or option to “Display Name”.
+- Labeled an attribute or option by its system name, followed by its display name in brackets where the two differ, and made both searchable.
+- Moved attribute registration from the end of a CSV import to each variant save, so a failed import can now leave registry rows that the orphan prune clears.
+
+### Fixed
+
+- Fixed a bug where attribute values written outside the control panel stayed unregistered until the backfill ran.
+
+### Removed
+
+- Removed the `VariantAttributeOption` element type; an option is now a `VariantAttribute` with an `attributeId`, and its value is `name` rather than `value`.
+
 ## 3.0.0 - 2026-09-11
 
 > {tip} Run `./craft variant-manager/attributes/backfill` to take advantage of new features.

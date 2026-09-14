@@ -10,6 +10,7 @@ use craft\helpers\Html;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
 use craft\models\FieldLayout;
+use craft\services\Structures;
 use fostercommerce\variantmanager\elements\db\VariantAttributeQuery;
 use fostercommerce\variantmanager\enums\DisplayType;
 use fostercommerce\variantmanager\Plugin;
@@ -18,17 +19,23 @@ use fostercommerce\variantmanager\records\VariantAttribute as VariantAttributeRe
 use yii\base\InvalidConfigException;
 
 /**
- * A registry row for one attribute name used by the Variant Attributes field.
+ * A registry row for one attribute name, or for one of its option values.
  *
- * Variants store the name as a string, so deleting an attribute does not change a variant.
+ * Variants store the name and value as strings, so deleting a row does not change a variant.
+ *
+ * @property-read null|VariantAttribute $parentAttribute
  */
 class VariantAttribute extends Element
 {
+	public int $attributeId = 0;
+
 	public string $name = '';
 
 	public string $nameKey = '';
 
 	public string $displayType = DisplayType::Dropdown->value;
+
+	private ?VariantAttribute $parentAttribute = null;
 
 	public static function displayName(): string
 	{
@@ -60,9 +67,14 @@ class VariantAttribute extends Element
 		return true;
 	}
 
+	public static function hasStructure(): bool
+	{
+		return true;
+	}
+
 	public static function isLocalized(): bool
 	{
-		// Neither table has a siteId column, so per-site rows would be identical
+		// The table has no siteId column, so per-site rows would be identical
 		return false;
 	}
 
@@ -76,9 +88,42 @@ class VariantAttribute extends Element
 		return StringHelper::toLowerCase(trim($name));
 	}
 
+	public function isOption(): bool
+	{
+		return $this->attributeId !== 0;
+	}
+
+	public function getParentAttribute(): ?self
+	{
+		if (! $this->isOption()) {
+			return null;
+		}
+
+		return $this->parentAttribute ??= Plugin::getInstance()->getVariantAttributes()->getAttributeById($this->attributeId);
+	}
+
+	/**
+	 * getAttributeById() can miss an attribute created in the same request.
+	 */
+	public function setParentAttribute(self $attribute): void
+	{
+		$this->attributeId = (int) $attribute->id;
+		$this->parentAttribute = $attribute;
+	}
+
 	public function getFieldLayout(): ?FieldLayout
 	{
-		return Plugin::getInstance()->getAttributeConfigs()->getFieldLayout($this->nameKey);
+		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
+
+		if (! $this->isOption()) {
+			return $attributeConfigs->getFieldLayout($this->nameKey);
+		}
+
+		$attribute = $this->getParentAttribute();
+
+		return $attribute === null
+			? null
+			: $attributeConfigs->getOptionFieldLayout($attribute->nameKey);
 	}
 
 	public function getDisplayType(): DisplayType
@@ -131,15 +176,15 @@ class VariantAttribute extends Element
 				}
 			}
 
+			$record->attributeId = $this->attributeId;
 			$record->name = $this->name;
 			$record->nameKey = $this->nameKey;
 			$record->displayType = $this->displayType;
 			$record->save(false);
 
 			if ($isNew) {
-				Activity::log(Craft::$app->getUser()->getIdentity(), Craft::t('variant-manager', 'attributes.activityCreated', [
-					'name' => Html::encode($this->name),
-				]));
+				$this->placeInStructure();
+				$this->logCreation();
 			}
 		}
 
@@ -152,13 +197,24 @@ class VariantAttribute extends Element
 			return false;
 		}
 
-		if (Plugin::getInstance()->getVariantAttributes()->isAttributeInUse($this)) {
+		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
+
+		if ($this->isOption()) {
+			if ($variantAttributes->isOptionInUse($this)) {
+				$this->addError('name', Craft::t('variant-manager', 'options.deleteInUse'));
+				return false;
+			}
+
+			return true;
+		}
+
+		if ($variantAttributes->isAttributeInUse($this)) {
 			$this->addError('name', Craft::t('variant-manager', 'attributes.deleteInUse'));
 			return false;
 		}
 
 		// Include already-trashed options on a hard delete, since the cascade removes their rows
-		$options = VariantAttributeOption::find()
+		$options = self::find()
 			->attributeId($this->id)
 			->trashed($this->hardDelete ? null : false)
 			->all();
@@ -176,7 +232,7 @@ class VariantAttribute extends Element
 
 	public function afterRestore(): void
 	{
-		$options = VariantAttributeOption::find()
+		$options = self::find()
 			->attributeId($this->id)
 			->trashed(true)
 			->andWhere([
@@ -191,48 +247,81 @@ class VariantAttribute extends Element
 
 	public function beforeSave(bool $isNew): bool
 	{
+		$this->structureId = Plugin::getInstance()->getVariantAttributes()->getStructureId();
 		$this->name = trim($this->name);
 		$this->nameKey = self::normalizeName($this->name);
 
 		return parent::beforeSave($isNew);
 	}
 
+	protected function uiLabel(): ?string
+	{
+		return $this->title === $this->name
+			? $this->name
+			: "{$this->name} ({$this->title})";
+	}
+
+	protected function crumbs(): array
+	{
+		$crumbs = [
+			[
+				'label' => Craft::t('variant-manager', 'plugin.name'),
+				'url' => UrlHelper::cpUrl('variant-manager/dashboard'),
+			],
+			[
+				'label' => Craft::t('variant-manager', 'attributes.attributes'),
+				'url' => UrlHelper::cpUrl('variant-manager/attributes'),
+			],
+		];
+
+		$attribute = $this->getParentAttribute();
+
+		if ($attribute !== null) {
+			$crumbs[] = [
+				'html' => Cp::elementChipHtml($attribute, [
+					'class' => 'chromeless',
+					'hyperlink' => true,
+				]),
+			];
+		}
+
+		return $crumbs;
+	}
+
 	protected function metaFieldsHtml(bool $static): string
 	{
-		$fields = Cp::selectFieldHtml([
-			'label' => Craft::t('variant-manager', 'attributes.displayType'),
-			'id' => 'displayType',
-			'name' => 'displayType',
-			'options' => DisplayType::options(Plugin::getInstance()->getSettings()->getAvailableDisplayTypes($this->displayType)),
-			'value' => $this->displayType,
-			'disabled' => $static,
-		]);
-
-		// Variants match on the attribute name string, so the name is read only
-		$fields .= Cp::textFieldHtml([
-			'label' => Craft::t('variant-manager', 'attributes.name'),
-			'id' => 'name',
-			'value' => $this->name,
-			'disabled' => true,
-		]);
-
-		return $fields . parent::metaFieldsHtml($static);
+		return ($this->isOption() ? $this->optionMetaFieldsHtml() : $this->attributeMetaFieldsHtml($static))
+			. parent::metaFieldsHtml($static);
 	}
 
 	protected static function defineSources(string $context): array
 	{
+		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
+
 		return [
 			[
 				'key' => '*',
 				'label' => Craft::t('variant-manager', 'attributes.allAttributes'),
 				'criteria' => [],
+				'structureId' => $variantAttributes->getStructureId(),
+				'structureEditable' => Craft::$app->getRequest()->getIsConsoleRequest() || Craft::$app->getUser()->checkPermission('variant-manager:manage-attributes'),
+				'defaultViewMode' => 'structure',
+				'defaultSort' => ['structure', 'asc'],
 			],
 		];
 	}
 
 	protected static function defineFieldLayouts(?string $source): array
 	{
-		return Plugin::getInstance()->getAttributeConfigs()->getAllAttributeLayouts();
+		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
+
+		return [...$attributeConfigs->getAllAttributeLayouts(), ...$attributeConfigs->getAllOptionLayouts()];
+	}
+
+	protected static function defineSearchableAttributes(): array
+	{
+		// Name only, since the title is indexed already
+		return ['name'];
 	}
 
 	protected static function defineSortOptions(): array
@@ -254,14 +343,15 @@ class VariantAttribute extends Element
 
 	protected static function defineDefaultTableAttributes(string $source): array
 	{
-		return ['name', 'displayType'];
+		// uiLabel() puts the name in the title column, so a name column repeats it
+		return ['displayType'];
 	}
 
 	protected function attributeHtml(string $attribute): string
 	{
 		return match ($attribute) {
 			'name' => Html::encode($this->name),
-			'displayType' => Html::encode($this->getDisplayType()->label()),
+			'displayType' => $this->isOption() ? '' : Html::encode($this->getDisplayType()->label()),
 			default => parent::attributeHtml($attribute),
 		};
 	}
@@ -269,6 +359,9 @@ class VariantAttribute extends Element
 	protected function defineRules(): array
 	{
 		$rules = parent::defineRules();
+		$rules[] = [['attributeId'],
+			'number',
+			'integerOnly' => true];
 		$rules[] = [['name'], 'required'];
 		$rules[] = [['displayType'],
 			'in',
@@ -277,5 +370,75 @@ class VariantAttribute extends Element
 			'string',
 			'max' => 255];
 		return $rules;
+	}
+
+	private function placeInStructure(): void
+	{
+		$structuresService = Craft::$app->getStructures();
+		$attribute = $this->getParentAttribute();
+
+		if ($attribute === null) {
+			$structuresService->appendToRoot($this->structureId, $this, Structures::MODE_INSERT);
+			return;
+		}
+
+		$structuresService->append($this->structureId, $this, $attribute, Structures::MODE_INSERT);
+	}
+
+	private function logCreation(): void
+	{
+		$currentUser = Craft::$app->getUser()->getIdentity();
+
+		if ($this->isOption()) {
+			Activity::log($currentUser, Craft::t('variant-manager', 'options.activityCreated', [
+				'name' => Html::encode($this->name),
+				'attribute' => Html::encode((string) $this->getParentAttribute()?->name),
+			]));
+
+			return;
+		}
+
+		Activity::log($currentUser, Craft::t('variant-manager', 'attributes.activityCreated', [
+			'name' => Html::encode($this->name),
+		]));
+	}
+
+	private function attributeMetaFieldsHtml(bool $static): string
+	{
+		$fields = Cp::selectFieldHtml([
+			'label' => Craft::t('variant-manager', 'attributes.displayType'),
+			'id' => 'displayType',
+			'name' => 'displayType',
+			'options' => DisplayType::options(Plugin::getInstance()->getSettings()->getAvailableDisplayTypes($this->displayType)),
+			'value' => $this->displayType,
+			'disabled' => $static,
+		]);
+
+		// Variants match on the attribute name string, so the name is read only
+		return $fields . Cp::textFieldHtml([
+			'label' => Craft::t('variant-manager', 'attributes.name'),
+			'id' => 'name',
+			'value' => $this->name,
+			'disabled' => true,
+		]);
+	}
+
+	private function optionMetaFieldsHtml(): string
+	{
+		$variantCount = Plugin::getInstance()->getVariantAttributes()->variantCountForOption($this);
+
+		$fields = Cp::fieldHtml(Html::encode(Craft::t('variant-manager', 'options.variantCount', [
+			'count' => $variantCount,
+		])), [
+			'label' => Craft::t('variant-manager', 'options.usedBy'),
+		]);
+
+		// Variants match on the option value string, so the value is read only
+		return $fields . Cp::textFieldHtml([
+			'label' => Craft::t('variant-manager', 'attributes.name'),
+			'id' => 'name',
+			'value' => $this->name,
+			'disabled' => true,
+		]);
 	}
 }
