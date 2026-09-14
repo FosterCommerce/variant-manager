@@ -8,5 +8,5 @@ abstract class Table
 
 	public const ATTRIBUTES = '{{%variant_manager_attributes}}';
 
-	public const ATTRIBUTE_OPTIONS = '{{%variant_manager_attribute_options}}';
+	public const STRUCTURES = '{{%variant_manager_structures}}';
 }

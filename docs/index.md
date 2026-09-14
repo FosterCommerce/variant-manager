@@ -4,7 +4,7 @@ Import and export Craft Commerce product variants from CSV files.
 
 ## Upgrading
 
-Coming from 2.x? See [upgrading to 3.x](./upgrade.md).
+Coming from 2.x or 3.x? See [upgrading](./upgrade.md).
 
 ## Where to go
 

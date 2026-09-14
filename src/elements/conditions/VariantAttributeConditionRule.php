@@ -13,7 +13,6 @@ use craft\commerce\helpers\ProductQuery as ProductQueryHelper;
 use craft\elements\conditions\ElementConditionRuleInterface;
 use craft\elements\db\ElementQueryInterface;
 use fostercommerce\variantmanager\elements\VariantAttribute;
-use fostercommerce\variantmanager\elements\VariantAttributeOption;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\Plugin;
 
@@ -24,7 +23,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 {
 	public ?int $attributeId = null;
 
-	private VariantAttributeOption|false|null $selectedOption = null;
+	private VariantAttribute|false|null $selectedOption = null;
 
 	/**
 	 * @var list<VariantAttributesField>|null
@@ -107,9 +106,9 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 
 		$options = [];
 
-		foreach (VariantAttributeOption::find()->attributeId($this->attributeId)->all() as $option) {
+		foreach (VariantAttribute::find()->attributeId($this->attributeId)->all() as $option) {
 			$options[] = [
-				'label' => $option->value,
+				'label' => $option->name,
 				'value' => (string) $option->id,
 			];
 		}
@@ -147,7 +146,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		}
 
 		$condition = VariantAttributesField::queryCondition($instances, [
-			$attribute->name => $option->value,
+			$attribute->name => $option->name,
 		], $params);
 
 		return $condition === false ? '0=1' : $condition;
@@ -171,7 +170,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 			}
 
 			foreach ($value as $pair) {
-				if (($pair['attributeName'] ?? null) === $attribute->name && ($pair['attributeValue'] ?? null) === $option->value) {
+				if (($pair['attributeName'] ?? null) === $attribute->name && ($pair['attributeValue'] ?? null) === $option->name) {
 					return true;
 				}
 			}
@@ -187,12 +186,12 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 			: Plugin::getInstance()->getVariantAttributes()->getAttributeById($this->attributeId);
 	}
 
-	private function selectedOption(): ?VariantAttributeOption
+	private function selectedOption(): ?VariantAttribute
 	{
 		if ($this->selectedOption === null) {
 			$this->selectedOption = ($this->value === ''
 				? null
-				: VariantAttributeOption::find()->id((int) $this->value)->one()) ?? false;
+				: VariantAttribute::find()->id((int) $this->value)->one()) ?? false;
 		}
 
 		return $this->selectedOption === false ? null : $this->selectedOption;

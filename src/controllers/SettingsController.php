@@ -20,7 +20,7 @@ class SettingsController extends Controller
 		$settings = Plugin::getInstance()->getSettings();
 
 		return $this->renderTemplate('variant-manager/settings/index', [
-			'attributes' => VariantAttribute::find()->all(),
+			'attributes' => VariantAttribute::find()->attributeId(0)->all(),
 			'settings' => $settings,
 			'displayTypeOptions' => DisplayType::options(DisplayType::cases()),
 			'defaultDisplayTypeOptions' => DisplayType::options($settings->getAvailableDisplayTypes($settings->defaultDisplayType)),

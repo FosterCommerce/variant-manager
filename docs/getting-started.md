@@ -9,7 +9,7 @@ composer require fostercommerce/variant-manager
 ./craft plugin/install variant-manager
 ```
 
-In the CP you should see a **Variant Manager** nav item with four subnav entries: **Dashboard**, **Variants**, **Variant Attributes** and **Attribute Options**.
+In the CP you should see a **Variant Manager** nav item with three subnav entries: **Dashboard**, **Variants** and **Variant Attributes**.
 
 ## 2. Configure
 
@@ -58,9 +58,9 @@ Check the variants tab:
 
 ## 7. See the attributes the import registered
 
-**Variant Manager -> Variant Attributes**. The import created `Color` and `Size`. **Variant Manager -> Attribute Options** lists `Red`, `Blue`, `Small` and `Medium`, each with the attribute it belongs to.
+**Variant Manager -> Variant Attributes**. The import created `Color` and `Size`, each with its options nested under it: `Red` and `Blue` under `Color`, `Small` and `Medium` under `Size`.
 
-Open `Red`. Its **CSV Value** is read-only; its title is not. The **Used by** count shows how many variants store `Red`. Rename the title to `Crimson` and save. No variant changed, and a template reading `option.title` now shows `Crimson`.
+Open `Red`. Its **System Name** is read-only; its **Display Name** is not. The **Used by** count shows how many variants store `Red`. Rename the display name to `Crimson` and save. No variant changed, and a template reading `option.title` now shows `Crimson`.
 
 See [variant attributes](./user-guide/variant-attributes.md).
 
@@ -88,4 +88,4 @@ For deeper reading:
 - [Variant Attributes field](./reference/field-type.md), how the attribute data is stored and read.
 - [Variant attributes](./user-guide/variant-attributes.md), attaching swatches and notes to attribute values.
 - [Template tags](./dev-guide/template-tags.md) and [recipes](./recipes/add-to-cart.md), using the attributes on the storefront.
-- [Upgrading to 3.x](./upgrade.md), if you are coming from 2.x.
+- [Upgrading](./upgrade.md), if you are coming from 2.x or 3.x.

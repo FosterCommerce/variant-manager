@@ -8,6 +8,8 @@ use fostercommerce\variantmanager\db\Table;
 
 class m260905_153830_create_variant_attribute_tables extends Migration
 {
+	private const OPTIONS_TABLE = '{{%variant_manager_attribute_options}}';
+
 	public function safeUp(): bool
 	{
 		$this->createTable(Table::ATTRIBUTES, [
@@ -23,7 +25,7 @@ class m260905_153830_create_variant_attribute_tables extends Migration
 		$this->createIndex(null, Table::ATTRIBUTES, ['nameKey'], true);
 		$this->addForeignKey(null, Table::ATTRIBUTES, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
 
-		$this->createTable(Table::ATTRIBUTE_OPTIONS, [
+		$this->createTable(self::OPTIONS_TABLE, [
 			'id' => $this->integer()->notNull(),
 			'attributeId' => $this->integer()->notNull(),
 			'value' => $this->string()->notNull(),
@@ -34,9 +36,9 @@ class m260905_153830_create_variant_attribute_tables extends Migration
 			'PRIMARY KEY([[id]])',
 		]);
 
-		$this->createIndex(null, Table::ATTRIBUTE_OPTIONS, ['attributeId', 'valueKey'], true);
-		$this->addForeignKey(null, Table::ATTRIBUTE_OPTIONS, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
-		$this->addForeignKey(null, Table::ATTRIBUTE_OPTIONS, ['attributeId'], Table::ATTRIBUTES, ['id'], 'CASCADE');
+		$this->createIndex(null, self::OPTIONS_TABLE, ['attributeId', 'valueKey'], true);
+		$this->addForeignKey(null, self::OPTIONS_TABLE, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
+		$this->addForeignKey(null, self::OPTIONS_TABLE, ['attributeId'], Table::ATTRIBUTES, ['id'], 'CASCADE');
 
 		return true;
 	}

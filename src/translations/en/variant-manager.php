@@ -13,6 +13,7 @@
  * @since     1.0.0
  */
 return [
+	'plugin.name' => 'Variant Manager',
 	'Variant Manager plugin loaded' => 'Variant Manager plugin loaded',
 	'Variant Manager' => 'Variant Manager',
 	'Export Product' => 'Export Product',
@@ -40,16 +41,17 @@ return [
 	'attributes.attributeLower' => 'variant attribute',
 	'attributes.attributes' => 'Variant Attributes',
 	'attributes.attributesLower' => 'variant attributes',
-	'attributes.allAttributes' => 'All attributes',
-	'attributes.name' => 'CSV Name',
+	'attributes.allAttributes' => 'All attributes and options',
+	'attributes.name' => 'System Name',
 	'attributes.noAttributes' => 'No attributes yet. They appear here once an import or the backfill utility has run.',
 	'attributes.notFound' => 'Attribute not found.',
 	'attributes.settingsIntro' => 'Each attribute is a group of options sharing one display and one set of fields, such as paint chips or shirt sizes. Choose how a storefront renders it, and add any fields its options need.',
 	'attributes.filterLabel' => 'Variant Attribute: {attribute}',
 	'attributes.activityCreated' => 'Created attribute {name}',
 	'attributes.deleteInUse' => 'Variants still use this attribute. Remove it from your CSV and reimport, then delete it.',
-	'options.activityCreated' => 'Created option {value} under {attribute}',
+	'options.activityCreated' => 'Created option {name} under {attribute}',
 	'options.deleteInUse' => 'Variants still use this value. Remove it from your CSV and reimport, then delete it.',
+	'attributes.displayName' => 'Display Name',
 	'attributes.displayType' => 'Display Type',
 	'attributes.attributeLayout' => 'Attribute Fields',
 	'attributes.attributeLayoutInstructions' => 'Fields on this attribute, such as a note covering all of its options.',
@@ -81,13 +83,6 @@ return [
 	'jobs.pruneAttributeOrphans' => 'Pruning orphaned variant attributes',
 
 	// Variant attribute options
-	'options.option' => 'Attribute Option',
-	'options.optionLower' => 'attribute option',
-	'options.options' => 'Attribute Options',
-	'options.optionsLower' => 'attribute options',
-	'options.allOptions' => 'All options',
-	'options.value' => 'CSV Value',
-	'options.attribute' => 'Attribute',
 	'options.usedBy' => 'Used by',
 	'options.variantCount' => '{count, plural, =0{No variants} =1{1 variant} other{# variants}}',
 
