@@ -19,6 +19,29 @@ class m260914_090000_nest_attribute_options extends Migration
 
 	public function safeUp(): bool
 	{
+		// Skip what an earlier run applied, since MySQL keeps schema changes from a failed run
+		$structureId = $this->structureId();
+
+		$this->addAttributeIdColumn();
+
+		if (Craft::$app->getDb()->tableExists(self::OPTIONS_TABLE, true)) {
+			$this->copyOptions();
+		}
+
+		$this->placeInStructure($structureId);
+
+		return true;
+	}
+
+	private function structureId(): int
+	{
+		if (Craft::$app->getDb()->tableExists(Table::STRUCTURES, true)) {
+			return (int) (new Query())
+				->select(['id'])
+				->from(Table::STRUCTURES)
+				->scalar();
+		}
+
 		$this->createTable(Table::STRUCTURES, [
 			'id' => $this->integer()->notNull(),
 			'uid' => $this->uid(),
@@ -37,10 +60,22 @@ class m260914_090000_nest_attribute_options extends Migration
 			'id' => $structure->id,
 		]);
 
+		return $structure->id;
+	}
+
+	private function addAttributeIdColumn(): void
+	{
+		if (Craft::$app->getDb()->columnExists(Table::ATTRIBUTES, 'attributeId', true)) {
+			return;
+		}
+
 		$this->addColumn(Table::ATTRIBUTES, 'attributeId', $this->integer()->notNull()->defaultValue(0)->after('id'));
 		$this->dropIndexIfExists(Table::ATTRIBUTES, ['nameKey'], true);
 		$this->createIndex(null, Table::ATTRIBUTES, ['attributeId', 'nameKey'], true);
+	}
 
+	private function copyOptions(): void
+	{
 		$options = (new Query())
 			->from(self::OPTIONS_TABLE)
 			->all();
@@ -67,38 +102,60 @@ class m260914_090000_nest_attribute_options extends Migration
 		}
 
 		$this->dropTableIfExists(self::OPTIONS_TABLE);
-
-		$this->placeInStructure($structure->id);
-
-		return true;
 	}
 
 	private function placeInStructure(int $structureId): void
 	{
 		$structuresService = Craft::$app->getStructures();
 
-		$attributes = VariantAttribute::find()
-			->attributeId(0)
-			->trashed(null)
-			->withStructure(false)
+		// Read the rows directly, since a VariantAttribute query selects columns a later migration adds
+		$rows = (new Query())
+			->select([
+				'attributes.id',
+				'attributes.attributeId',
+			])
+			->from([
+				'attributes' => Table::ATTRIBUTES,
+			])
+			->innerJoin([
+				'elements' => CraftTable::ELEMENTS,
+			], '[[elements.id]] = [[attributes.id]]')
+			->where([
+				'elements.draftId' => null,
+				'elements.revisionId' => null,
+				'elements.archived' => false,
+			])
 			->orderBy([
-				'variant_manager_attributes.name' => SORT_ASC,
+				'attributes.name' => SORT_ASC,
 			])
 			->all();
 
-		foreach ($attributes as $attribute) {
+		$attributeIds = [];
+		$optionIdsByAttributeId = [];
+
+		foreach ($rows as $row) {
+			$id = (int) $row['id'];
+			$attributeId = (int) $row['attributeId'];
+
+			if ($attributeId === 0) {
+				$attributeIds[] = $id;
+			} else {
+				$optionIdsByAttributeId[$attributeId][] = $id;
+			}
+		}
+
+		foreach ($attributeIds as $attributeId) {
+			$attribute = new VariantAttribute([
+				'id' => $attributeId,
+			]);
+
 			$structuresService->appendToRoot($structureId, $attribute);
 
-			$attributeOptions = VariantAttribute::find()
-				->attributeId($attribute->id)
-				->trashed(null)
-				->withStructure(false)
-				->orderBy([
-					'variant_manager_attributes.name' => SORT_ASC,
-				])
-				->all();
+			foreach ($optionIdsByAttributeId[$attributeId] ?? [] as $optionId) {
+				$option = new VariantAttribute([
+					'id' => $optionId,
+				]);
 
-			foreach ($attributeOptions as $option) {
 				$structuresService->append($structureId, $option, $attribute);
 			}
 		}

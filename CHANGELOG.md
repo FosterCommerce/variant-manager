@@ -1,5 +1,11 @@
 # Release Notes for Variant Manager
 
+## 4.0.1 - 2026-09-15
+
+### Fixed
+
+- Fixed an error that occurred when updating to 4.0.0.
+
 ## 4.0.0 - 2026-09-15
 
 > {tip} This release removes the `VariantAttributeOption` element type. See [upgrading to 4.x](./docs/upgrade.md) before updating.
