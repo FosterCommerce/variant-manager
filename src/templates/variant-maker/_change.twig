@@ -1,0 +1,10 @@
+{# Only an update applies the proposed value, so only an update shows the arrow #}
+{%- if proposed is null and current is null -%}
+	<span class="light">{{ (status == 'create' ? emptyLabel : 'variantMaker.valueKept')|t('variant-manager') }}</span>
+{%- elseif proposed is null or status != 'update' or current == proposed -%}
+	{{ current ?? proposed }}
+{%- elseif current is null -%}
+	{{ proposed }}
+{%- else -%}
+	<span class="light">{{ current }}</span> &rarr; {{ proposed }}
+{%- endif -%}

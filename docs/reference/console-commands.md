@@ -75,3 +75,24 @@ Deletes them. Anything a variant has started using since the scan is skipped. An
 | `--batchSize` | `500` | Variants read per batch. |
 
 See [variant attributes](../user-guide/variant-attributes.md).
+
+## `variant-manager/variant-maker/plan`
+
+Print what generating a set of combinations would do to a product's variants.
+
+```sh
+./craft variant-manager/variant-maker/plan 4054 --select="Container Size=1 Quart,1 Gallon;CSP Color=Custom"
+```
+
+The first argument is the product ID. Prints one line per combination with its status, the SKU and the price, and any SKU warning under it. Saves nothing.
+
+The selection is read from `--select` rather than the product's saved builder.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--select` | `''` | Attributes and values to combine, as `Name=A,B;Other Name=C`. |
+| `--mode` | `add` | One of `add`, `update` or `replace`. Only `replace` differs here, since the command includes every property on new variants only. |
+| `--skuFormat` | none | SKU format. Blank uses the default variant SKU followed by each option. |
+| `--basePrice` | none | Price each combination starts from. Blank uses the product's default variant price. |
+
+See [Variant Maker](../user-guide/variant-maker.md).

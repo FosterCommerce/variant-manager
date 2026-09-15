@@ -117,12 +117,28 @@ class Csv extends Component
 			$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
 		}
 
+		$this->saveVariants($product, $variants);
+
+		$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
+		$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
+
+		return $product;
+	}
+
+	/**
+	 * Saves a product's variants in the order Commerce needs, rolling a new product back if it fails to validate.
+	 *
+	 * @param list<Variant> $variants
+	 * @throws \Throwable
+	 */
+	public function saveVariants(Product $product, array $variants): void
+	{
 		// Save a new product first, since variants need its ID
 		if ($product->isNewForSite && ! Craft::$app->elements->saveElement($product, false, true, true)) {
 			$errors = $product->getErrorSummary(false);
 			/** @var ?string $error */
 			$error = reset($errors);
-			throw new \RuntimeException($error ?? 'Failed to save product');
+			throw new \RuntimeException($error ?? Craft::t('variant-manager', 'import.productSaveFailed'));
 		}
 
 		$product->setVariants($variants);
@@ -135,7 +151,7 @@ class Csv extends Component
 				$errors = $variant->getErrorSummary(false);
 				/** @var ?string $error */
 				$error = reset($errors);
-				throw new \RuntimeException($error ?? 'Failed to save product');
+				throw new \RuntimeException($error ?? Craft::t('variant-manager', 'import.variantSaveFailed'));
 			}
 		}
 
@@ -152,13 +168,8 @@ class Csv extends Component
 			$errors = $product->getErrorSummary(false);
 			/** @var ?string $error */
 			$error = reset($errors);
-			throw new \RuntimeException($error ?? 'Failed to save product');
+			throw new \RuntimeException(($error ?? Craft::t('variant-manager', 'import.productSaveFailed')) . self::repeatedSkus($product));
 		}
-
-		$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
-		$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
-
-		return $product;
 	}
 
 	/**
@@ -263,6 +274,27 @@ class Csv extends Component
 		return collect(Variant::find()->sku($items)->all())
 			->groupBy(fn ($variant) => $variant->getOwner()->id)
 			->map(static fn ($variants) => $variants->map(static fn ($variant) => $variant->sku)->all());
+	}
+
+	/**
+	 * Commerce reports a repeated SKU without naming it, leaving no way to tell which variants collided.
+	 */
+	private static function repeatedSkus(Product $product): string
+	{
+		$skus = [];
+
+		foreach ($product->getVariants(true) as $variant) {
+			$skus[] = (string) $variant->sku;
+		}
+
+		$repeated = array_keys(array_filter(
+			array_count_values($skus),
+			static fn (int $count): bool => $count > 1,
+		));
+
+		return $repeated === [] ? '' : ' ' . Craft::t('variant-manager', 'import.repeatedSkus', [
+			'skus' => implode(', ', $repeated),
+		]);
 	}
 
 	private function importSiteSpecificData(TabularDataReader $reader, $skuColumn, array $sitesMap): void

@@ -16,6 +16,7 @@ Coming from 2.x or 3.x? See [upgrading](./upgrade.md).
 - [Importing](./user-guide/importing.md), uploading single CSVs and zip batches.
 - [Exporting](./user-guide/exporting.md), getting CSVs out of Commerce to edit.
 - [Variant attributes](./user-guide/variant-attributes.md), attaching swatches, notes and other fields to attribute values.
+- [Variant Maker](./user-guide/variant-maker.md), building a product's variant matrix from attributes and options.
 - [Troubleshooting](./user-guide/troubleshooting.md), when an import does not behave the way you expected.
 
 **Building on top of the plugin?** See the [developer guide](./dev-guide/), [recipes](./recipes/), and [reference](./reference/):

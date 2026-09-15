@@ -9,8 +9,8 @@ A Craft CMS plugin that imports and exports Craft Commerce product **variants** 
 - Imports a CSV to create or update a Craft Commerce product and its variants.
 - Bulk-imports many products at once from a zip of CSVs, each file becoming its own product.
 - Exports a product to CSV from the product edit page, or many products at once from the Commerce products index.
-- Adds a **Variant Attributes** field that stores option name and value pairs (Color, Size, Material) on each variant for filtering on the storefront.
-- Lets you build a color picker or size swatch in Twig, from swatch images, spec sheets or notes you attach to any attribute value.
+- Adds a **Variant Attributes** field that stores option name and value pairs (Color, Size, Material) on each variant for filtering on the storefront, and lets you attach a swatch image, spec sheet or note to any value to build a color picker or size swatch in Twig.
+- Generates a product's full variant matrix in the control panel from attribute options you pick (three sizes and four colors become twelve variants, each with its own SKU).
 - Sets one field on many variants at once from the Variants index.
 - Logs each import and export, with configurable retention, in a dashboard activity feed.
 
@@ -34,6 +34,14 @@ See [`docs/installation.md`](./docs/installation.md) for the full installation a
 Upload a CSV (or a zip of CSVs) from **Variant Manager -> Dashboard**. The CSV's filename determines the product: a new filename creates a new product, an existing product title updates that product. Each row becomes one variant. Columns map to product fields, variant fields, per-site Commerce fields, inventory levels, and variant attributes.
 
 See [`docs/user-guide/importing.md`](./docs/user-guide/importing.md) and [`docs/user-guide/csv-format.md`](./docs/user-guide/csv-format.md).
+
+## Variant Maker
+
+Builds a product's variants from attributes and options you already have, for stores with no ERP, PIM or CSV feed. Pick the attributes to combine and set what each variant should get. The preview lists every combination and what generating would change, before anything is written. An option can carry a SKU partial and a price modifier, which the generated variant's SKU and price are assembled from.
+
+Off for every product type until you turn it on at **Settings -> Plugins -> Variant Manager**.
+
+See [`docs/user-guide/variant-maker.md`](./docs/user-guide/variant-maker.md).
 
 ## Exporting
 

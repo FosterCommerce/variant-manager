@@ -1,0 +1,46 @@
+{% import '_includes/forms.twig' as forms %}
+
+<div
+	class="vm-row"
+	data-vm-row
+	data-vm-row-id="{{ rowId }}"
+	data-vm-attribute-id="{{ attribute.id ?? '' }}"
+	data-vm-attribute-select-id="{{ ('vm-row-' ~ rowId ~ '-attribute')|namespaceInputId }}"
+	data-vm-options-select-id="{{ ('vm-row-' ~ rowId ~ '-options')|namespaceInputId }}">
+
+	<div class="vm-row__cell">
+		{{ forms.elementSelect({
+			id: 'vm-row-' ~ rowId ~ '-attribute',
+			name: 'variantMaker[rows][' ~ rowId ~ '][attributeId]',
+			elementType: 'fostercommerce\\variantmanager\\elements\\VariantAttribute',
+			criteria: { attributeId: 0 },
+			selectionLabel: 'variantMaker.addAttribute'|t('variant-manager'),
+			elements: attribute ? [attribute] : [],
+			single: true,
+			searchCriteria: {},
+			disabled: static ?? false,
+		}) }}
+	</div>
+
+	<div class="vm-row__cell">
+		{{ forms.elementSelect({
+			id: 'vm-row-' ~ rowId ~ '-options',
+			name: 'variantMaker[rows][' ~ rowId ~ '][optionIds]',
+			elementType: 'fostercommerce\\variantmanager\\elements\\VariantAttribute',
+			criteria: { attributeId: attribute.id ?? -1 },
+			selectionLabel: 'variantMaker.addOption'|t('variant-manager'),
+			elements: options ?? [],
+			sortable: true,
+			viewMode: 'list-inline',
+			searchCriteria: {},
+			disabled: static ?? false,
+		}) }}
+	</div>
+
+	<div class="vm-row__cell vm-row__cell--delete">
+		{% if not (static ?? false) %}
+			<button type="button" class="delete icon" title="{{ 'variantMaker.removeRow'|t('variant-manager') }}" data-vm-row-delete></button>
+		{% endif %}
+	</div>
+
+</div>

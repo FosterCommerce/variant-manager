@@ -12,6 +12,7 @@ use craft\commerce\elements\Variant;
 use craft\console\Controller as ConsoleController;
 use craft\console\controllers\ResaveController;
 use craft\elements\conditions\ElementCondition;
+use craft\events\CreateFieldLayoutFormEvent;
 use craft\events\DefineConsoleActionsEvent;
 use craft\events\DefineFieldLayoutFieldsEvent;
 use craft\events\DefineHtmlEvent;
@@ -26,6 +27,7 @@ use craft\fieldlayoutelements\TitleField;
 use craft\helpers\ElementHelper;
 use craft\helpers\UrlHelper;
 use craft\models\FieldLayout;
+use craft\models\FieldLayoutTab;
 use craft\services\Elements;
 use craft\services\Fields;
 use craft\services\Gc;
@@ -40,13 +42,16 @@ use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\elements\conditions\VariantAttributeConditionRule;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\elements\VariantManagerVariant;
+use fostercommerce\variantmanager\fieldlayoutelements\VariantMakerTab;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
+use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ActivityLogs;
 use fostercommerce\variantmanager\services\AttributeConfigs;
 use fostercommerce\variantmanager\services\Csv;
 use fostercommerce\variantmanager\services\ProductVariants;
 use fostercommerce\variantmanager\services\VariantAttributes;
+use fostercommerce\variantmanager\services\VariantMaker;
 use fostercommerce\variantmanager\utilities\AttributesUtility;
 use yii\base\Event;
 use yii\di\Instance;
@@ -64,12 +69,15 @@ use yii\queue\Queue;
  * @property-read Csv $csv
  * @property-read ActivityLogs $activityLogs
  * @property-read VariantAttributes $variantAttributes
+ * @property-read VariantMaker $variantMaker
  * @property-read AttributeConfigs $attributeConfigs
  * @property-read null|array $cpNavItem
  */
 class Plugin extends BasePlugin
 {
-	public string $schemaVersion = '1.5.0';
+	private const VARIANT_MAKER_TAB_UID = 'f05d5b7a-9a3e-4a2f-9f4e-6b1c2d3e4f50';
+
+	public string $schemaVersion = '1.7.0';
 
 	public bool $hasCpSettings = true;
 
@@ -122,6 +130,12 @@ class Plugin extends BasePlugin
 		return $nav;
 	}
 
+	public function getVariantMaker(): VariantMaker
+	{
+		/** @var VariantMaker */
+		return $this->get('variantMaker');
+	}
+
 	public function getVariantAttributes(): VariantAttributes
 	{
 		/** @var VariantAttributes */
@@ -168,6 +182,8 @@ class Plugin extends BasePlugin
 		$this->registerConditionRules();
 		$this->registerElements();
 		$this->registerNativeFields();
+		$this->registerVariantMakerTab();
+		$this->registerVariantMakerSettings();
 		$this->registerUtilities();
 		$this->registerEvents();
 	}
@@ -281,6 +297,7 @@ class Plugin extends BasePlugin
 			'csv' => Csv::class,
 			'activityLogs' => ActivityLogs::class,
 			'variantAttributes' => VariantAttributes::class,
+			'variantMaker' => VariantMaker::class,
 			'attributeConfigs' => AttributeConfigs::class,
 		]);
 	}
@@ -316,6 +333,112 @@ class Plugin extends BasePlugin
 			Elements::EVENT_REGISTER_ELEMENT_TYPES,
 			static function (RegisterComponentTypesEvent $registerComponentTypesEvent): void {
 				$registerComponentTypesEvent->types[] = VariantAttribute::class;
+			}
+		);
+	}
+
+	private function registerVariantMakerSettings(): void
+	{
+		Event::on(
+			Product::class,
+			Product::EVENT_AFTER_VALIDATE,
+			static function (Event $_event): void {
+				$product = $_event->sender;
+
+				if (! $product instanceof Product) {
+					return;
+				}
+
+				$settings = self::isProductSave() ? Plugin::getInstance()->getVariantMaker()->postedSettings() : null;
+
+				if ($settings === null || $settings->validate()) {
+					return;
+				}
+
+				foreach ($settings->getErrors() as $errors) {
+					foreach ($errors as $error) {
+						$product->addError('variantMaker', $error);
+					}
+				}
+			}
+		);
+
+		Event::on(
+			Elements::class,
+			Elements::EVENT_AFTER_SAVE_ELEMENT,
+			static function (ElementEvent $elementEvent): void {
+				$product = $elementEvent->element;
+
+				// An autosaved draft would otherwise store the builder on every keystroke
+				if (! $product instanceof Product || ElementHelper::isDraftOrRevision($product)) {
+					return;
+				}
+
+				$settings = Plugin::getInstance()->getVariantMaker()->postedSettings();
+
+				if ($settings !== null) {
+					Plugin::getInstance()->getVariantMaker()->saveSettings($product, $settings);
+				}
+			}
+		);
+	}
+
+	/**
+	 * Craft validates a clone of the canonical product to create a draft, so an invalid builder would block
+	 * every autosave rather than the save the merchant asked for.
+	 */
+	private static function isProductSave(): bool
+	{
+		$request = Craft::$app->getRequest();
+
+		// Skip a console request, since only a web request routes by action segments
+		if ($request->getIsConsoleRequest()) {
+			return false;
+		}
+
+		return in_array(implode('/', $request->getActionSegments() ?? []), [
+			'elements/save',
+			'elements/apply-draft',
+		], true);
+	}
+
+	private function registerVariantMakerTab(): void
+	{
+		Event::on(
+			FieldLayout::class,
+			FieldLayout::EVENT_CREATE_FORM,
+			static function (CreateFieldLayoutFormEvent $createFieldLayoutFormEvent): void {
+				$product = $createFieldLayoutFormEvent->element;
+
+				if (! $product instanceof Product) {
+					return;
+				}
+
+				// A revision is a snapshot, so generating variants from one has nothing to act on
+				if ($product->getIsRevision()) {
+					return;
+				}
+
+				$productType = $product->getType();
+
+				if (! Plugin::getInstance()->getSettings()->offersVariantMaker($productType->handle)) {
+					return;
+				}
+
+				// A product type with no attributes field gives the generated variants nowhere to store a combination
+				if (FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout()) === null) {
+					return;
+				}
+
+				// setElements() reads the tab's layout, so it has to be configured before them
+				// Give the tab a stable uid, or the element editor's re-render mismaps every tab
+				$createFieldLayoutFormEvent->tabs[] = new FieldLayoutTab([
+					'layout' => $createFieldLayoutFormEvent->sender,
+					'uid' => self::VARIANT_MAKER_TAB_UID,
+					'name' => Craft::t('variant-manager', 'variantMaker.name'),
+					'sortOrder' => count($createFieldLayoutFormEvent->tabs) + 1,
+					'elements' => [new VariantMakerTab()],
+				]);
 			}
 		);
 	}

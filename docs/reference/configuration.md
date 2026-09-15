@@ -12,6 +12,7 @@ return [
     'attributePrefix' => 'Attribute: ',
     'inventoryPrefix' => 'Inventory',
     'activityLogRetention' => '30 days',
+    'variantMakerProductTypes' => [],
     'productFieldMap' => [
         '*' => [
             'title' => 'title',
@@ -185,7 +186,24 @@ Valid values are `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `co
 
 An attribute already set to a type this list omits keeps it, and the menu still shows it, so nothing is rewritten on the next save. Change that attribute and the omitted type is gone from its menu.
 
-This setting is also editable at **Settings** -> **Plugins** -> **Variant Manager**. Setting it here disables that control, since a config file overrides what the control panel saves.
+This setting is also editable at **Settings** -> **Plugins** -> **Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
+
+### `variantMakerProductTypes`
+
+- Type: `list<string>`
+- Default: `[]`
+
+Handles of the Commerce product types whose products offer the [Variant Maker](../user-guide/variant-maker.md) tab. While this is empty, no product type offers it.
+
+```php
+return [
+    'variantMakerProductTypes' => ['catalog', 'apparel'],
+];
+```
+
+A product type also needs a Variant Attributes field in its variant field layout, since that is where a generated variant stores its combination. Listing a product type without one leaves the tab hidden.
+
+This setting is also editable at **Settings** -> **Plugins** -> **Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
 
 ### `defaultDisplayType`
 

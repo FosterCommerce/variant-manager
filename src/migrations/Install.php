@@ -28,6 +28,8 @@ class Install extends Migration
 			'name' => $this->string()->notNull(),
 			'nameKey' => $this->string()->notNull(),
 			'displayType' => $this->string()->notNull()->defaultValue('dropdown'),
+			'skuPartial' => $this->string(),
+			'priceModifier' => $this->decimal(14, 2),
 			'dateCreated' => $this->dateTime()->notNull(),
 			'dateUpdated' => $this->dateTime()->notNull(),
 			'uid' => $this->uid(),
@@ -47,6 +49,18 @@ class Install extends Migration
 
 		$this->addForeignKey(null, Table::STRUCTURES, ['id'], CraftTable::STRUCTURES, ['id'], 'CASCADE');
 
+		$this->createTable(Table::VARIANT_MAKER, [
+			'id' => $this->primaryKey(),
+			'productId' => $this->integer()->notNull(),
+			'settings' => $this->text(),
+			'dateCreated' => $this->dateTime()->notNull(),
+			'dateUpdated' => $this->dateTime()->notNull(),
+			'uid' => $this->uid(),
+		]);
+
+		$this->createIndex(null, Table::VARIANT_MAKER, ['productId'], true);
+		$this->addForeignKey(null, Table::VARIANT_MAKER, ['productId'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
+
 		$structure = new Structure([
 			'maxLevels' => 2,
 		]);
@@ -62,6 +76,7 @@ class Install extends Migration
 
 	public function safeDown(): bool
 	{
+		$this->dropTableIfExists(Table::VARIANT_MAKER);
 		$this->dropTableIfExists(Table::STRUCTURES);
 		$this->dropTableIfExists(Table::ATTRIBUTES);
 

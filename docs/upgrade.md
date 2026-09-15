@@ -46,6 +46,8 @@ If anything writes attribute values to variants outside the control panel, run t
 ./craft variant-manager/attributes/backfill
 ```
 
+4.0.0 adds the [Variant Maker](./user-guide/variant-maker.md). No product type offers it until you turn it on at **Settings -> Plugins -> Variant Manager**, so an upgrade changes nothing on its own.
+
 ## Upgrading to 3.x
 
 Existing templates keep working. This page is the setup the update needs, plus one change to the Variant Attributes field.

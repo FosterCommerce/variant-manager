@@ -71,6 +71,8 @@ class VariantAttributeQuery extends ElementQuery
 			'variant_manager_attributes.name',
 			'variant_manager_attributes.nameKey',
 			'variant_manager_attributes.displayType',
+			'variant_manager_attributes.skuPartial',
+			'variant_manager_attributes.priceModifier',
 		]);
 
 		if (isset($this->attributeId)) {

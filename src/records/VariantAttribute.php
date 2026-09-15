@@ -11,6 +11,8 @@ use fostercommerce\variantmanager\db\Table;
  * @property string $name
  * @property string $nameKey
  * @property string $displayType
+ * @property null|string $skuPartial
+ * @property null|float $priceModifier
  */
 class VariantAttribute extends ActiveRecord
 {

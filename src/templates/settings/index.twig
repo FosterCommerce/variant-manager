@@ -47,6 +47,17 @@
 		warning: configWarning('availableDisplayTypes'),
 	}) }}
 
+	{{ forms.checkboxSelectField({
+		label: 'settings.variantMakerProductTypes'|t('variant-manager'),
+		instructions: 'settings.variantMakerProductTypesIntro'|t('variant-manager'),
+		name: 'settings[variantMakerProductTypes]',
+		options: productTypeOptions,
+		values: settings.variantMakerProductTypes,
+		disabled: readOnly,
+		errors: settings.getErrors('variantMakerProductTypes'),
+		warning: configWarning('variantMakerProductTypes'),
+	}) }}
+
 	{{ forms.selectField({
 		label: 'settings.defaultDisplayType'|t('variant-manager'),
 		instructions: 'settings.defaultDisplayTypeIntro'|t('variant-manager'),
