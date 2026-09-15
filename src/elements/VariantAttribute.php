@@ -24,6 +24,7 @@ use yii\base\InvalidConfigException;
  * Variants store the name and value as strings, so deleting a row does not change a variant.
  *
  * @property-read null|VariantAttribute $parentAttribute
+ * @property-read list<VariantAttribute> $options
  */
 class VariantAttribute extends Element
 {
@@ -35,7 +36,16 @@ class VariantAttribute extends Element
 
 	public string $displayType = DisplayType::Dropdown->value;
 
+	public ?string $skuPartial = null;
+
+	public ?float $priceModifier = null;
+
 	private ?VariantAttribute $parentAttribute = null;
+
+	/**
+	 * @var list<self>|null
+	 */
+	private ?array $options = null;
 
 	public static function displayName(): string
 	{
@@ -91,6 +101,28 @@ class VariantAttribute extends Element
 	public function isOption(): bool
 	{
 		return $this->attributeId !== 0;
+	}
+
+	/**
+	 * @return list<self>
+	 */
+	public function getOptions(): array
+	{
+		if ($this->isOption()) {
+			return [];
+		}
+
+		return $this->options ??= self::find()
+			->attributeId($this->id)
+			->all();
+	}
+
+	/**
+	 * @param list<self> $options
+	 */
+	public function setOptions(array $options): void
+	{
+		$this->options = $options;
 	}
 
 	public function getParentAttribute(): ?self
@@ -180,6 +212,8 @@ class VariantAttribute extends Element
 			$record->name = $this->name;
 			$record->nameKey = $this->nameKey;
 			$record->displayType = $this->displayType;
+			$record->skuPartial = $this->skuPartial;
+			$record->priceModifier = $this->priceModifier;
 			$record->save(false);
 
 			if ($isNew) {
@@ -366,9 +400,10 @@ class VariantAttribute extends Element
 		$rules[] = [['displayType'],
 			'in',
 			'range' => array_column(DisplayType::cases(), 'value')];
-		$rules[] = [['name', 'nameKey'],
+		$rules[] = [['name', 'nameKey', 'skuPartial'],
 			'string',
 			'max' => 255];
+		$rules[] = [['priceModifier'], 'number'];
 		return $rules;
 	}
 
@@ -434,11 +469,25 @@ class VariantAttribute extends Element
 		]);
 
 		// Variants match on the option value string, so the value is read only
-		return $fields . Cp::textFieldHtml([
+		$fields .= Cp::textFieldHtml([
 			'label' => Craft::t('variant-manager', 'attributes.name'),
 			'id' => 'name',
 			'value' => $this->name,
 			'disabled' => true,
+		]);
+
+		$fields .= Cp::textFieldHtml([
+			'label' => Craft::t('variant-manager', 'options.skuPartial'),
+			'id' => 'skuPartial',
+			'name' => 'skuPartial',
+			'value' => $this->skuPartial,
+		]);
+
+		return $fields . Cp::textFieldHtml([
+			'label' => Craft::t('variant-manager', 'options.priceModifier'),
+			'id' => 'priceModifier',
+			'name' => 'priceModifier',
+			'value' => $this->priceModifier,
 		]);
 	}
 }

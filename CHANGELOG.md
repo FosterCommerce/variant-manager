@@ -1,11 +1,15 @@
 # Release Notes for Variant Manager
 
-## 4.0.0 - 2026-09-14
+## 4.0.0 - 2026-09-15
 
 > {tip} This release removes the `VariantAttributeOption` element type. See [upgrading to 4.x](./docs/upgrade.md) before updating.
 
 ### Added
 
+- Added the Variant Maker, which builds a product's variants from the attributes and options you pick, with a preview of what generating would change.
+- Added a “Variant Maker Product Types” setting, for choosing which product types offer the Variant Maker. No product type offers it by default.
+- Added a “SKU Partial” and a “Price Modifier” to each attribute option, which the Variant Maker assembles into a generated variant's SKU and price.
+- Added a `variant-manager/variant-maker/plan` command, for previewing a plan from the command line.
 - Added drag ordering to the “Variant Attributes” listing, for arranging an attribute's options in the order a storefront should render them.
 - Added a `resave/variant-attributes` command, for re-saving attributes and options and rewriting their search keywords.
 

@@ -193,6 +193,28 @@ class VariantAttributes extends Component
 	}
 
 	/**
+	 * Every attribute with its options already loaded, so a caller rendering all of them queries twice.
+	 *
+	 * @return array<int, VariantAttribute>
+	 */
+	public function getAllAttributesWithOptions(): array
+	{
+		$attributes = $this->getAllAttributes();
+
+		$optionsByAttributeId = [];
+
+		foreach (VariantAttribute::find()->attributeId('not 0')->all() as $option) {
+			$optionsByAttributeId[$option->attributeId][] = $option;
+		}
+
+		foreach ($attributes as $attribute) {
+			$attribute->setOptions($optionsByAttributeId[$attribute->id] ?? []);
+		}
+
+		return $attributes;
+	}
+
+	/**
 	 * Registry rows for the given names and their values, indexed by name and then by raw value.
 	 *
 	 * @param array<string, list<string>> $valuesByName

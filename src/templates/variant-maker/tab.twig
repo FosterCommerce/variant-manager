@@ -1,0 +1,142 @@
+{% import '_includes/forms.twig' as forms %}
+
+{% if not product.id %}
+	{{ forms.field({
+		label: 'variantMaker.name'|t('variant-manager'),
+	}, '<p class="light">' ~ 'variantMaker.saveFirst'|t('variant-manager') ~ '</p>') }}
+{% else %}
+	{% if not static %}
+		{% do view.registerAssetBundle('fostercommerce\\variantmanager\\VariantMakerAssetBundle') %}
+	{% endif %}
+
+	<div {{ static ? '' : 'data-vm-variant-maker' }} data-vm-product-id="{{ product.id }}">
+		{% set rowBuilder %}
+			<div class="vm-row vm-row--head">
+				<span>{{ 'attributes.attribute'|t('variant-manager') }}</span>
+				<span>{{ 'variantMaker.options'|t('variant-manager') }}</span>
+				<span></span>
+			</div>
+
+			<div class="vm-rows" data-vm-rows>
+				{% for row in savedRows %}
+					{% include 'variant-manager/variant-maker/_row' with {
+						rowId: loop.index,
+						attribute: row.attribute,
+						options: row.options,
+						static: static,
+					} only %}
+				{% endfor %}
+			</div>
+
+			{% if not static %}
+				<button type="button" class="btn add icon" data-vm-add-row>{{ 'variantMaker.addRow'|t('variant-manager') }}</button>
+			{% endif %}
+		{% endset %}
+
+		{{ forms.field({
+			label: 'variantMaker.rows'|t('variant-manager'),
+			instructions: 'variantMaker.rowsInstructions'|t('variant-manager'),
+		}, rowBuilder) }}
+
+		{{ forms.selectField({
+			label: 'variantMaker.mode'|t('variant-manager'),
+			instructions: 'variantMaker.modeInstructions'|t('variant-manager'),
+			name: 'variantMaker[mode]',
+			value: settings.mode,
+			options: [
+				{ label: 'variantMaker.mode.add'|t('variant-manager'), value: 'add' },
+				{ label: 'variantMaker.mode.update'|t('variant-manager'), value: 'update' },
+				{ label: 'variantMaker.mode.replace'|t('variant-manager'), value: 'replace' },
+			],
+		}) }}
+
+		{% set propertyTable %}
+			<table class="data fullwidth vm-properties">
+				<thead>
+					<tr>
+						<th scope="col">{{ 'variantMaker.property'|t('variant-manager') }}</th>
+						<th scope="col">{{ 'variantMaker.include'|t('variant-manager') }}</th>
+						<th scope="col">{{ 'variantMaker.value'|t('variant-manager') }}</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for propertyName in propertyNames|filter(propertyName => not (propertyName == 'title' and generatesTitles)) %}
+						{% set property = settings.property(propertyName) %}
+						{% set required = propertyName in requiredProperties %}
+						{% set tracked = settings.property('inventoryTracked') %}
+						<tr
+							data-vm-property="{{ propertyName }}"
+							class="{{ propertyName in ['stock', 'allowOutOfStockPurchases'] and not (tracked.include and tracked.value) ? 'hidden' }}">
+							<th scope="row" id="vm-property-{{ propertyName }}">{{ ('variantMaker.property.' ~ propertyName)|t('variant-manager') }}</th>
+							<td data-vm-include>
+								{{ forms.lightswitch({
+									name: 'variantMaker[properties][' ~ propertyName ~ '][include]',
+									on: property.include,
+									disabled: required,
+									title: required ? 'variantMaker.propertyRequired'|t('variant-manager') : null,
+									labelledBy: 'vm-property-' ~ propertyName,
+								}) }}
+							</td>
+							<td data-vm-value>
+								{% if propertyName in ['title', 'sku', 'price'] %}
+									{{ forms.text({
+										name: 'variantMaker[properties][' ~ propertyName ~ '][value]',
+										value: property.value,
+										placeholder: ('variantMaker.placeholder.' ~ propertyName)|t('variant-manager'),
+										labelledBy: 'vm-property-' ~ propertyName,
+									}) }}
+								{% elseif propertyName == 'stock' %}
+									{{ forms.text({
+										type: 'number',
+										min: 0,
+										size: 6,
+										name: 'variantMaker[properties][' ~ propertyName ~ '][value]',
+										value: property.value,
+										labelledBy: 'vm-property-' ~ propertyName,
+									}) }}
+								{% else %}
+									{{ forms.lightswitch({
+										name: 'variantMaker[properties][' ~ propertyName ~ '][value]',
+										on: property.value,
+										labelledBy: 'vm-property-' ~ propertyName,
+									}) }}
+								{% endif %}
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+
+			{% if inventoryLocations|length > 1 %}
+				{{ forms.selectField({
+					label: 'variantMaker.inventoryLocation'|t('variant-manager'),
+					name: 'variantMaker[inventoryLocationId]',
+					value: settings.inventoryLocationId,
+					options: inventoryLocations,
+				}) }}
+			{% endif %}
+		{% endset %}
+
+		{{ forms.field({
+			label: 'variantMaker.properties'|t('variant-manager'),
+			instructions: 'variantMaker.propertiesInstructions'|t('variant-manager'),
+		}, propertyTable
+			~ '<p class="light">' ~ 'variantMaker.formatTokens'|t('variant-manager') ~ '</p>'
+			~ (generatesTitles ? '<p class="light">' ~ 'variantMaker.titlesGenerated'|t('variant-manager') ~ '</p>' : '')
+			~ '<p class="light">' ~ 'variantMaker.propertiesExcluded'|t('variant-manager') ~ '</p>') }}
+
+		<hr>
+
+		<h4>{{ 'variantMaker.preview'|t('variant-manager') }}</h4>
+		<div data-vm-preview aria-live="polite" aria-busy="false"></div>
+
+		{% if not static %}
+			<div class="vm-generate">
+				<button type="button" class="btn submit" data-vm-generate>{{ 'variantMaker.generate'|t('variant-manager') }}</button>
+				<span class="light">{{ 'variantMaker.generateInstructions'|t('variant-manager', {
+					activity: '<a href="' ~ url('variant-manager/dashboard') ~ '">' ~ 'variantMaker.results'|t('variant-manager') ~ '</a>',
+				})|raw }}</span>
+			</div>
+		{% endif %}
+	</div>
+{% endif %}

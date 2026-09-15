@@ -1,0 +1,61 @@
+{% if rows is empty %}
+	<p class="light">{{ 'variantMaker.previewEmpty'|t('variant-manager') }}</p>
+{% else %}
+	<p>
+		{% for status in ['create', 'update', 'unchanged', 'delete'] %}
+			{% set count = rows|filter(row => row.status == status)|length %}
+			{% if count %}
+				<span class="vm-status vm-status--{{ status }}">{{ ('variantMaker.status.' ~ status)|t('variant-manager') }}: {{ count }}</span>
+			{% endif %}
+		{% endfor %}
+	</p>
+
+	{% set skuIssueCount = rows|filter(row => row.skuIssue is not null)|length %}
+	{% if skuIssueCount %}
+		<p class="vm-sku-issues error">{{ 'variantMaker.skuIssues'|t('variant-manager', { count: skuIssueCount, max: skuMaxLength }) }}</p>
+	{% endif %}
+
+	<table class="data fullwidth">
+		<thead>
+			<tr>
+				<th scope="col">{{ 'variantMaker.status'|t('variant-manager') }}</th>
+				<th scope="col">{{ 'variantMaker.combination'|t('variant-manager') }}</th>
+				{% if not generatesTitles %}
+					<th scope="col">{{ 'variantMaker.title'|t('variant-manager') }}</th>
+				{% endif %}
+				<th scope="col">{{ 'variantMaker.sku'|t('variant-manager') }}</th>
+				<th scope="col">{{ 'variantMaker.price'|t('variant-manager') }}</th>
+				<th scope="col">{{ 'variantMaker.stock'|t('variant-manager') }}</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for row in rows %}
+				<tr>
+					<td><span class="vm-status vm-status--{{ row.status }}">{{ ('variantMaker.status.' ~ row.status)|t('variant-manager') }}</span></td>
+					<td>
+						{%- for pair in row.pairs -%}
+							{{ pair.attributeValue }}{% if not loop.last %} / {% endif %}
+						{%- endfor -%}
+					</td>
+					{% if not generatesTitles %}
+						<td>{{ include('variant-manager/variant-maker/_change', { current: row.currentTitle, proposed: row.title, status: row.status, emptyLabel: 'variantMaker.valueDefault' }) }}</td>
+					{% endif %}
+					<td>
+						{{- include('variant-manager/variant-maker/_change', { current: row.currentSku, proposed: row.sku, status: row.status, emptyLabel: 'variantMaker.valueDefault' }) -}}
+						{% if row.skuIssue %}
+							<span class="vm-sku-issue">{{ row.skuIssue }}</span>
+						{% endif %}
+					</td>
+					<td>{{ include('variant-manager/variant-maker/_change', { current: row.currentPrice, proposed: row.price, status: row.status, emptyLabel: 'variantMaker.valueDefault' }) }}</td>
+					<td>
+						{%- if not tracksInventory -%}
+							<span class="light">{{ 'variantMaker.valueUnlimited'|t('variant-manager') }}</span>
+						{%- else -%}
+							{{ include('variant-manager/variant-maker/_change', { current: null, proposed: row.property('stock'), status: row.status, emptyLabel: 'variantMaker.valueNone' }) }}
+						{%- endif -%}
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endif %}

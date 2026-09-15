@@ -3,6 +3,8 @@
 namespace fostercommerce\variantmanager\controllers;
 
 use Craft;
+use craft\commerce\models\ProductType;
+use craft\commerce\Plugin as Commerce;
 use craft\web\Controller;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\enums\DisplayType;
@@ -24,6 +26,13 @@ class SettingsController extends Controller
 			'settings' => $settings,
 			'displayTypeOptions' => DisplayType::options(DisplayType::cases()),
 			'defaultDisplayTypeOptions' => DisplayType::options($settings->getAvailableDisplayTypes($settings->defaultDisplayType)),
+			'productTypeOptions' => array_map(
+				static fn (ProductType $productType): array => [
+					'label' => $productType->name,
+					'value' => $productType->handle,
+				],
+				Commerce::getInstance()->getProductTypes()->getAllProductTypes(),
+			),
 			'readOnly' => ! Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
 		]);
 	}

@@ -23,6 +23,7 @@ return [
 	'bulkEditableVariantFields' => [],
 	'availableDisplayTypes' => [],
 	'defaultDisplayType' => 'dropdown',
+	'variantMakerProductTypes' => [],
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',

@@ -56,7 +56,7 @@ Values come from the variant's own stored data, so the card costs no extra queri
 
 **Display Type** is set on the attribute itself, at **Variant Manager -> Variant Attributes**. It tells your storefront how to render the options: dropdown, radio buttons, text buttons, image swatches, color swatches or lightswitch. It does not change anything in the control panel. Dropdown is the default.
 
-**Available Display Types**, at **Settings** -> **Plugins** -> **Variant Manager**, narrows that menu to the types your templates render. It applies to every attribute. A developer can also set it in [`availableDisplayTypes`](../reference/configuration.md#availabledisplaytypes), which disables the control panel field.
+**Available Display Types**, at **Settings** -> **Plugins** -> **Variant Manager**, narrows that menu to the types your templates render. It applies to every attribute. A developer can also set it in [`availableDisplayTypes`](../reference/configuration.md#availabledisplaytypes), which overrides what that screen saves.
 
 **Default Display Type**, on the same screen, is what a new attribute is given when an import first registers it. Attributes that already exist keep the type they have.
 

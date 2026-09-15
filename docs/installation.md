@@ -65,6 +65,8 @@ Those values are the defaults, so the file above changes nothing. See [configura
 
 Attribute display types and field layouts are set in the CP instead, at **Settings -> Plugins -> Variant Manager**, and stored in project config. See [variant attributes](./user-guide/variant-attributes.md).
 
+The same screen carries **Variant Maker product types**, which decides where the Variant Maker tab appears. No product type offers it by default. See [Variant Maker](./user-guide/variant-maker.md).
+
 ## Add the Variant Attributes field
 
 The plugin ships a **Variant Attributes** field type. Add it to every Commerce product type whose variants you want to import or export by attribute.

@@ -64,6 +64,11 @@ class Settings extends Model
 	 */
 	public array $availableDisplayTypes = [];
 
+	/**
+	 * @var list<string> handles of the product types whose products offer the Variant Maker
+	 */
+	public array $variantMakerProductTypes = [];
+
 	public string $defaultDisplayType = DisplayType::Dropdown->value;
 
 	public array $productFieldMap = [
@@ -81,6 +86,13 @@ class Settings extends Model
 			$values['availableDisplayTypes'] = array_values(array_filter(
 				(array) $values['availableDisplayTypes'],
 				static fn (string $displayType): bool => $displayType !== ''
+			));
+		}
+
+		if (isset($values['variantMakerProductTypes'])) {
+			$values['variantMakerProductTypes'] = array_values(array_filter(
+				(array) $values['variantMakerProductTypes'],
+				static fn (string $productTypeHandle): bool => $productTypeHandle !== ''
 			));
 		}
 
@@ -124,6 +136,11 @@ class Settings extends Model
 	public function getDefaultDisplayType(): DisplayType
 	{
 		return DisplayType::tryFrom($this->defaultDisplayType) ?? DisplayType::Dropdown;
+	}
+
+	public function offersVariantMaker(string $productTypeHandle): bool
+	{
+		return in_array($productTypeHandle, $this->variantMakerProductTypes, true);
 	}
 
 	public function getAvailableProductTypes(): array
