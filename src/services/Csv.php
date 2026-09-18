@@ -117,16 +117,24 @@ class Csv extends Component
 			$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
 		}
 
-		$this->saveVariants($product, $variants);
+		try {
+			$this->saveVariants($product, $variants);
 
-		$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
-		$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
+			$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
+			$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
+		} catch (\Throwable $throwable) {
+			if ($product->isNewForSite && $product->id !== null) {
+				Craft::$app->elements->deleteElement($product);
+			}
+
+			throw $throwable;
+		}
 
 		return $product;
 	}
 
 	/**
-	 * Saves a product's variants in the order Commerce needs, rolling a new product back if it fails to validate.
+	 * Saves a product's variants in the order Commerce needs.
 	 *
 	 * @param list<Variant> $variants
 	 * @throws \Throwable
@@ -157,14 +165,6 @@ class Csv extends Component
 
 		// Validate, so an invalid product fails the import instead of saving half-formed
 		if (! Craft::$app->elements->saveElement($product, true, true, true)) {
-			if ($product->isNewForSite) {
-				// Roll back a new product, or a failed import leaves an empty one behind
-				foreach ($variants as $variant) {
-					Craft::$app->elements->deleteElement($variant, true);
-				}
-				Craft::$app->elements->deleteElement($product);
-			}
-
 			$errors = $product->getErrorSummary(false);
 			/** @var ?string $error */
 			$error = reset($errors);
