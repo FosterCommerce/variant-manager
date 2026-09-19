@@ -1,6 +1,6 @@
 {
 	"name": "fostercommerce/variant-manager",
-	"description": "A plugin for managing product variants.",
+	"description": "A Craft CMS plugin that makes a Craft Commerce variant a combination of attributes and options, in the same field on every product type.",
 	"type": "craft-plugin",
 	"keywords": [
 		"craft",
@@ -15,16 +15,16 @@
 		}
 	],
 	"support": {
-		"email": "support@fostercomerce.com",
+		"email": "support@fostercommerce.com",
 		"issues": "https://github.com/fostercommerce/variant-manager/issues?state=open",
 		"source": "https://github.com/fostercommerce/variant-manager",
-		"docs": "https://github.com/fostercommerce/variant-manager/blob/develop/README.md"
+		"docs": "https://www.fostercommerce.com/craft-cms-plugins/variant-manager/docs"
 	},
 	"require": {
 		"php": ">=8.2.0",
 		"craftcms/cms": "^5.0",
 		"craftcms/commerce": "^5.0",
-		"league/csv": "^9.0"
+		"league/csv": "^9.27"
 	},
 	"require-dev": {
 		"craftcms/phpstan": "dev-main",
@@ -43,7 +43,7 @@
 	"extra": {
 		"handle": "variant-manager",
 		"name": "Variant Manager",
-		"documentationUrl": "https://github.com/fostercommerce/variant-manager/blob/develop/README.md"
+		"documentationUrl": "https://www.fostercommerce.com/craft-cms-plugins/variant-manager/docs"
 	},
 	"config": {
 		"sort-packages": true,

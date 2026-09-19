@@ -4,18 +4,18 @@ Get a CSV out of Craft Commerce so you can edit it in a spreadsheet and reimport
 
 ## Two ways to export
 
-- **One product at a time**: from the product edit page. Useful when you want to edit a single product's variants.
-- **Many products at once**: from **Commerce -> Products**, using a multi-select action. Useful for catalog-wide updates.
+- **One product at a time**: from the product edit page, for editing one product's variants in a spreadsheet.
+- **Many products at once**: from **Commerce -> Products**, using a selection action, for catalog-wide updates.
 
 ## Exporting one product
 
 1. **Commerce -> Products** and open the product you want to export.
 2. In the right-hand sidebar at the bottom of the edit page, click **Export Product**.
 
-   ![Screenshot](../../resources/img/export-product.png)
+   ![The Export Product button on a product's edit screen](../../resources/img/export-product.png)
 3. The file downloads automatically as `{id}__{slug}.csv` (for example `42__classic-tee.csv`).
 
-That filename is important: when you reupload it, Variant Manager uses the `{id}` part before `__` to match the file back to the same product even if you have renamed the product since exporting. Do not rename the file before reuploading.
+That filename is important: when you reupload it, Variant Manager uses the `{id}` part before `__` to match the file back to the same product even if you have renamed the product since exporting. The title in the file then overwrites the new title, because every import writes the first cell of row 2 onto the product. Before reimporting an export taken before a rename, edit that cell. Do not rename the file before reuploading.
 
 ## Exporting many products
 
@@ -35,21 +35,21 @@ Exported CSVs are shaped so they can be reimported as-is after edits to cell val
 
 Column order:
 
-1. Product fields from `productFieldMap` (title, slug, status, plus anything custom).
+1. Product fields from `productFieldMap` (title, slug, status, plus any custom fields).
 2. Variant fields from `variantFieldMap` (sku, height, width, length, weight, and so on).
-3. Per-site Commerce variant fields suffixed with `[siteHandle]` (`basePrice[default]`, `inventoryTracked[default]`, `availableForPurchase[default]`, `freeShipping[default]`, `promotable[default]`, `minQty[default]`, `maxQty[default]`), one column per site in the store.
-4. Inventory columns for each inventory location, all six totals per location (`Inventory[location]: available`, `committed`, `reserved`, `damaged`, `safety`, `qualityControl`).
-5. Variant Attribute columns prefixed with `Attribute: ` (one per attribute on the product).
+3. Per-site Commerce variant fields suffixed with `[siteHandle]` (`basePrice[default]`, `inventoryTracked[default]`, `availableForPurchase[default]`, `freeShipping[default]`, `promotable[default]`, `minQty[default]`, `maxQty[default]`), one column per site in the Craft install, not only the sites in this product's store.
+4. Inventory columns for each inventory location, all six totals per location (`Inventory[location]: reserved`, `damaged`, `safety`, `qualityControl`, `committed`, `available`).
+5. Variant Attribute columns prefixed with `Attribute: `, one per attribute on the variant the header is built from. That is the first inventory-tracked variant, or the first variant when no variant is tracked, so a product whose variants store different attributes gets columns for only that variant's attributes.
 
 A few notes on the export content:
 
-- The first row after the header is the product row. It carries the product's title, slug, status, and any product field values.
+- The first row after the header is the product row. It has the product's title, slug, status, and any product field values.
 - Each following row is one variant.
 - Disabled products and variants are included; the `status` column reads `disabled` for them. Removing the `status` entry from `productFieldMap` skips the column.
 - Variants with `inventoryTracked` on get their inventory totals filled in; untracked variants have empty cells in the inventory columns.
 - The `stock` column, if you have it mapped, is left empty for tracked variants since Commerce's inventory levels manage stock instead.
 
-See [configuration reference](../reference/configuration.md) for changing the field maps.
+To change the field maps, see [configuration reference](../reference/configuration.md).
 
 ## Editing and reimporting
 
@@ -63,17 +63,17 @@ Steps:
 
 When you reupload an existing product:
 
-- The modal recognizes it as an existing product and asks whether to **Update and remove extra variants** (default) or **Replace all variants**.
-- Choose **Update and remove extra variants** for the round-trip workflow. Any variant whose SKU is in the CSV gets updated; any variant whose SKU is missing gets deleted.
+- The modal reads the ID prefix and asks whether to **Update & remove extra variants** (default) or **Replace all variants**.
+- Choose **Update & remove extra variants** for the round-trip workflow. Any variant whose SKU is in the CSV gets updated; any variant whose SKU is missing gets deleted.
 
-See [importing](./importing.md#existing-product-update-options) for the difference between the two refresh options.
+For the difference between the two, see [importing](./importing.md#existing-product-update-options).
 
-## Common gotchas
+## Common mistakes
 
-- **Renaming an export file**: do not. Renaming `42__classic-tee.csv` to anything else makes Variant Manager treat it as a brand-new product and will probably fail with "One or more SKUs already exist".
-- **Editing column headers**: do not rename the column headers. The plugin maps columns by header text; changing `basePrice[default]` to `Price` will leave prices unchanged on reimport.
-- **Reordering columns**: safe. The plugin matches columns by header, not position.
+- **Renaming an export file**: do not. Renaming `42__classic-tee.csv` to any other name makes the import read it as a brand-new product, and the import probably fails with "One or more SKUs already exist".
+- **Editing column headers**: do not rename the column headers. The plugin maps columns by header text; changing `basePrice[default]` to `Price` leaves prices unchanged on reimport.
+- **Reordering columns**: safe for every column except the first. The plugin matches columns by header, but the product title is read from the first cell of row 2 whatever its header says, so moving another column in front of `title` renames the product on reimport.
 - **Adding new attribute columns**: safe. Add a new `Attribute: Material` column with values and reimport.
 - **Removing attribute columns**: removes that attribute from every variant.
 - **Adding a row with a new SKU**: creates a new variant on reimport.
-- **Removing a row**: deletes that variant on reimport (under the default Refresh variants choice).
+- **Removing a row**: deletes that variant on reimport, under the default variant-handling choice.

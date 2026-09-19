@@ -16,7 +16,7 @@ Substitute the handle you gave the field for `variantAttributes`.
 
 ## `craft.variantManager.getAttributeOptions(product, only?)`
 
-Returns the distinct attribute names and the unique values used across a product's variants. Useful for building variant pickers and faceted filters.
+Returns the distinct attribute names and the unique values used across a product's variants. Use it to build variant pickers and faceted filters.
 
 Parameters:
 
@@ -43,11 +43,11 @@ The result is plain strings, so it is safe to pass to `json_encode` for a JavaSc
 
 ## `craft.variantManager.getAttributeRegistry(product, only?)`
 
-Returns the same names and values, each paired with the [registry](../user-guide/variant-attributes.md) elements that carry its metadata. Use this to render swatches, display names, or any field a developer added.
+Returns the same names and values, each paired with the [registry](../user-guide/variant-attributes.md) elements that have its metadata. Use this to render swatches, display names, or any field a developer added.
 
 Takes the same parameters. Each entry adds:
 
-- `attribute`: the attribute element, or `null` if the name is not registered yet. Carries the display type and the attribute's own fields.
+- `attribute`: the attribute element, or `null` if the name is not registered yet. Has the display type and the attribute's own fields.
 - `options`: the option elements, keyed by the raw value. A value that is not registered is absent from this array.
 
 These are elements, so read them in Twig rather than encoding them. `json_encode` inlines every public property of every element.
@@ -75,7 +75,7 @@ These are elements, so read them in Twig rather than encoding them. `json_encode
 
 A name or value that has not been registered yet has no element, so fall back to the raw name and value.
 
-`attribute.displayType` is one of `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `colorSwatches` or `lightswitch`. Branch on it to pick how you render the options.
+`attribute.displayType` is one of `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `colorSwatches`, or `lightswitch`. Branch on it to pick how you render the options.
 
 ### Example: limit to specific attributes
 

@@ -31,13 +31,17 @@ return [
 	'import.productSaveFailed' => 'Couldn’t save the product.',
 	'import.variantSaveFailed' => 'Couldn’t save the variant.',
 	'import.repeatedSkus' => 'Repeated: {skus}',
+	'import.missingSiteHandle' => 'Column “{heading}” is missing its [siteHandle] suffix.',
+	'import.malformedInventoryColumn' => 'Column “{heading}” is not in the form prefix[location]: total.',
+	'import.unknownProductId' => 'No product has ID {id}.',
+	'import.unreadableZip' => 'The zip file could not be read.',
 	'import.missingSkuColumn' => 'The CSV has no “sku” column.',
 
 	// Variant Attributes field
 	'field.nameHeading' => 'Name',
 	'field.valueHeading' => 'Value',
 	'field.multipleFieldsWarning' => 'Multiple Variant Attributes fields have been applied.',
-	'field.multipleFieldsIgnored' => 'This field will be ignored.',
+	'field.multipleFieldsIgnored' => 'This field is ignored.',
 
 	// Variant attributes
 	'attributes.attribute' => 'Variant Attribute',
@@ -110,12 +114,12 @@ return [
 	'variantMaker.modeInstructions' => 'Add only creates the combinations that are missing, and never touches an existing variant. Update also rewrites existing variants with every included property. Replace does that and deletes any variant not in the generated set.',
 	'variantMaker.mode.add' => 'Add missing only',
 	'variantMaker.mode.update' => 'Add and update existing',
-	'variantMaker.mode.replace' => 'Replace: add, update and delete',
+	'variantMaker.mode.replace' => 'Replace: add, update, and delete',
 	'variantMaker.titlesGenerated' => 'This product type builds variant titles from its own format, so the Variant Maker does not set them.',
 	'variantMaker.title' => 'Title',
 	'variantMaker.properties' => 'Variant properties',
 	'variantMaker.propertiesInstructions' => 'Include a property to have the Variant Maker set it. Whether an existing variant is rewritten is decided above, by what to do with existing variants. SKU and price are always set, since Commerce requires both. A new variant is always titled, falling back to its combination. Anything else left out keeps whatever Commerce sets.',
-	'variantMaker.formatTokens' => 'In a title or SKU format, {Attribute Name} becomes the option chosen under that attribute. Type anything else, such as a product code, as-is. Left blank, a title is the options joined by a slash and a SKU is the default variant SKU followed by each option, with spaces turned into dashes.',
+	'variantMaker.formatTokens' => 'In a title or SKU format, {Attribute Name} becomes the option chosen under that attribute. Any other text, such as a product code, is used as-is. Left blank, a title is the options joined by a slash and a SKU is the default variant SKU followed by each option, with spaces turned into dashes.',
 	'variantMaker.propertiesExcluded' => 'Not set here: dimensions, weight, tax and shipping categories, minimum and maximum quantity, promotional price, and any custom fields.',
 	'variantMaker.property' => 'Property',
 	'variantMaker.include' => 'Include',

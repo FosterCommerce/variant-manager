@@ -27,6 +27,7 @@ use craft\fields\Money as MoneyField;
 use craft\helpers\DateTimeHelper;
 use craft\helpers\ElementHelper;
 use craft\helpers\Typecast;
+use craft\models\FieldLayout;
 use craft\models\Site;
 use DateTimeInterface;
 use fostercommerce\variantmanager\errors\FieldMapException;
@@ -111,7 +112,7 @@ class Csv extends Component
 				$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
 			} else {
 				// $refreshVariants and normalizeExistingProductImport() both delete variants
-				$replacedVariants = Variant::find()->product($product)->all();
+				$replacedVariants = Variant::find()->product($product)->status(null)->all();
 
 				if ($refreshVariants) {
 					foreach ($replacedVariants as $replacedVariant) {
@@ -212,7 +213,7 @@ class Csv extends Component
 		$mapping = $this->resolveVariantExportMapping($product, $sites);
 		$productMapping = $this->resolveProductExportMapping($product);
 
-		$writer = Writer::createFromString();
+		$writer = Writer::fromString();
 
 		// Headers include variant fields and attributes
 		$inventoryHeaders = [];
@@ -279,7 +280,7 @@ class Csv extends Component
 	 */
 	protected function findProductVariantSkus(array $items): Collection
 	{
-		return collect(Variant::find()->sku($items)->all())
+		return collect(Variant::find()->sku($items)->status(null)->all())
 			->groupBy(fn ($variant) => $variant->getOwner()->id)
 			->map(static fn ($variants) => $variants->map(static fn ($variant) => $variant->sku)->all());
 	}
@@ -352,7 +353,12 @@ class Csv extends Component
 			}
 
 			foreach ($sites as $siteHandle => $data) {
-				$variant = Variant::find()->sku($record[$skuColumn])->site($siteHandle)->one();
+				$variant = Variant::find()->sku($record[$skuColumn])->site($siteHandle)->status(null)->one();
+				if ($variant === null) {
+					// The product is not propagated to this site, so the column has nowhere to write
+					Craft::warning("Skipped per-site values for SKU {$record[$skuColumn]} on site {$siteHandle}", __METHOD__);
+					continue;
+				}
 
 				if ($data->firstWhere('field', 'availableForPurchase') === null) {
 					// If the availableForPurchase field does not exist, then we will default it to true
@@ -410,7 +416,7 @@ class Csv extends Component
 				continue;
 			}
 
-			$variant = Variant::find()->sku($record[$skuColumn])->one();
+			$variant = Variant::find()->sku($record[$skuColumn])->status(null)->one();
 
 			if (! $variant->inventoryTracked) {
 				continue;
@@ -466,7 +472,7 @@ class Csv extends Component
 		}
 
 		// Exit early if there are duplicate SKUs
-		$skus = iterator_to_array($tabularDataReader->fetchColumnByOffset($skuColumn));
+		$skus = iterator_to_array($tabularDataReader->fetchColumn($skuColumn));
 
 		$countedSkus = array_count_values($skus);
 		$duplicateSkus = array_filter($countedSkus, static fn ($count): bool => $count > 1);
@@ -492,7 +498,7 @@ class Csv extends Component
 	 */
 	private function read(string $csvData): TabularDataReader
 	{
-		$reader = Reader::createFromString($csvData);
+		$reader = Reader::fromString($csvData);
 		$reader->setHeaderOffset(0);
 		return (new Statement())->process($reader);
 	}
@@ -530,7 +536,7 @@ class Csv extends Component
 	private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
 	{
 		$iterator = $tabularDataReader->getIterator();
-		$existingVariants = collect(Variant::find()->product($product)->all());
+		$existingVariants = collect(Variant::find()->product($product)->status(null)->all());
 		$newVariants = [];
 		foreach ($iterator as $record) {
 			if ($iterator->key() === 1) {
@@ -544,11 +550,15 @@ class Csv extends Component
 				continue;
 			}
 
-			$variant = $existingVariants->firstWhere('sku', $record[$mapping['variant']['sku']])->id ?? 0;
+			// Cast both, since PHP compares two numeric strings numerically
+			$sku = (string) $record[$mapping['variant']['sku']];
+			$variant = $existingVariants->first(static fn (Variant $existingVariant): bool => (string) $existingVariant->sku === $sku)->id ?? 0;
 			$newVariants[] = $this->normalizeVariantImport($record, $mapping, $variant);
 		}
 
-		$removedVariants = $existingVariants->diff($newVariants);
+		// Match on id, since two variants can share a title
+		$importedVariantIds = collect($newVariants)->pluck('id')->filter()->all();
+		$removedVariants = $existingVariants->reject(static fn (Variant $existingVariant): bool => in_array($existingVariant->id, $importedVariantIds, true));
 		foreach ($removedVariants as $variant) {
 			Craft::$app->elements->deleteElement($variant);
 		}
@@ -596,7 +606,7 @@ class Csv extends Component
 
 		if ($variantId !== 0) {
 			/** @var Variant $variantElement */
-			$variantElement = Variant::find()->id($variantId)->one();
+			$variantElement = Variant::find()->id($variantId)->status(null)->one();
 		} else {
 			$variantElement = new Variant();
 		}
@@ -607,7 +617,7 @@ class Csv extends Component
 		}
 
 		foreach ($fields as $fieldHandle => $value) {
-			$this->setFieldValue($variantElement, $fieldHandle, $value);
+			$this->setFieldValue($variantElement, $fieldHandle, $value, $mapping['variantFieldLayout']);
 		}
 
 		return $variantElement;
@@ -652,7 +662,8 @@ class Csv extends Component
 			throw new \RuntimeException('Invalid product type handle');
 		}
 
-		$fieldHandle = FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout())?->handle;
+		$variantFieldLayout = $productType->getVariantFieldLayout();
+		$fieldHandle = FieldHelper::getFirstVariantAttributesField($variantFieldLayout)?->handle;
 
 		$variantMap = array_fill_keys(array_values($productTypeMap), null);
 
@@ -670,13 +681,22 @@ class Csv extends Component
 			} elseif ($matchedVariantFieldMap !== []) {
 				$key = array_key_first($matchedVariantFieldMap);
 				$value = $matchedVariantFieldMap[$key];
-				$pattern = "/{$key}\[(.*?)\]$/";
-				preg_match($pattern, $heading, $matches);
-				$siteHandle = $matches[1];
-				$sitesMap[$i] = [$value, $siteHandle];
+				$pattern = '/' . preg_quote($key, '/') . '\[(.*?)\]$/';
+				if (preg_match($pattern, $heading, $matches) !== 1) {
+					throw new \RuntimeException(Craft::t('variant-manager', 'import.missingSiteHandle', [
+						'heading' => $heading,
+					]));
+				}
+
+				$sitesMap[$i] = [$value, $matches[1]];
 			} elseif (str_starts_with($heading, $inventoryPrefix)) {
-				$pattern = "/{$inventoryPrefix}\[(.*?)\]:\s(.*?)$/";
-				preg_match($pattern, $heading, $matches);
+				$pattern = '/' . preg_quote($inventoryPrefix, '/') . '\[(.*?)\]:\s(.*?)$/';
+				if (preg_match($pattern, $heading, $matches) !== 1) {
+					throw new \RuntimeException(Craft::t('variant-manager', 'import.malformedInventoryColumn', [
+						'heading' => $heading,
+					]));
+				}
+
 				$locationHandle = $matches[1];
 				$totalHandle = $matches[2];
 				$inventoryMap[$i] = [$locationHandle, $totalHandle];
@@ -691,6 +711,7 @@ class Csv extends Component
 			'sites' => $sitesMap,
 			'inventory' => $inventoryMap,
 			'fieldHandle' => $fieldHandle,
+			'variantFieldLayout' => $variantFieldLayout,
 		];
 	}
 
@@ -783,7 +804,7 @@ class Csv extends Component
 		// Map variant values per site
 		$mappedSiteValues = $this->valueMapFromMapping($mapping['sites']);
 		foreach ($sites as $site) {
-			$siteVariant = Variant::find()->id($variant->id)->site($site)->one();
+			$siteVariant = Variant::find()->id($variant->id)->site($site)->status(null)->one();
 			$siteMapping = $mappedSiteValues[$site->handle] ?? [];
 			foreach ($siteMapping as $key => $value) {
 				$siteMapping[$key] = $this->normalizeValue($siteVariant->{$key});
@@ -864,13 +885,10 @@ class Csv extends Component
 		$attributeMap = [];
 		$inventoryMap = [];
 		$mappedSites = [];
-		if ($product->variants !== []) {
-			// Prefer a tracked variant, since only it has inventory levels
-			$variant = Variant::find()->product($product)->inventoryTracked()->one();
-			if ($variant === null) {
-				$variant = Variant::find()->product($product)->one();
-			}
-
+		// Prefer a tracked variant, since only it has inventory levels
+		$variant = Variant::find()->product($product)->inventoryTracked()->status(null)->one()
+			?? Variant::find()->product($product)->status(null)->one();
+		if ($variant !== null) {
 			$fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
 			if ($fieldHandle !== null) {
 				foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
@@ -942,14 +960,13 @@ class Csv extends Component
 					return;
 				}
 
-				$this->setFieldValue($product, $fieldHandle, $value);
+				$this->setFieldValue($product, $fieldHandle, $value, $product->getFieldLayout());
 			});
 	}
 
-	private function setFieldValue(Element $element, string $fieldHandle, mixed $value): void
+	private function setFieldValue(Element $element, string $fieldHandle, mixed $value, ?FieldLayout $fieldLayout): void
 	{
-		$fieldLayout = Craft::$app->fields->getLayoutByType(get_class($element));
-		$field = $fieldLayout->getFieldByHandle($fieldHandle);
+		$field = $fieldLayout?->getFieldByHandle($fieldHandle);
 		if ($field instanceof Entries) {
 			$sectionUids = $field->sources === '*'
 				? []

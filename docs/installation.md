@@ -1,16 +1,16 @@
 # Installation
 
-A Craft CMS plugin that imports and exports Craft Commerce product **variants** from CSV files.
+A Craft CMS plugin that makes a Craft Commerce variant a combination of **attributes and options**, in the same field on every product type.
 
 ## Requirements
 
 - Craft CMS `^5.0`
 - Craft Commerce `^5.0`
-- PHP `^8.2`
+- PHP `>=8.2.0`
 
 ## Install
 
-From the Plugin Store, search for **Variant Manager** in **Settings -> Plugins** and press **Install**.
+In the control panel, go to **Plugin Store**, search for **Variant Manager**, and press **Install**.
 
 With Composer:
 
@@ -29,61 +29,66 @@ After install the CP navigation gets a **Variant Manager** item with **Dashboard
 
 ## Configure
 
-Import and export settings live in a config file. The plugin runs without one. Create `config/variant-manager.php` to change any of the defaults:
+No setting here is required to run the plugin. Every setting has a default.
 
-```php
-<?php
+### In a config file
 
-return [
-    'emptyAttributeValue' => '',
-    'attributePrefix' => 'Attribute: ',
-    'inventoryPrefix' => 'Inventory',
-    'activityLogRetention' => '30 days',
-    'productFieldMap' => [
-        '*' => [
-            'title' => 'title',
-            'slug' => 'slug',
-            'status' => 'status',
-        ],
-    ],
-    'variantFieldMap' => [
-        '*' => [
-            'title' => 'title',
-            'sku' => 'sku',
-            'inventoryTracked' => 'inventoryTracked',
-            'basePrice' => 'basePrice',
-            'height' => 'height',
-            'width' => 'width',
-            'length' => 'length',
-            'weight' => 'weight',
-        ],
-    ],
-];
-```
+Create `config/variant-manager.php` to change any of these. The file is multi-environment aware, the same as `general.php`.
 
-Those values are the defaults, so the file above changes nothing. See [configuration reference](./reference/configuration.md) for what each key controls.
+| Key | Default | Controls |
+|-----|---------|----------|
+| `emptyAttributeValue` | `''` | What an empty attribute cell writes. |
+| `attributePrefix` | `'Attribute: '` | The CSV header prefix for attribute columns. |
+| `inventoryPrefix` | `'Inventory'` | The CSV header prefix for inventory columns. |
+| `activityLogRetention` | `'30 days'` | How long activity log rows are kept. |
+| `productFieldMap` | title, slug, status | Which CSV columns map to which product fields. |
+| `variantFieldMap` | title, sku, inventoryTracked, basePrice, height, width, length, weight | Which CSV columns map to which variant fields. |
+| `defaultVariantTableAttributes` | `[]` | Extra columns on the Variants index. |
+| `bulkEditableVariantFields` | `[]` | Which fields the Bulk edit action can set. Empty hides the action. |
+| `availableDisplayTypes` | `[]` | Which display types an attribute can use. Empty allows all six. |
+| `defaultDisplayType` | `'dropdown'` | The display type a newly registered attribute gets. |
+| `variantMakerProductTypes` | `[]` | Which product types show the Variant Maker tab. Empty hides it everywhere. |
 
-Attribute display types and field layouts are set in the CP instead, at **Settings -> Plugins -> Variant Manager**, and stored in project config. See [variant attributes](./user-guide/variant-attributes.md).
+`src/config.php` ships a copy to start from. It sets `activityLogRetention` to `'1 week'`, while the plugin's own default is `'30 days'`.
 
-The same screen carries **Variant Maker product types**, which decides where the Variant Maker tab appears. No product type offers it by default. See [Variant Maker](./user-guide/variant-maker.md).
+For what each key does in full, see [configuration reference](./reference/configuration.md).
+
+### In the control panel
+
+**Settings -> Plugins -> Variant Manager** has three settings and requires an admin account:
+
+- **Available Display Types**, which display types an attribute can be given.
+- **Default Display Type**, what a newly registered attribute starts as.
+- **Variant Maker Product Types**, where the Variant Maker tab appears.
+
+A config file entry overrides the matching screen setting, and the screen shows a warning where one does.
+
+The attribute table at the bottom of the same screen opens each attribute's own page, where **Attribute Fields** and **Option Fields**, the two field layouts, are set. Those are stored in project config too. See [variant attributes](./user-guide/variant-attributes.md).
+
+One more is set elsewhere: an attribute's **display type**, on the attribute itself at **Variant Manager -> Variant Attributes**, stored in the database.
 
 ## Add the Variant Attributes field
 
-The plugin ships a **Variant Attributes** field type. Add it to every Commerce product type whose variants you want to import or export by attribute.
+The plugin ships a **Variant Attributes** field type. Add it to every Commerce product type whose variants have attributes.
 
 1. **Settings -> Fields -> New field**.
 2. Set the **Field Type** to **Variant Attributes**. Give it a name and handle, for example `variantAttributes`. The field has no settings of its own.
+
+   ![The new field screen with Field Type set to Variant Attributes](../resources/img/field-new.png)
+
 3. **Commerce -> Settings -> Product Types -> {product type} -> Variant Fields** and drag the field into the variant field layout.
 
-Only one Variant Attributes field per variant field layout is read by the plugin. Additional copies are ignored.
+   ![The Variant Fields layout with Variant Attributes added](../resources/img/field-add.png)
 
-See [Variant Attributes field reference](./reference/field-type.md) for how the field stores data.
+The plugin reads one Variant Attributes field per variant field layout, and ignores any others.
+
+For how the field stores data, see [Variant Attributes field reference](./reference/field-type.md).
 
 ## Permissions
 
 Grant the plugin's permissions on user groups at **Users -> {group} -> Permissions** or on individual users. `accessPlugin-variant-manager` is required to see the plugin's CP section at all.
 
-See [permissions reference](./reference/permissions.md) for the full list.
+For the full list, see [permissions reference](./reference/permissions.md).
 
 ## Console commands
 

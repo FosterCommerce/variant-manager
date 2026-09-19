@@ -1,5 +1,26 @@
 # Release Notes for Variant Manager
 
+## Unreleased
+
+### Changed
+
+- Upload Product, Export Product, Export Variant Data, Bulk edit field, and Clear activity logs now appear only for users with the matching permission.
+- Raised the `league/csv` requirement to `^9.27`.
+
+### Fixed
+
+- Fixed an error that occurred during garbage collection when `activityLogRetention` was set to `null`.
+- Fixed a bug where Date, Money, Assets, and Entries columns imported as plain text on stores with more than one product type.
+- Fixed a bug where importing two SKUs that differ only by leading zeros deleted one of the variants.
+- Fixed a bug where a disabled variant lost its per-site prices and inventory levels on import.
+- Fixed an error that occurred when reimporting an export of a product with a disabled variant.
+- Fixed a bug where “Replace all variants” left a disabled variant on the product.
+- Fixed an error that occurred when exporting a product with a disabled variant.
+- Fixed a bug where a SKU already used by a disabled variant on another product was not reported.
+- Fixed an issue where an unreadable zip reported that the import had been queued.
+- Fixed an issue where a column missing its `[siteHandle]` or `[location]` suffix failed with an unrelated message.
+- Fixed an issue where uploading a filename whose ID prefix matched no product reported a generic server error.
+
 ## 4.0.2 - 2026-09-18
 
 ### Fixed

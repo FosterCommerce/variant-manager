@@ -19,7 +19,7 @@ It is persisted as JSON in the element content row (`Schema::TYPE_JSON`).
 
 Use the field handle as an element-query parameter on `craft.variants()` (Twig) or `Variant::find()` (PHP). The filter accepts a string, an associative array, or a list of either.
 
-See [querying variants](../dev-guide/twig-queries.md) for the supported filter shapes and SQL behavior.
+For the supported filter shapes and SQL behavior, see [querying variants](../dev-guide/twig-queries.md).
 
 In the control panel, each registered attribute is its own filter under **Add a filter**, on both variant and product listings. On a product listing the filter is applied through Commerce's `hasVariant` param, so a product matches when one of its variants does.
 

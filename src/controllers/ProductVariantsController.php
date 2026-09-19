@@ -2,6 +2,7 @@
 
 namespace fostercommerce\variantmanager\controllers;
 
+use Craft;
 use craft\commerce\elements\Product;
 use craft\commerce\Plugin as CommercePlugin;
 use craft\helpers\Db;
@@ -46,7 +47,9 @@ class ProductVariantsController extends Controller
 				->one();
 
 			if ($product === null) {
-				throw new \RuntimeException('Invalid product ID');
+				throw new NotFoundHttpException(Craft::t('variant-manager', 'import.unknownProductId', [
+					'id' => $productId,
+				]));
 			}
 		}
 
@@ -86,7 +89,9 @@ class ProductVariantsController extends Controller
 			$fileType = pathinfo($uploadedFile->name, PATHINFO_EXTENSION);
 			if ($fileType === 'zip') {
 				$zip = new \ZipArchive();
-				$zip->open($uploadedFile->tempName);
+				if ($zip->open($uploadedFile->tempName) !== true) {
+					throw new BadRequestHttpException(Craft::t('variant-manager', 'import.unreadableZip'));
+				}
 				$filenames = [];
 				for ($i = 0; $i < $zip->numFiles; ++$i) {
 					$filename = $zip->getNameIndex($i);

@@ -1,4 +1,5 @@
 {% set canExport = currentUser.can('variant-manager:export') %}
+{% if canExport %}
 <fieldset>
 	<legend class="h6">{{ 'Variant Manager'|t('variant-manager') }}</legend>
 	<div class="meta">
@@ -6,8 +7,7 @@
 			<div class="input ltr">
 				<button
 					type="button"
-					{% if not canExport %}disabled{% endif %}
-					class="btn download icon js-variant-manager-export {% if not canExport %}disabled{% endif %}"
+					class="btn download icon js-variant-manager-export"
 					data-icon="download"
 					data-product-id="{{ product.id }}"
 					data-export-url="{{ cpUrl('variant-manager/export') }}"
@@ -18,3 +18,4 @@
 		</div>
 	</div>
 </fieldset>
+{% endif %}

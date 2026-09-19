@@ -2,7 +2,7 @@
 
 How to keep Variant Manager's import jobs from delaying other Craft queue work.
 
-Bulk imports can generate thousands of import jobs. By default they go on Craft's main queue, which means other Craft work (search index rebuilds, image transforms, emails) can sit behind a long import batch.
+Bulk imports can generate thousands of import jobs. By default they run on Craft's main queue, so a long import batch delays other Craft work such as search index rebuilds, image transforms, and emails.
 
 Two ways to address this: lower the priority of Variant Manager jobs, or send them to a custom queue.
 
@@ -28,7 +28,7 @@ Event::on(
 );
 ```
 
-Wire this into your module's `init()` method.
+Set this up in your module's `init()` method.
 
 ## Run imports on a dedicated queue
 
@@ -55,12 +55,12 @@ return [
 ];
 ```
 
-The string `priorityQueue` is the component handle Variant Manager will resolve at runtime; it can be anything as long as the component is registered.
+The string `priorityQueue` is the component handle Variant Manager resolves at runtime; it can be any name as long as the component is registered.
 
 Then run the worker for the custom queue separately:
 
 ```sh
-./craft queue/run --queue=priorityQueue
+./craft priority-queue/run
 ```
 
-See Craft's [custom queues guide](https://craftcms.com/docs/5.x/system/queue.html#custom-queues) for more on how Yii's queue components are wired up.
+For how Yii's queue components are registered, see Craft's [custom queues guide](https://craftcms.com/docs/5.x/system/queue.html#custom-queues).

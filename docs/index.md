@@ -1,29 +1,41 @@
 # Variant Manager documentation
 
-Import and export Craft Commerce product variants from CSV files.
+A Craft CMS plugin that makes a Craft Commerce variant a combination of **attributes and options**, in the same field on every product type.
 
-## Upgrading
+## Install and upgrade
 
-Coming from 2.x or 3.x? See [upgrading](./upgrade.md).
+[Installation](./installation.md). Coming from 2.x or 3.x? See [upgrading](./upgrade.md).
 
 ## Where to go
 
-**First time here?** Start with [Getting started](./getting-started.md), a walkthrough from install to your first successful CSV import.
+**Getting started:** [a walkthrough](./getting-started.md) from install to your first import.
 
-**Building or editing CSVs for a Craft Commerce store?** See the [user guide](./user-guide/):
+**User guide:**
 
-- [CSV format](./user-guide/csv-format.md), every column the import recognizes, with a working example.
-- [Importing](./user-guide/importing.md), uploading single CSVs and zip batches.
-- [Exporting](./user-guide/exporting.md), getting CSVs out of Commerce to edit.
-- [Variant attributes](./user-guide/variant-attributes.md), attaching swatches, notes and other fields to attribute values.
-- [Variant Maker](./user-guide/variant-maker.md), building a product's variant matrix from attributes and options.
+- [Variant attributes](./user-guide/variant-attributes.md), the field every other feature works through, and the swatches and custom fields you can attach to it.
+- [Importing](./user-guide/importing.md), creating and updating products and variants from a spreadsheet.
+- [Variant Maker](./user-guide/variant-maker.md), generating variants in the control panel from attributes and options you pick.
+- [Exporting](./user-guide/exporting.md), getting variants out as a CSV you can edit and reimport.
+- [Variants index](./user-guide/variants-index.md), one listing of every variant, with filters and bulk edit.
 - [Troubleshooting](./user-guide/troubleshooting.md), when an import does not behave the way you expected.
 
-**Building on top of the plugin?** See the [developer guide](./dev-guide/), [recipes](./recipes/), and [reference](./reference/):
+**Dev guide:**
 
-- [Template tags and queries](./dev-guide/template-tags.md), reading and filtering Variant Attributes in Twig.
-- [Console commands](./reference/console-commands.md), backfilling and pruning the attribute registry.
+- [Template tags](./dev-guide/template-tags.md), reading attributes and their metadata in Twig.
+- [Querying variants](./dev-guide/twig-queries.md), the three filter shapes for finding variants by attribute.
 - [Custom queue](./dev-guide/custom-queue.md), running imports on a dedicated queue.
-- [Configuration reference](./reference/configuration.md), every config key with defaults.
 
-**Setup details:** [Installation](./installation.md).
+**Reference:**
+
+- [Configuration](./reference/configuration.md), every config key with its default.
+- [Console commands](./reference/console-commands.md), every command, argument, and flag.
+- [Variant Attributes field](./reference/field-type.md), what the field stores and how to query it.
+- [Permissions](./reference/permissions.md), every handle and what it gates.
+
+**Recipes:**
+
+- [Add to cart](./recipes/add-to-cart.md), a variant picker that posts to the cart.
+- [Variant filter](./recipes/variant-filter.md), filtering a product's variants on the storefront.
+- [Field maps for many product types](./recipes/field-maps-for-many-product-types.md), organizing `productFieldMap` on a large catalog.
+
+**What is being considered:** [the roadmap](./roadmap.md), ideas rather than commitments.

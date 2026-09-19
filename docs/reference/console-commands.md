@@ -20,7 +20,7 @@ Wipes every activity log entry regardless of age. The `1` is a positional argume
 
 Cleared entries are gone permanently; there is no trash to restore from.
 
-See [activity log](../user-guide/activity-log.md) for the dashboard equivalent.
+For the dashboard equivalent, see [activity log](../user-guide/activity-log.md).
 
 ## `variant-manager/attributes/backfill`
 
@@ -30,7 +30,7 @@ Register an attribute and option for every name and value already stored on a va
 ./craft variant-manager/attributes/backfill
 ```
 
-Reads every variant in batches. Anything already registered is skipped, so the command is safe to re-run. New attributes and options appear in the activity log.
+Reads every variant in batches. An attribute or option already registered is skipped, so the command is safe to re-run. New attributes and options appear in the activity log.
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -46,7 +46,7 @@ Re-save every attribute and option.
 ./craft resave/variant-attributes --update-search-index
 ```
 
-Craft's own resave command, with an action this plugin adds. `--update-search-index` rewrites the search keywords for each row, which is what picks up a system name stored before the row was last saved. `resave/all` includes it.
+Craft's own resave command, with an action this plugin adds. `--update-search-index` rewrites the search keywords for each row, so a system name stored before the row was last saved becomes searchable. `resave/all` includes it.
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -61,13 +61,13 @@ List attributes and options whose name or value is no longer stored on any varia
 ./craft variant-manager/attributes/orphans
 ```
 
-Reads every variant, then compares against the registry. Prints one line per orphan and deletes nothing.
+Reads every variant, then compares against the registry. Prints one line per orphan and deletes no rows.
 
 ```sh
 ./craft variant-manager/attributes/orphans --prune
 ```
 
-Deletes them. Anything a variant has started using since the scan is skipped. An attribute takes its display type and field layouts with it, unless `allowAdminChanges` is off, where the rows are deleted but their project config stays. This is permanent, and any custom field values on the deleted rows are lost.
+Deletes exactly the orphans the scan found. A value a variant started storing after the scan began is deleted too, and re-registered on that variant's next save without its custom field values. The display type is on the attribute's row, so deleting the row deletes it. The two field layouts are project config, and where `allowAdminChanges` is off the row is deleted but its field layout config stays. This is permanent, and any custom field values on the deleted rows are lost.
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -81,18 +81,18 @@ See [variant attributes](../user-guide/variant-attributes.md).
 Print what generating a set of combinations would do to a product's variants.
 
 ```sh
-./craft variant-manager/variant-maker/plan 4054 --select="Container Size=1 Quart,1 Gallon;CSP Color=Custom"
+./craft variant-manager/variant-maker/plan 4054 --select="Size=Small,Medium;Color=Red"
 ```
 
-The first argument is the product ID. Prints one line per combination with its status, the SKU and the price, and any SKU warning under it. Saves nothing.
+The first argument is the product ID. Prints one line per combination with its status, the SKU, and the price, and any SKU warning under it. Saves no changes.
 
 The selection is read from `--select` rather than the product's saved builder.
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--select` | `''` | Attributes and values to combine, as `Name=A,B;Other Name=C`. |
-| `--mode` | `add` | One of `add`, `update` or `replace`. Only `replace` differs here, since the command includes every property on new variants only. |
-| `--skuFormat` | none | SKU format. Blank uses the default variant SKU followed by each option. |
+| `--mode` | `add` | One of `add`, `update`, or `replace`. `add` reports every existing combination as unchanged. `update` reports one as an update where the built title, SKU, or price differs. `replace` does that and adds a delete row for each variant the set does not cover. |
+| `--skuFormat` | none | SKU format, using `{Attribute Name}` tokens that resolve to each option's SKU partial, or to the option value where no partial is set. Blank uses the default variant SKU followed by each option. |
 | `--basePrice` | none | Price each combination starts from. Blank uses the product's default variant price. |
 
 See [Variant Maker](../user-guide/variant-maker.md).
