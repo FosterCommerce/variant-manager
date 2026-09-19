@@ -60,9 +60,6 @@ use yii\queue\Queue;
 /**
  * @method static Plugin getInstance()
  * @method Settings getSettings()
- * @author Foster Commerce <support@fostercomerce.com>
- * @copyright Foster Commerce
- * @license MIT
  *
  * @property-read Settings $settings
  * @property-read ProductVariants $productVariants
@@ -217,7 +214,9 @@ class Plugin extends BasePlugin
 			Product::class,
 			Element::EVENT_REGISTER_ACTIONS,
 			static function (RegisterElementActionsEvent $event): void {
-				$event->actions[] = Export::class;
+				if (Craft::$app->getUser()->checkPermission('variant-manager:export')) {
+					$event->actions[] = Export::class;
+				}
 			}
 		);
 
@@ -225,7 +224,10 @@ class Plugin extends BasePlugin
 			VariantManagerVariant::class,
 			Element::EVENT_REGISTER_ACTIONS,
 			static function (RegisterElementActionsEvent $event): void {
-				if (Plugin::getInstance()->getSettings()->bulkEditableVariantFields !== []) {
+				if (
+					BulkEditField::hasEditableField()
+					&& Craft::$app->getUser()->checkPermission('variant-manager:manage')
+				) {
 					$event->actions[] = BulkEditField::class;
 				}
 			}

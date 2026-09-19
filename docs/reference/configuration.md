@@ -42,14 +42,14 @@ return [
 - Type: `string`
 - Default: `''`
 
-The placeholder written into the Variant Attributes field when a row's attribute cell is empty. Set to something like `None` or `N/A` if a literal empty string would confuse storefront filters.
+The placeholder written into the Variant Attributes field when a row's attribute cell is empty. Set to a value such as `None` or `N/A` if a literal empty string might confuse storefront filters.
 
 ### `attributePrefix`
 
 - Type: `string`
 - Default: `'Attribute: '`
 
-The prefix used to recognize attribute columns in a CSV. A column whose header starts with this string is mapped to a Variant Attributes entry whose name is the rest of the header. Default behavior: `Attribute: Color` becomes attribute `Color`.
+The prefix that marks an attribute column in a CSV. A column whose header starts with this string is mapped to a Variant Attributes entry whose name is the rest of the header. Default behavior: `Attribute: Color` becomes attribute `Color`.
 
 Changing this is a breaking change for any existing CSVs. Keep it consistent across your store.
 
@@ -58,7 +58,7 @@ Changing this is a breaking change for any existing CSVs. Keep it consistent acr
 - Type: `string`
 - Default: `'Inventory'`
 
-The prefix used to recognize inventory columns. The full column pattern is `{prefix}[locationHandle]: totalName`, so with the default prefix a column is `Inventory[main]: available`.
+The prefix that marks an inventory column. The full column pattern is `{prefix}[locationHandle]: totalName`, so with the default prefix a column is `Inventory[main]: available`.
 
 ### `activityLogRetention`
 
@@ -69,7 +69,7 @@ How long to keep activity log entries.
 
 - String values use PHP relative-time format: `1 hour`, `1 day`, `1 week`, `1 month`, `1 year`.
 - Integer values are interpreted as a number of days.
-- `null` or `false` disables expiry; logs grow forever until manually cleared.
+- `false` or `null` disables expiry; logs grow until cleared by hand.
 
 Expiry runs during Craft's garbage collection and via the `variant-manager/activities/clear` console command.
 
@@ -80,13 +80,13 @@ Expiry runs during Craft's garbage collection and via the `variant-manager/activ
 
 Maps CSV column headers (left) to product properties or field handles (right). Keys at the top level are product type handles, with `'*'` matching any product type not otherwise listed.
 
-Per-product-type entries do **not** inherit from `'*'`. The plugin picks one entry per import: the product type's own entry if it has one, otherwise `'*'`. List every column you want imported under each product type's entry, including the ones in `'*'`. For a DRY pattern, see [field maps for many product types](../recipes/field-maps-for-many-product-types.md).
+Per-product-type entries do **not** inherit from `'*'`. The plugin picks one entry per import: the product type's own entry if it has one, otherwise `'*'`. List every column you want imported under each product type's entry, including the ones in `'*'`. For a pattern without repeated blocks, see [field maps for many product types](../recipes/field-maps-for-many-product-types.md).
 
 Three keys have special handling:
 
-- `title`: always treated as the product title. Required in row 2 of every CSV.
+- `title`: names the export column only. The import reads the product title from the first cell of row 2. See [CSV format](../user-guide/csv-format.md#product-columns).
 - `slug`: generated from the title for new products if missing.
-- `status`: read as `enabled` (default) or `disabled`. Anything other than `disabled` (case-insensitive, trimmed) imports as enabled.
+- `status`: read as `enabled` (default) or `disabled`. Any value other than `disabled` (case-insensitive, trimmed) imports as enabled.
 
 Other entries write to product custom fields by handle. See [supported field types](#supported-field-types) below.
 
@@ -126,7 +126,7 @@ Per-site variant properties (use the column suffix `[siteHandle]`):
 
 - `basePrice`, `inventoryTracked`, `availableForPurchase`, `freeShipping`, `promotable`, `minQty`, `maxQty`.
 
-If `availableForPurchase` or `promotable` are not mapped, the import defaults them to `true` on save. This matches the standard Commerce variant behavior.
+If the CSV has at least one per-site column but no `availableForPurchase` or `promotable` column, the import defaults those to `true` for each site. With no per-site columns at all, neither is written and Commerce's own defaults apply. This matches the standard Commerce variant behavior.
 
 The Variant Attributes field handle does not need to be in this map. The plugin discovers it from the product type's variant field layout.
 
@@ -167,14 +167,14 @@ Extra columns shown by default on **Variant Manager -> Variants**. Each entry is
 - Type: `list<string>`
 - Default: `[]`
 
-Variant field handles the **Bulk edit field** action can set. `inventoryTracked` is accepted alongside custom field handles. While this is empty, the action does not appear on the Variants index. Bulk editing also requires the `variant-manager:manage` permission.
+Variant field handles the **Bulk edit field** action can set. `inventoryTracked` is accepted alongside custom field handles. For when the action appears, see [the Variants index](../user-guide/variants-index.md#bulk-edit-a-field).
 
 ### `availableDisplayTypes`
 
 - Type: `list<string>`
 - Default: `[]`
 
-Display types offered in the **Display Type** menu on an attribute. While this is empty, or while it holds `'*'`, every type is offered. Use it to hide the ones your templates do not render:
+Display types offered in the **Display Type** menu on an attribute. While this is empty, or while `'*'` is in it, every type is offered. Use it to hide the ones your templates do not render:
 
 ```php
 return [
@@ -182,11 +182,11 @@ return [
 ];
 ```
 
-Valid values are `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `colorSwatches` and `lightswitch`. An unrecognized value is skipped.
+Valid values are `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `colorSwatches`, and `lightswitch`. An unrecognized value is skipped.
 
-An attribute already set to a type this list omits keeps it, and the menu still shows it, so nothing is rewritten on the next save. Change that attribute and the omitted type is gone from its menu.
+An attribute already set to a type this list omits keeps it, and the menu still shows it, so no attribute is rewritten on the next save. Change that attribute and the omitted type is gone from its menu.
 
-This setting is also editable at **Settings** -> **Plugins** -> **Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
+This setting is also editable at **Settings -> Plugins -> Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
 
 ### `variantMakerProductTypes`
 
@@ -203,27 +203,27 @@ return [
 
 A product type also needs a Variant Attributes field in its variant field layout, since that is where a generated variant stores its combination. Listing a product type without one leaves the tab hidden.
 
-This setting is also editable at **Settings** -> **Plugins** -> **Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
+This setting is also editable at **Settings -> Plugins -> Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
 
 ### `defaultDisplayType`
 
 - Type: `string`
 - Default: `'dropdown'`
 
-Display type given to an attribute the first time an import or `variant-manager/attributes/backfill` registers it. Attributes that already exist keep the type they have.
+Display type given to an attribute the first time it is registered, by whichever route does so. Attributes that already exist keep the type they have.
 
-Takes the same values as `availableDisplayTypes`. An unrecognized value falls back to `dropdown`. This setting is also editable at **Settings** -> **Plugins** -> **Variant Manager**, where the menu offers only the types `availableDisplayTypes` allows.
+Takes the same values as `availableDisplayTypes`. An unrecognized value falls back to `dropdown`. This setting is also editable at **Settings -> Plugins -> Variant Manager**, where the menu offers only the types `availableDisplayTypes` allows.
 
 ## Supported field types
 
-When `productFieldMap` or `variantFieldMap` maps a column to a custom field, the import knows how to write the following types:
+When `productFieldMap` or `variantFieldMap` maps a column to a custom field, the import writes these types:
 
 | Field type | CSV value format |
 |------------|-----------------|
 | Plain Text | Raw text. |
 | Number | Raw number. |
 | Date | Any date string PHP can parse (`2026-03-15`, `2026-03-15 14:30`). Exported in ATOM format. |
-| Lightswitch | `1` for on, anything else for off. |
+| Lightswitch | `1` for on, any other value for off. |
 | Money | Decimal value (`15.00`), parsed in the field's currency. Thousands separators fail the import. |
 | Entries | Comma-separated `sectionHandle:slug` (`articles:summer-launch,faqs:returns`). |
 | Assets | Comma-separated `volumeHandle:path/to/file.jpg`. Numeric asset IDs are also accepted. |
@@ -248,4 +248,4 @@ return [
 ];
 ```
 
-See Craft's [config files documentation](https://craftcms.com/docs/5.x/configure.html#config-files) for the resolution order.
+For the resolution order, see Craft's [config files documentation](https://craftcms.com/docs/5.x/configure.html#config-files).

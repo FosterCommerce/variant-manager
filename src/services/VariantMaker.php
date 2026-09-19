@@ -199,6 +199,7 @@ class VariantMaker extends Component
 			}
 
 			// Inventory items only exist once the variant is saved
+			// Keep these writes inside the transaction. Our rollback still reverses the inventory rows, since Yii nests Commerce's own transaction as a savepoint.
 			foreach ($pendingStock as [$variant, $quantity]) {
 				$this->setStock($variant, $quantity, $settings->inventoryLocationId);
 			}

@@ -1,6 +1,10 @@
-vendor
-composer.lock
-.php_cs.cache
-.idea
-.DS_Store
+*.DS_Store
+*.idea/*
+*.log
+*Thumbs.db
+.env
 .twig-parse.php
+/node_modules
+/vendor
+/notes
+composer.lock

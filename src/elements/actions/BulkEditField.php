@@ -21,6 +21,20 @@ class BulkEditField extends ElementAction
 		return Craft::t('variant-manager', 'Bulk edit field');
 	}
 
+	/**
+	 * Whether any configured handle resolves to a field the action can offer.
+	 */
+	public static function hasEditableField(): bool
+	{
+		foreach (Plugin::getInstance()->getSettings()->bulkEditableVariantFields as $fieldHandle) {
+			if ($fieldHandle === 'inventoryTracked' || self::resolveField($fieldHandle) !== null) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	public function getTriggerHtml(): ?string
 	{
 		$view = Craft::$app->getView();
@@ -38,7 +52,7 @@ class BulkEditField extends ElementAction
 				continue;
 			}
 
-			$field = $this->resolveField($fieldHandle);
+			$field = self::resolveField($fieldHandle);
 			if ($field === null) {
 				continue;
 			}
@@ -49,10 +63,6 @@ class BulkEditField extends ElementAction
 				'value' => $fieldHandle,
 				'input' => $field->getInputHtml(null, null),
 			];
-		}
-
-		if ($fieldOptions === []) {
-			return null;
 		}
 
 		$type = Json::encode(static::class);
@@ -136,7 +146,7 @@ EOT;
 		}
 
 		$isInventoryTracked = $this->fieldHandle === 'inventoryTracked';
-		$field = $isInventoryTracked ? null : $this->resolveField($this->fieldHandle);
+		$field = $isInventoryTracked ? null : self::resolveField($this->fieldHandle);
 		// Read raw, not as an action property: a Date value arrives as an array, which won't fit ?string.
 		$value = Craft::$app->getRequest()->getBodyParam('value');
 
@@ -182,7 +192,7 @@ EOT;
 	/**
 	 * Search every Variant field layout, since a layout can rename the handle.
 	 */
-	private function resolveField(string $handle): ?FieldInterface
+	private static function resolveField(string $handle): ?FieldInterface
 	{
 		foreach (Craft::$app->getFields()->getLayoutsByType(Variant::class) as $fieldLayout) {
 			$field = $fieldLayout->getFieldByHandle($handle);

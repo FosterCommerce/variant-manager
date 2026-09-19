@@ -20,11 +20,13 @@
 			value: logStatus,
 		}) }}
 	</form>
+	{% if currentUser.can("variant-manager:manage") %}
 	<form id="clear-logs-form" method="POST">
 		{{ csrfInput() }}
 		{{ actionInput('variant-manager/dashboard/clear-activity-logs') }}
 		<button type="submit" data-icon="trash" class="btn">{{ 'Clear activity logs'|t('variant-manager') }}</button>
 	</form>
+	{% endif %}
 	<form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: row;">
 		<div id="upload-spinner" class="spinner hidden" style="margin-right: 1rem;"></div>
 		{{ csrfInput() }}
@@ -88,6 +90,7 @@ document.getElementById('log-status').addEventListener('change', function() {
 	document.getElementById('log-form').submit();
 });
 
+{% if currentUser.can("variant-manager:manage") %}
 document.getElementById('clear-logs-form').addEventListener('submit', function(e) {
 	e.preventDefault();
 
@@ -95,4 +98,5 @@ document.getElementById('clear-logs-form').addEventListener('submit', function(e
 		this.submit();
 	}
 });
+{% endif %}
 {% endjs %}

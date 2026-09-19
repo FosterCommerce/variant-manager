@@ -2,23 +2,32 @@
 
 # Variant Manager
 
-A Craft CMS plugin that imports and exports Craft Commerce product **variants** from CSV files.
+A Craft CMS plugin for managing Craft Commerce variants as combinations of **attributes and options**.
 
 ## Overview
 
-- Imports a CSV to create or update a Craft Commerce product and its variants.
-- Bulk-imports many products at once from a zip of CSVs, each file becoming its own product.
-- Exports a product to CSV from the product edit page, or many products at once from the Commerce products index.
-- Adds a **Variant Attributes** field that stores option name and value pairs (Color, Size, Material) on each variant for filtering on the storefront, and lets you attach a swatch image, spec sheet or note to any value to build a color picker or size swatch in Twig.
-- Generates a product's full variant matrix in the control panel from attribute options you pick (three sizes and four colors become twelve variants, each with its own SKU).
-- Sets one field on many variants at once from the Variants index.
-- Logs each import and export, with configurable retention, in a dashboard activity feed.
+- Add one Variant Attributes field to your variants instead of a hard-coded custom field per attribute (Color, Size, Material), and give each attribute and option its own custom fields for swatch images, hex values, and spec sheets.
+- Add a new attribute or option by importing it, with no change to a field, a field layout, or a template.
+- Build attribute pickers in Twig from each attribute's display type.
+- Import a CSV to create or update a product and its variants, or a zip of CSVs to import many at once.
+- Generate a product's variants from the attributes and options you choose, each combination with its own SKU and price.
+- Export one product to CSV from its edit page, or many at once from the Commerce products index.
+- Filter every variant in the store from one index, and bulk edit a field across a selection.
+
+## Use Variant Manager when
+
+- Your product types have a custom field per attribute (Color, Size, Material), or would need one.
+- The same attributes appear on more than one product type and have to stay consistent.
+- Adding an option has to work without a field, field layout, or template change.
+- Product data comes from spreadsheets, an ERP, or a PIM, and every route has to write the same field.
+- A product's variants are every combination of its options.
+- The storefront renders swatches or dropdowns from variant data.
 
 ## Requirements
 
 - Craft CMS `^5.0`
 - Craft Commerce `^5.0`
-- PHP `^8.2`
+- PHP `>=8.2.0`
 
 ## Install
 
@@ -27,55 +36,58 @@ composer require fostercommerce/variant-manager
 ./craft plugin/install variant-manager
 ```
 
-See [`docs/installation.md`](./docs/installation.md) for the full installation and configuration guide, and [`docs/upgrade.md`](./docs/upgrade.md) if you are coming from 2.x or 3.x.
-
-## Importing
-
-Upload a CSV (or a zip of CSVs) from **Variant Manager -> Dashboard**. The CSV's filename determines the product: a new filename creates a new product, an existing product title updates that product. Each row becomes one variant. Columns map to product fields, variant fields, per-site Commerce fields, inventory levels, and variant attributes.
-
-See [`docs/user-guide/importing.md`](./docs/user-guide/importing.md) and [`docs/user-guide/csv-format.md`](./docs/user-guide/csv-format.md).
-
-## Variant Maker
-
-Builds a product's variants from attributes and options you already have, for stores with no ERP, PIM or CSV feed. Pick the attributes to combine and set what each variant should get. The preview lists every combination and what generating would change, before anything is written. An option can carry a SKU partial and a price modifier, which the generated variant's SKU and price are assembled from.
-
-Off for every product type until you turn it on at **Settings -> Plugins -> Variant Manager**.
-
-See [`docs/user-guide/variant-maker.md`](./docs/user-guide/variant-maker.md).
-
-## Exporting
-
-Two ways to export: the sidebar **Export Product** button on a product's edit page, or the **Export Variant Data** action on a multi-select at **Commerce -> Products**. A single product downloads as one CSV; multiple products download as a zip. Exported CSVs are shaped so they can be reimported without edits to the column headers.
-
-See [`docs/user-guide/exporting.md`](./docs/user-guide/exporting.md).
+For the full installation and configuration guide, see [installation](./docs/installation.md). If you are coming from 2.x or 3.x, see [upgrading](./docs/upgrade.md).
 
 ## Variant attributes
 
-The plugin ships a **Variant Attributes** field type that you add to each product type's variant field layout. It stores the name and value pairs from your CSV (Color: Red, Size: Small) as JSON on the variant. Twig reads them for variant selectors and faceted filtering.
+Commerce stores a variant as a unique SKU with no attribute structure, so adding an option to a hard-coded Color field means a developer edits the field's settings and a template.
 
-Every name and value your variants use also gets its own element. Attach a swatch image, a spec sheet or a note to it. Pick how a storefront renders it: dropdown, radio buttons, text buttons, image swatches, color swatches or lightswitch. Imports and exports are unchanged.
+Add the **Variant Attributes** field type to a product type's variant field layout instead. The field stores the name and value pairs on each variant, and a merchant adds new attributes and options without a developer. Every name and value also becomes its own element, so an attribute or an option can have a swatch image, a hex value, a spec sheet, or any custom field you add. Each attribute has a display type (dropdown, radio buttons, text buttons, image swatches, color swatches, lightswitch) that your Twig reads to render the picker.
 
-See [`docs/user-guide/variant-attributes.md`](./docs/user-guide/variant-attributes.md) and [`docs/reference/field-type.md`](./docs/reference/field-type.md).
+For managing attributes and options, see [variant attributes](./docs/user-guide/variant-attributes.md). For what the field stores and the filter shapes it supports, see [the Variant Attributes field reference](./docs/reference/field-type.md) and [querying variants](./docs/dev-guide/twig-queries.md).
 
-## Permissions
+## Importing
 
-In addition to `accessPlugin-variant-manager`:
+Create or update a product and all of its variants from a spreadsheet.
 
-- `variant-manager:import`, upload CSVs and create or update products and variants.
-- `variant-manager:export`, export products from the product edit page or the Commerce products index.
-- `variant-manager:manage`, clear the activity log and bulk edit variant fields.
-- `variant-manager:manage-attributes`, view and edit variant attributes and their options.
+Upload a CSV (or a zip of CSVs) from **Variant Manager -> Dashboard**. A zip runs each file as its own queue job, so one bad file does not stop the rest. A filename starting with a product ID (`42__classic-tee.csv`, the shape every export uses) updates that product; any other filename creates a new one. Columns map to product fields, variant fields, per-site Commerce fields, inventory levels, and variant attributes. Every run writes to an activity log with its outcome and, on failure, the reason.
 
-See [`docs/reference/permissions.md`](./docs/reference/permissions.md).
+See [importing](./docs/user-guide/importing.md), [CSV format](./docs/user-guide/csv-format.md), [bulk import](./docs/user-guide/bulk-import.md), [the activity log](./docs/user-guide/activity-log.md), and [troubleshooting](./docs/user-guide/troubleshooting.md).
+
+## Variant Maker
+
+Create a product's variants in the control panel, one for every combination of the attributes and options you pick.
+
+Set the title, price, stock, and purchasing switches each variant starts with. An option's SKU partial and price modifier assemble the combination's SKU and price. The preview lists every combination and what generating would change, before any variant is written. The attributes and options have to be registered first.
+
+Disabled by default for every product type.
+
+See [the Variant Maker](./docs/user-guide/variant-maker.md).
+
+## Exporting
+
+Get a product's variants out as a CSV you can edit and reimport.
+
+Export one product from the **Export Product** button in its edit page sidebar, or many at once with the **Export Variant Data** action on a selection at **Commerce -> Products**. A single product downloads as one CSV; multiple products download as a zip. The column headers need no editing before the file is reimported.
+
+See [exporting](./docs/user-guide/exporting.md).
+
+## Variants index
+
+**Variant Manager -> Variants** lists every variant in the store on its own, rather than nested under its product, so a filter applies across the whole catalog. Filters cover stock, whether inventory is tracked, and each registered attribute, on top of Commerce's own product and SKU rules.
+
+Select variants and the actions menu offers **Bulk edit field**, which writes one value to all of them.
+
+See [the Variants index](./docs/user-guide/variants-index.md).
+
+## Documentation
+
+Visit the [Variant Manager plugin page](https://www.fostercommerce.com/craft-cms-plugins/variant-manager) for the full documentation, pricing, and changelog.
 
 ## License
 
 Proprietary.
 
-## Documentation
+---
 
-See [`docs/index.md`](./docs/index.md).
-
-## Credits
-
-Brought to you by [Foster Commerce](https://fostercommerce.com).
+<a href="https://www.fostercommerce.com" target="_blank"><img src="./resources/img/foster-commerce.svg" alt="Foster Commerce" width="160"></a>

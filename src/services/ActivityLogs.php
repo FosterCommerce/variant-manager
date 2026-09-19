@@ -37,7 +37,7 @@ final class ActivityLogs extends Component
 	private function internalDeleteExpiredActivityLogs(): bool
 	{
 		$logRetention = Plugin::getInstance()->getSettings()->activityLogRetention;
-		if ($logRetention === false) {
+		if ($logRetention === false || $logRetention === null) {
 			return false;
 		}
 

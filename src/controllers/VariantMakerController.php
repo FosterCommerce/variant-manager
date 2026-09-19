@@ -116,6 +116,7 @@ class VariantMakerController extends Controller
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'variantMaker.productNotFound'));
 		}
 
+		// Generating variants is editing the product, so no Variant Manager permission gates it
 		$this->requirePermission("commerce-editProductType:{$product->getType()->uid}");
 
 		return $product;

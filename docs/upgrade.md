@@ -16,15 +16,15 @@ Twig using `getAttributeOptions` or `getAttributeRegistry` keeps working. PHP th
 | `$option->value` | `$option->name` |
 | `variant_manager_attribute_options` table | `variant_manager_attributes`, with `attributeId` set |
 
-`variantQueryForOption()`, `variantCountForOption()` and `isOptionInUse()` take a `VariantAttribute`.
+`variantQueryForOption()`, `variantCountForOption()`, and `isOptionInUse()` take a `VariantAttribute`.
 
-Element IDs and UIDs are unchanged, so anything relating to an option still resolves.
+Element IDs and UIDs are unchanged, so any reference to an option still resolves.
 
-A query against the dropped table or the old element type string returns nothing instead of raising an error, so check integrations that read the database directly.
+A query against the dropped options table raises a SQL error. A query filtering on the old element type string returns no rows instead, which is the silent one to look for. Check integrations that read the database directly.
 
 ### Options moved under their attribute
 
-Options are children of their attribute at **Variant Manager -> Variant Attributes**. The separate **Attribute Options** section is gone. Switch the listing to structure view to drag an attribute's options into the order a storefront should render them.
+Options are children of their attribute at **Variant Manager -> Variant Attributes**. The separate **Attribute Options** section is gone. The listing opens in structure view, where an attribute's options can be dragged into order. That order applies to the listing. A storefront picker built from `getAttributeOptions()` or `getAttributeRegistry()` renders each attribute's values in the order the product's variants store them.
 
 ### After updating
 
@@ -40,13 +40,13 @@ Then rewrite search keywords, so existing attributes and options are searchable 
 ./craft resave/variant-attributes --update-search-index
 ```
 
-If anything writes attribute values to variants outside the control panel, run the backfill once. On 3.x those values stayed unregistered until it ran; from 4.0.0 on, every variant save registers them.
+If other code writes attribute values to variants outside the control panel, run the backfill once. On 3.x those values stayed unregistered until it ran; from 4.0.0 on, every variant save registers them.
 
 ```sh
 ./craft variant-manager/attributes/backfill
 ```
 
-4.0.0 adds the [Variant Maker](./user-guide/variant-maker.md). No product type offers it until you turn it on at **Settings -> Plugins -> Variant Manager**, so an upgrade changes nothing on its own.
+4.0.0 adds the [Variant Maker](./user-guide/variant-maker.md). No product type offers it until you turn it on at **Settings -> Plugins -> Variant Manager**, so an upgrade leaves every product type as it was.
 
 ## Upgrading to 3.x
 
@@ -80,7 +80,7 @@ This is a catch-up for data that predates 3.x. On 3.x, imports and control panel
 
 ### Grant the new permission
 
-Existing user groups do not have `variant-manager:manage-attributes`. Grant it at **Users -> {group} -> Permissions** to anyone who should see the **Variant Attributes** section or run the utility. See [permissions](./reference/permissions.md).
+Existing user groups do not have `variant-manager:manage-attributes`. Grant it at **Users -> {group} -> Permissions** to anyone who needs to see the **Variant Attributes** section or run the utility. See [permissions](./reference/permissions.md).
 
 ### Set field layouts in development
 

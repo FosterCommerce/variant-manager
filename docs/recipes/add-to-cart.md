@@ -19,16 +19,20 @@ Replace `variantAttributes` with the handle of your Variant Attributes field.
 <form method="post">
   {{ csrfInput() }}
   {{ actionInput('commerce/cart/update-cart') }}
-  {{ hiddenInput('purchasableId', variant.id) }}
+  {% if variant %}{{ hiddenInput('purchasableId', variant.id) }}{% endif %}
 
   <div>
     <h1>{{ product.title }}</h1>
     <div>
-      {{ variant.onPromotion ? variant.salePriceAsCurrency : variant.priceAsCurrency }}
-      {% if variant.onPromotion %}
-        <span>
-          (was <s aria-label="{{ 'Reduced from {price}'|t('site', { price: variant.priceAsCurrency }) }}">{{ variant.priceAsCurrency }}</s>)
-        </span>
+      {% if variant %}
+        {{ variant.onPromotion ? variant.salePriceAsCurrency : variant.priceAsCurrency }}
+        {% if variant.onPromotion %}
+          <span>
+            (was <s aria-label="{{ 'Reduced from {price}'|t('site', { price: variant.priceAsCurrency }) }}">{{ variant.priceAsCurrency }}</s>)
+          </span>
+        {% endif %}
+      {% else %}
+        {{ 'That combination is not available.'|t('site') }}
       {% endif %}
     </div>
 
@@ -45,7 +49,7 @@ Replace `variantAttributes` with the handle of your Variant Attributes field.
       </div>
     {% endfor %}
 
-    <button type="submit">{{ 'Add to cart'|t('site') }}</button>
+    <button type="submit" {{ not variant ? 'disabled' }}>{{ 'Add to cart'|t('site') }}</button>
   </div>
 </form>
 
@@ -66,11 +70,11 @@ Replace `variantAttributes` with the handle of your Variant Attributes field.
 
 ## How it works
 
-1. `getAttributeOptions` pulls the distinct attribute names and their possible values across the product's variants.
-2. For each attribute, the selected value comes from a query parameter (kebab-cased name) or falls back to the first value.
-3. `craft.variants().productId(product.id).variantAttributes(selection).one()` finds the single variant that matches every selection.
+1. `getAttributeOptions` returns the distinct attribute names and their possible values across the product's variants.
+2. For each attribute, the selected value comes from a query parameter (kebab-cased name) or defaults to the first value.
+3. `craft.variants().productId(product.id).variantAttributes(selection).one()` finds the single variant that matches every selection. It returns `null` where the product has no variant for that combination. The selects still render, so the shopper can pick a different combination; only the price and the submit button depend on a match.
 4. The form posts `purchasableId` to `commerce/cart/update-cart`, adding the matched variant to the cart.
-5. Changing a `<select>` updates the URL's query string; the page reloads with the new selection in the URL, and the Twig at the top picks up the new value.
+5. Changing a `<select>` updates the URL's query string; the page reloads with the new selection in the URL, and the Twig at the top reads the new value.
 
 ## Related
 
