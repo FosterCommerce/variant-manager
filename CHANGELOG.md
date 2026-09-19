@@ -1,5 +1,12 @@
 # Release Notes for Variant Manager
 
+## 4.0.2 - 2026-09-18
+
+### Fixed
+
+- Fixed a failed import keeping the product it created, which blocked re-uploading the same CSV.
+- Fixed a failed import losing an existing product's variants.
+
 ## 4.0.1 - 2026-09-15
 
 ### Fixed

@@ -104,27 +104,35 @@ class Csv extends Component
 
 		$this->applyProductFields($product, $titleRecord);
 
-		if ($product->isNewForSite) {
-			$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
-		} else {
-			if ($refreshVariants) {
-				$variants = Variant::find()->product($product)->all();
-				foreach ($variants as $variant) {
-					Craft::$app->elements->deleteElement($variant);
-				}
-			}
-
-			$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
-		}
+		$replacedVariants = [];
 
 		try {
+			if ($product->isNewForSite) {
+				$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
+			} else {
+				// $refreshVariants and normalizeExistingProductImport() both delete variants
+				$replacedVariants = Variant::find()->product($product)->all();
+
+				if ($refreshVariants) {
+					foreach ($replacedVariants as $replacedVariant) {
+						Craft::$app->elements->deleteElement($replacedVariant);
+					}
+				}
+
+				$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
+			}
+
 			$this->saveVariants($product, $variants);
 
 			$this->importSiteSpecificData($tabularDataReader, $mapping['variant']['sku'], $mapping['sites']);
 			$this->importInventoryLevels($tabularDataReader, $mapping['variant']['sku'], $mapping['inventory']);
 		} catch (\Throwable $throwable) {
-			if ($product->isNewForSite && $product->id !== null) {
-				Craft::$app->elements->deleteElement($product);
+			if ($product->isNewForSite) {
+				if ($product->id !== null) {
+					Craft::$app->elements->deleteElement($product);
+				}
+			} else {
+				$this->restoreReplacedVariants($product, $replacedVariants);
 			}
 
 			throw $throwable;
@@ -274,6 +282,26 @@ class Csv extends Component
 		return collect(Variant::find()->sku($items)->all())
 			->groupBy(fn ($variant) => $variant->getOwner()->id)
 			->map(static fn ($variants) => $variants->map(static fn ($variant) => $variant->sku)->all());
+	}
+
+	/**
+	 * Restores a product's variants after an import fails partway.
+	 *
+	 * @param list<Variant> $replacedVariants
+	 */
+	private function restoreReplacedVariants(Product $product, array $replacedVariants): void
+	{
+		$elementsService = Craft::$app->elements;
+		$replacedIds = array_map(static fn (Variant $replacedVariant): int => (int) $replacedVariant->id, $replacedVariants);
+
+		// An imported variant may share a SKU with a replaced one
+		foreach (Variant::find()->product($product)->status(null)->all() as $importedVariant) {
+			if (! in_array((int) $importedVariant->id, $replacedIds, true)) {
+				$elementsService->deleteElement($importedVariant, true);
+			}
+		}
+
+		$elementsService->restoreElements(Variant::find()->id($replacedIds)->status(null)->trashed(true)->all());
 	}
 
 	/**
