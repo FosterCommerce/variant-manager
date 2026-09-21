@@ -11,6 +11,10 @@ use yii\base\Component;
 
 /**
  * Attribute field layouts, stored in project config under the attribute's uid.
+ *
+ * Modules register attributes and options through VariantAttributes.
+ *
+ * @internal
  */
 class AttributeConfigs extends Component
 {

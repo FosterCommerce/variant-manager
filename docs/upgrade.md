@@ -39,7 +39,7 @@ The Variant Maker previously checked `commerce-editProductType`, which Commerce 
 
 `getFieldLayout()`, `getOptionFieldLayout()`, and `remove()` take a string, so a call still passing a name key runs without error and reads the wrong branch of project config. A call passing one to `save()` raises a `TypeError`.
 
-For the calls a module should use, see [writing to the registry](./dev-guide/registry-api.md).
+`AttributeConfigs` is internal. For the calls a module should use, see [writing to the registry](./dev-guide/registry-api.md).
 
 ### Variants generated before 4.1.0
 

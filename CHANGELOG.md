@@ -1,5 +1,11 @@
 # Release Notes for Variant Manager
 
+## 4.1.1 - 2026-09-21
+
+### Changed
+
+- `AttributeConfigs` is now internal. Modules register attributes and options through `VariantAttributes`.
+
 ## 4.1.0 - 2026-09-21
 
 ### Added
