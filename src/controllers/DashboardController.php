@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager\controllers;
 use Craft;
 use craft\web\Controller;
 use craft\web\twig\variables\Paginate;
+use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\VariantManagerAssetBundle;
@@ -46,6 +47,7 @@ class DashboardController extends Controller
 
 		return $this->renderTemplate('variant-manager/dashboard', [
 			'activities' => $activityQuery->limit(self::ACTIVITIES_PER_PAGE)->offset($offset)->all(),
+			'canManageVariants' => PermissionHelper::canSaveAnyProductType(),
 			'logStatus' => $status,
 			'pagination' => Craft::createObject([
 				'class' => Paginate::class,

@@ -13,6 +13,7 @@ class VariantMakerAssetBundle extends AssetBundle
 
 		$this->depends = [
 			CpAsset::class,
+			VariantAttributeIndexAssetBundle::class,
 		];
 
 		$this->css = [

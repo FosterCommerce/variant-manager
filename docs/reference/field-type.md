@@ -1,6 +1,6 @@
 # Variant Attributes field
 
-The custom field type that Variant Manager uses to store option name and value pairs on each variant.
+The custom field type that Variant Manager uses to store attribute name and value pairs on each variant.
 
 ## What it stores
 

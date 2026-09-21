@@ -73,6 +73,11 @@ class Csv extends Component
 	];
 
 	/**
+	 * @var list<string>
+	 */
+	private const NATIVE_PRODUCT_COLUMNS = ['title', 'slug', 'status'];
+
+	/**
 	 * @throws CsvException
 	 * @throws Exception
 	 * @throws InvalidConfigException
@@ -150,7 +155,7 @@ class Csv extends Component
 	 */
 	public function saveVariants(Product $product, array $variants): void
 	{
-		// Save a new product first, since variants need its ID
+		// Save a new product first. Variants need its ID.
 		if ($product->isNewForSite && ! Craft::$app->elements->saveElement($product, false, true, true)) {
 			$errors = $product->getErrorSummary(false);
 			/** @var ?string $error */
@@ -161,7 +166,7 @@ class Csv extends Component
 		$product->setVariants($variants);
 		$product->setScenario(Element::SCENARIO_LIVE);
 
-		// Variant titles are generated from the owner, so save each one after the product
+		// Save each variant after the product, because Commerce generates variant titles from the owner
 		foreach ($variants as $variant) {
 			$variant->setOwner($product);
 			if (! Craft::$app->elements->saveElement($variant, false, true, true)) {
@@ -266,7 +271,7 @@ class Csv extends Component
 			if (count($row) < count($header)) {
 				$row = array_merge($row, array_fill(count($row), count($header) - count($row), ''));
 			}
-			// Collapse columns sharing a header, so a variant column never duplicates a product one
+			// Collapse columns sharing a header, because a variant column would otherwise duplicate a product column
 			$row = array_values(array_combine($header, $row));
 			$writer->insertOne($row);
 		}
@@ -550,13 +555,13 @@ class Csv extends Component
 				continue;
 			}
 
-			// Cast both, since PHP compares two numeric strings numerically
+			// Cast both, because PHP compares two numeric strings numerically
 			$sku = (string) $record[$mapping['variant']['sku']];
 			$variant = $existingVariants->first(static fn (Variant $existingVariant): bool => (string) $existingVariant->sku === $sku)->id ?? 0;
 			$newVariants[] = $this->normalizeVariantImport($record, $mapping, $variant);
 		}
 
-		// Match on id, since two variants can share a title
+		// Match on id. Two variants can share a title.
 		$importedVariantIds = collect($newVariants)->pluck('id')->filter()->all();
 		$removedVariants = $existingVariants->reject(static fn (Variant $existingVariant): bool => in_array($existingVariant->id, $importedVariantIds, true));
 		foreach ($removedVariants as $variant) {
@@ -793,7 +798,7 @@ class Csv extends Component
 		// Add variant fields
 		foreach ($mapping['variant'] as [$fieldHandle, $header]) {
 			if ($fieldHandle === 'stock' && $variant->inventoryTracked) {
-				// Leave stock empty when inventory is tracked, since the levels export separately
+				// Leave stock empty when inventory is tracked. The levels export separately.
 				$row[] = '';
 				continue;
 			}
@@ -844,7 +849,7 @@ class Csv extends Component
 		// Map Variant Attributes field values
 		if ($mapping['fieldHandle']) {
 			$handle = $mapping['fieldHandle'];
-			// Place each value under its own name, since this variant may store them in another order or not at all
+			// Place each value under its own name, because this variant might store them in another order or not at all
 			$valuesByName = array_column($variant->{$handle} ?? [], 'attributeValue', 'attributeName');
 			foreach (array_keys($mapping['attribute']) as $attributeName) {
 				$row[] = $valuesByName[$attributeName] ?? '';
@@ -874,26 +879,27 @@ class Csv extends Component
 		$variantMap = [];
 		$commerceVariantFieldMap = array_combine(self::STANDARD_PER_SITE_VARIANT_FIELDS, self::STANDARD_PER_SITE_VARIANT_FIELDS);
 
-		foreach (array_keys($productTypeMapping) as $i => $heading) {
+		foreach (array_keys($productTypeMapping) as $heading) {
 			$fieldHandle = $productTypeMapping[$heading];
 			if (array_key_exists($fieldHandle, $commerceVariantFieldMap)) {
 				$commerceVariantFieldMap[$fieldHandle] = $heading;
-			} else {
-				$variantMap[$i] = [$fieldHandle, $heading];
+				continue;
 			}
+
+			$variantMap[] = [$fieldHandle, $heading];
 		}
 
 		$fieldHandle = null;
 		$attributeMap = [];
 		$inventoryMap = [];
 		$mappedSites = [];
-		// Prefer a tracked variant, since only it has inventory levels
+		// Prefer a tracked variant. Only a tracked variant has inventory levels.
 		$variant = Variant::find()->product($product)->inventoryTracked()->status(null)->one()
 			?? Variant::find()->product($product)->status(null)->one();
 		if ($variant !== null) {
 			$fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
 			if ($fieldHandle !== null) {
-				// Collect every name the product uses, since its variants can store different attributes
+				// Collect every name the product uses, because its variants can store different attributes
 				foreach ($variants as $exportedVariant) {
 					foreach ($exportedVariant->{$fieldHandle} ?? [] as $attribute) {
 						$attributeMap[$attribute['attributeName']] ??= $attributePrefix . $attribute['attributeName'];
@@ -972,6 +978,12 @@ class Csv extends Component
 	private function setFieldValue(Element $element, string $fieldHandle, mixed $value, ?FieldLayout $fieldLayout): void
 	{
 		$field = $fieldLayout?->getFieldByHandle($fieldHandle);
+
+		// Skip a handle this layout has no field for, since the save drops what CustomFieldBehavior accepted
+		if ($field === null) {
+			return;
+		}
+
 		if ($field instanceof Entries) {
 			$sectionUids = $field->sources === '*'
 				? []
@@ -1118,9 +1130,16 @@ class Csv extends Component
 		$productTypeMapping = $settings->getProductFieldMapping($product->type->handle);
 
 		$productMap = [];
-		foreach (array_keys($productTypeMapping) as $i => $heading) {
+		foreach (array_keys($productTypeMapping) as $heading) {
 			$fieldHandle = $productTypeMapping[$heading];
-			$productMap[$i] = [$fieldHandle, $heading];
+
+			// CustomFieldBehavior keeps a deleted field's property, so only the layout says what getFieldValue can read
+			if (! in_array($fieldHandle, self::NATIVE_PRODUCT_COLUMNS, true)
+				&& $product->getFieldLayout()?->getFieldByHandle($fieldHandle) === null) {
+				continue;
+			}
+
+			$productMap[] = [$fieldHandle, $heading];
 		}
 
 		$titleMap = collect($productMap)->filter(static fn ($mapping) => $mapping[0] === 'title')->first();

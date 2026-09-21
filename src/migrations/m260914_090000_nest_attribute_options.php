@@ -19,7 +19,7 @@ class m260914_090000_nest_attribute_options extends Migration
 
 	public function safeUp(): bool
 	{
-		// Skip what an earlier run applied, since MySQL keeps schema changes from a failed run
+		// Skip what an earlier run applied, because MySQL keeps schema changes from a failed run
 		$structureId = $this->structureId();
 
 		$this->addAttributeIdColumn();
@@ -108,7 +108,7 @@ class m260914_090000_nest_attribute_options extends Migration
 	{
 		$structuresService = Craft::$app->getStructures();
 
-		// Read the rows directly, since a VariantAttribute query selects columns a later migration adds
+		// Read the rows directly. A VariantAttribute query selects columns a later migration adds.
 		$rows = (new Query())
 			->select([
 				'attributes.id',

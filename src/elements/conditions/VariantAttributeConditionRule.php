@@ -65,7 +65,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		}
 
 		if ($query instanceof ProductQuery) {
-			// Filter products through their variants, since the field is only on variant layouts
+			// Filter products through their variants, because the field is only on variant layouts
 			$query->hasVariant($this->variantQuery($query)->andWhere($condition, $params));
 			return;
 		}

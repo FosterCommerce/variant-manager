@@ -5,12 +5,8 @@
 
 {% import '_includes/forms' as forms %}
 
-{% set title = 'Variant Manager' %}
-
-{% set crumbs = [
-	{ label: 'Settings'|t('app'), url: url('settings') },
-	{ label: 'Plugins'|t('app'), url: url('settings/plugins') },
-] %}
+{% set title = 'Settings'|t('app') %}
+{% set selectedSubnavItem = 'settings' %}
 
 {% set fullPageForm = not readOnly %}
 

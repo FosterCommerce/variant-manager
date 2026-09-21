@@ -8,12 +8,12 @@ The CSV's filename is how Variant Manager determines whether to **create a new p
 
 - **Updating an existing product**: the filename starts with the product's ID and `__`, as in `42__classic-tee.csv`. This is the shape every export uses, so the reliable way to update a product is to export it, edit that file, and upload it under the name it came with. The part after `__` is ignored, and the ID keeps working after the product is retitled.
 - **Creating a new product**: any filename that does not start with digits and `__`. `Classic Tee.csv`, `spring-range.csv`, and `supplier-feed-3.csv` all create a new product.
-- **An ID that matches no product**: the upload fails rather than creating a product. A filename starting with digits and `__` is always read as an update, so `999__old-export.csv` errors if product 999 does not exist. This catches exports moved between environments, where the IDs differ.
+- **An ID that does not match a product**: the upload fails rather than creating a product. A filename starting with digits and `__` is always read as an update, so `999__old-export.csv` errors if product 999 does not exist. This catches exports moved between environments, where the IDs differ.
 - **A title in the filename has no effect.** `Classic Tee.csv` does not find an existing product called `Classic Tee`; it creates a second one. The product's title comes from the first cell of the row after the header, never from the filename.
 
 The upload modal says which one is about to happen. **Create Product** with a product type dropdown means a new product; **Edit Product** means it matched an ID. Check that before confirming.
 
-Avoid: renaming an export from `42__classic-tee.csv` to `Classic Tee Updated.csv`. That drops the ID, so Variant Manager creates a new product and the import probably fails because the SKUs already belong to the original.
+Avoid: renaming an export from `42__classic-tee.csv` to `Classic Tee Updated.csv`. That drops the ID, so Variant Manager creates a new product, and the import fails where the SKUs already belong to the original.
 
 ## The shape of a CSV
 
@@ -49,7 +49,7 @@ Classic Tee,classic-tee,enabled,,,,,,,,
 ,,,TEE-BLUE-M,19.99,1,1,150,60,Blue,Medium
 ```
 
-Download: [`classic-tee-complete.csv`](../examples/classic-tee-complete.csv). Its title and SKUs match the minimum example, so change them before uploading both.
+Download: [`classic-tee-complete.csv`](../examples/classic-tee-complete.csv). Change its title and SKUs before uploading both, because they match the minimum example.
 
 ## Column reference
 
@@ -109,6 +109,7 @@ Inventory values use their own `Inventory[locationHandle]: total` columns. The l
 | `Inventory[locationHandle]: damaged` | Damaged |
 | `Inventory[locationHandle]: safety` | Safety stock |
 | `Inventory[locationHandle]: qualityControl` | Quality control hold |
+| `Inventory[locationHandle]: committed` | Committed |
 
 Only variants with `inventoryTracked` set to `1` receive inventory updates. Tracked variants without an inventory column are not modified.
 
@@ -135,7 +136,7 @@ Include a custom field by adding its handle to `variantFieldMap` or `productFiel
 
 These are the imports that fail or behave strangely:
 
-- **Smart quotes in column headers**: typing column headers in a word processor turns `"Attribute: Color"` into `"Attribute: Color"` with curly quotes. Header matching is exact. Stick to a spreadsheet editor or a plain-text editor.
+- **Smart quotes in column headers**: a word processor replaces `"` with `“` in a pasted header, and header matching is exact. Stick to a spreadsheet editor or a plain-text editor.
 - **Semicolon as the separator**: spreadsheet apps in some regions default to `;`. Variant Manager only reads commas. Re-export with comma as the delimiter.
 - **Inventory column on an untracked variant**: the cell is ignored. Set `inventoryTracked[default]` to `1` first.
 - **Wrong attribute prefix**: `Option: Color` is ignored if `attributePrefix` is `Attribute: `. Match the config.

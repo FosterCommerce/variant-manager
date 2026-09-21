@@ -529,8 +529,8 @@ class VariantAttributes extends Component
 		$orphans ??= $this->findOrphans($batchSize);
 		$elementsService = Craft::$app->getElements();
 
-		// Options first, since deleting an attribute deletes the options under it
-		// Hard delete, since a trashed row keeps its unique key and blocks re-registering the value
+		// Options first. Deleting an attribute deletes the options under it.
+		// Hard delete, because a trashed row keeps its unique key and blocks re-registering the value
 		foreach ($orphans['options'] as $option) {
 			$elementsService->deleteElement($option, true);
 		}
@@ -545,7 +545,7 @@ class VariantAttributes extends Component
 
 			// Remove the config here, after the delete commits, rather than from afterDelete()
 			if (! $projectConfig->readOnly) {
-				$attributeConfigs->remove($attribute->nameKey);
+				$attributeConfigs->remove((string) $attribute->uid);
 			}
 		}
 

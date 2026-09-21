@@ -2,39 +2,41 @@
 
 Generate a product's variants in the control panel, one for every combination of the attributes and options you pick.
 
-Variant Maker reads no external data, so a store with no ERP, PIM, or spreadsheet can still build a full variant set.
-
 ## Permissions
 
-The preview and **Generate variants** both require Commerce's `commerce-editProductType` permission for the product's type. That is the only permission checked, so a user who can edit the product type can generate variants without any Variant Manager permission.
+The preview, **Generate variants**, **New attribute**, and **New option** all require Commerce's `commerce-saveProductType` permission for the product's type.
 
 ## Turning it on
 
 Disabled by default for every product type.
 
-Go to **Settings -> Plugins -> Variant Manager** and check the product types that should offer it. Setting [`variantMakerProductTypes`](../reference/configuration.md#variantmakerproducttypes) in `config/variant-manager.php` overrides what that screen saves.
+Go to **Variant Manager -> Settings** and check the product types that should offer it. Setting [`variantMakerProductTypes`](../reference/configuration.md#variantmakerproducttypes) in `config/variant-manager.php` overrides what that screen saves.
 
 The product type also needs a Variant Attributes field in its variant field layout. Without one the tab stays hidden, even when the product type is checked.
 
-A saved product then shows a **Variant Maker** tab, last in the row. A brand new product shows the tab with a note to save first.
+A saved product then shows a **Variant Maker** tab, last in the row. A new product, or a duplicate you have not saved yet, shows the tab with a note to save first.
 
 ## Attributes to combine
 
 One row per attribute. Pick the attribute, then pick as many of its options as you want.
 
-The attribute and option lists come from the registry, so a row can only offer what is already registered. A store whose variants predate the plugin has an empty registry and an empty list. Fill it by importing a CSV, saving a variant that stores attribute pairs, running the **Variant Attributes** utility, or running `variant-manager/attributes/backfill`. See [variant attributes](./variant-attributes.md).
+The attribute and option lists come from the registry. **New attribute** and **New option**, in the pickers, register a row from the product's edit page. See [creating attributes and options](./variant-attributes.md#creating-attributes-and-options).
+
+A store whose variants predate the plugin starts with an empty registry, so the pickers start empty. To register every attribute in the catalog at once, import a CSV, run the **Utilities -> Variant Attributes** utility, or run `./craft variant-manager/attributes/backfill`. See [variant attributes](./variant-attributes.md).
+
+**Load attributes from existing variants** adds a row for every attribute this product's variants store, with those values selected. The button registers a value the registry has no row for, skips an attribute that already has a row, and reports when every attribute already has one. The rows are not saved until you save the product.
 
 Every option in a row is combined with every option in every other row. Three sizes, four colors, and two finishes make 24 combinations.
 
 The options list is limited to the attribute chosen in that row, so changing a row's attribute clears the options under it.
 
-A row needs both an attribute and at least one option. Leave either empty and the product does not save, with the row number named in the error.
+Every row needs both an attribute and at least one option. If either is empty, the product does not save, and the error names the row number. A product with no rows saves.
 
-Row order sets the order the SKU partials assemble in, for the default SKU format below.
+Row order sets the order the Variant Maker assembles SKU partials in, for the default SKU format below.
 
 ## What to do with existing variants
 
-The mode is the only control over whether an existing variant is rewritten.
+The mode sets whether existing variants are rewritten.
 
 | Mode | What it does |
 |------|--------------|
@@ -65,7 +67,7 @@ SKU and price are always included, so their switches are on and disabled. Commer
 | Free shipping | Switch. |
 | Promotable | Switch. |
 
-The Variant Maker does not set these, so edit them on the Variants tab after generating: dimensions, weight, tax and shipping categories, minimum and maximum quantity, promotional price, and custom fields.
+The Variant Maker does not set dimensions, weight, tax and shipping categories, minimum and maximum quantity, promotional price, or custom fields. Edit those on the Variants tab after generating.
 
 Where the store has more than one inventory location, an **Inventory location** menu appears under the table. Stock is written to the location you pick.
 
@@ -77,14 +79,18 @@ In a format, `{Attribute Name}` becomes the option chosen under that attribute. 
 TEE-{Size}-{Color}
 ```
 
-Each attribute contributes its option's **SKU Partial** where the option has one, and the option's own value where it does not. Set SKU partials at **Variant Manager -> Variant Attributes**, or from the slideout that opens when you click an option chip.
+Under the properties table, the Variant Maker lists the tokens for the attributes on your rows.
+
+The Variant Maker uses each option's **SKU Partial**, or the option's own value where it has no partial. Set SKU partials at **Variant Manager -> Variant Attributes**, or from the slideout that opens when you click an option chip.
 
 Leave a format blank for the default:
 
 - A title is the combination joined by a slash: `Small / Red`.
-- A SKU is the product's default variant SKU followed by each option, joined by dashes. Spaces become dashes.
+- A SKU is the product slug followed by each option, joined by dashes. Spaces become dashes.
 
-A format you type is used exactly as written, spaces included.
+Each format field's placeholder shows the format that reproduces the default.
+
+A SKU format collapses spaces and dash runs in each token's value to a single dash, the way a blank format does. A title format leaves the values as they are.
 
 ### Price modifiers
 
@@ -92,7 +98,7 @@ Each option can have a **Price Modifier**, set in the same place as its SKU part
 
 ## Preview
 
-The table below the form updates as you change the builder. It lists every combination and what generating would do to it.
+The table below the form updates as you change the rows. It lists every combination and what generating would do to it.
 
 | Status | Meaning |
 |--------|---------|
@@ -103,11 +109,11 @@ The table below the form updates as you change the builder. It lists every combi
 
 A column shows `old -> new` only where the run would write that value. An excluded property shows **Commerce default** on a Create row, and **Kept** on every other row. The Stock column instead shows **Unlimited** where inventory is not tracked. On a Create row it shows **None** where inventory is tracked with no count set; every other row shows **Kept**.
 
-The preview reads the builder as it stands on screen, not what was last saved.
+The preview reads the rows as they stand on screen, not what was last saved.
 
 ### SKU warnings
 
-Commerce requires every SKU to be unique across the store and no longer than 255 characters. A row that breaks either rule is flagged in red under its SKU, and **Generate variants** does not run while any row is flagged.
+Each SKU must be unique across the store and no longer than 255 characters. A row that breaks either rule is flagged in red under its SKU, and **Generate variants** reports the problem instead of running.
 
 | Warning | Cause |
 |---------|-------|
@@ -117,13 +123,13 @@ Commerce requires every SKU to be unique across the store and no longer than 255
 
 ## Saving and generating
 
-Saving the product saves the builder, and creates no variants.
+Saving the product saves the rows and properties. The save does not create variants.
 
 The settings are stored per product, so each product keeps its own attributes, mode, and properties.
 
 **Generate variants** runs the job in the background and returns you to the page. Watch **Variant Manager -> Dashboard** for the result. It records how many variants were created, updated, and deleted, or the error if the run failed.
 
-Generating uses the saved settings, so save the product before pressing **Generate variants**. A product with unsaved changes shows a message instead of generating.
+Generating uses the saved settings, so **Generate variants** stays disabled while the product has unsaved changes.
 
 The whole run is one transaction, including the stock writes. If any variant fails to save, no variant is written, no stock level changes, and the activity log records why.
 

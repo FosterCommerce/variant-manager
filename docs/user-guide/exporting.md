@@ -46,7 +46,7 @@ A few notes on the export content:
 - Disabled products and disabled variants are both exported. `status` is a product column and reads `disabled` for a disabled product; removing its `productFieldMap` entry skips the column.
 - The export omits a variant's enabled state unless `variantFieldMap` has `'enabled' => 'enabled'`.
 - Variants with `inventoryTracked` on get their inventory totals filled in; untracked variants have empty cells in the inventory columns.
-- The `stock` column, if you have it mapped, is left empty for tracked variants since Commerce's inventory levels manage stock instead.
+- The `stock` column, if you have it mapped, is left empty for tracked variants, because Commerce's inventory levels manage stock instead.
 
 To change the field maps, see [configuration reference](../reference/configuration.md).
 
@@ -69,7 +69,7 @@ For the difference between the two, see [importing](./importing.md#existing-prod
 
 ## Common mistakes
 
-- **Renaming an export file**: do not. Renaming `42__classic-tee.csv` to any other name makes the import read it as a brand-new product, and the import probably fails with "One or more SKUs already exist".
+- **Renaming an export file**: do not. A rename drops the ID prefix, so the import creates a new product and fails with "One or more SKUs already exist". See [the filename rules](./csv-format.md#the-filename-matters).
 - **Editing column headers**: do not rename the column headers. The plugin maps columns by header text; changing `basePrice[default]` to `Price` leaves prices unchanged on reimport.
 - **Reordering columns**: safe for every column except the first. The plugin matches columns by header, but the product title is read from the first cell of row 2 whatever its header says, so moving another column in front of `title` renames the product on reimport.
 - **Adding new attribute columns**: safe. Add a new `Attribute: Material` column with values and reimport.

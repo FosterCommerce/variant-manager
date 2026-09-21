@@ -9,9 +9,9 @@ Every import attempt and every Variant Maker run writes one row to the activity 
 - **Successful imports** (green status dot): "Imported new product {title} into {product type}" or "Imported existing product {title} into {product type}". The product title is a link to the product edit page.
 - **Failed imports** (red status dot): "Failed to import {filename}: {error message}". The error message is the same one the import threw.
 - **Variant Maker runs**: how many variants were created, updated, and deleted, or the error if the run failed. See [the Variant Maker](./variant-maker.md).
-- **New attributes and options**: "Created attribute Color" and "Created option Red under Color", written the first time a name or value is registered, whether by a variant save, a CSV import, or the backfill. See [variant attributes](./variant-attributes.md).
+- **New attributes and options**: "Created attribute Color" and "Created option Red under Color", written the first time a name or value is registered, whatever registered it. See [variant attributes](./variant-attributes.md).
 
-Exporting writes no row.
+Exporting does not write a row.
 
 Each row records the user who triggered the run and the date.
 

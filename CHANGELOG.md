@@ -1,5 +1,53 @@
 # Release Notes for Variant Manager
 
+## 4.1.0 - 2026-09-21
+
+### Added
+
+- Added a “New attribute” button to the Variant Attributes index and to the attribute picker in Variant Maker rows. It starts the attribute on the configured default display type. ([#48](https://github.com/FosterCommerce/variant-manager/issues/48))
+- Added a “New option” button to the option picker in Variant Maker rows. ([#48](https://github.com/FosterCommerce/variant-manager/issues/48))
+- Added a “Load attributes from existing variants” button to the Variant Maker.
+- Added an editable “System Name” to the attribute and option create screens.
+- Added a “Settings” item to the Variant Manager nav, for admins.
+- Added a list of the `{Attribute Name}` tokens available in the Variant Maker title and SKU formats.
+- Added a placeholder on the Variant Maker title and SKU fields showing the format that reproduces the default.
+- Added a validation error when two attributes, or two options under one attribute, share a system name.
+- Added `Plugin::getCsv()`.
+- Added `VariantMaker::defaultFormats()`.
+- Added `AttributeConfigs::getAllLayouts()`.
+- Added `fostercommerce\variantmanager\helpers\PermissionHelper`.
+
+### Changed
+
+- Variant Manager now requires Craft Commerce 5.7.0 or later.
+- Importing, the Variant Maker, “Bulk edit field”, the “Variant Attributes” section, the orphan prune, and the backfill now check Commerce's `commerce-saveProductType` permission.
+- `variant-manager:manage` now gates only clearing the activity log.
+- Attribute field layouts are now keyed on the attribute's UID in project config, rather than on its name.
+- The default SKU format now starts from the product slug rather than the default variant's SKU.
+- A typed SKU format now collapses spaces and dash runs in each token's value, the way a blank format does.
+- Generating now fails when the product type has no Variant Attributes field, rather than writing variants with no attributes.
+- Generating with no options picked now reports that no combination was built.
+- The Variant Maker no longer prefills its rows from a product's existing variants. Use “Load attributes from existing variants”.
+- “Generate variants” is now disabled while the product has unsaved changes.
+- Renamed `VariantMaker::attributesInUse()` to `rowsFromVariants()`.
+- `VariantMaker::settingsRows()` no longer takes a product argument.
+- `AttributeConfigs::getFieldLayout()`, `getOptionFieldLayout()`, and `remove()` now take an attribute UID rather than a name key, and `save()` now takes the attribute element.
+
+### Removed
+
+- Removed `variant-manager:import`. Grant Commerce's `commerce-saveProductType` for importing.
+- Removed `variant-manager:manage-attributes`. Commerce's `commerce-saveProductType` gates the “Variant Attributes” section.
+- Removed `AttributeConfigs::getAllAttributeLayouts()` and `getAllOptionLayouts()`. Use `getAllLayouts()` instead.
+
+### Fixed
+
+- Fixed a bug where the Variant Maker tab was unavailable to everyone but admins.
+- Fixed a bug where an attribute whose name contained a period lost its field layouts during garbage collection.
+- Fixed an error that occurred when exporting or importing a product whose type has no field for a mapped handle.
+- Fixed a bug where the Variant Maker did not store attribute pairs on the variants it generated. ([#49](https://github.com/FosterCommerce/variant-manager/issues/49))
+- Fixed a bug where “Replace all variants” reported “Another row builds this same SKU” for a variant the same run was deleting. ([#49](https://github.com/FosterCommerce/variant-manager/issues/49))
+- Fixed a bug where prefilled Variant Maker rows stopped a product from being saved. ([#50](https://github.com/FosterCommerce/variant-manager/issues/50))
+
 ## 4.0.3 - 2026-09-19
 
 ### Changed
@@ -22,7 +70,7 @@
 - Fixed a bug where a SKU already used by a disabled variant on another product was not reported.
 - Fixed an issue where an unreadable zip reported that the import had been queued.
 - Fixed an issue where a column missing its `[siteHandle]` or `[location]` suffix failed with an unrelated message.
-- Fixed an issue where uploading a filename whose ID prefix matched no product reported a generic server error.
+- Fixed an issue where uploading a filename whose ID prefix did not match a product reported a generic server error.
 
 ## 4.0.2 - 2026-09-18
 
@@ -93,7 +141,7 @@
 
 ### Fixed
 
-- Fixed a bug where import and export produced no variant columns without a `config/variant-manager.php` file.
+- Fixed a bug where import and export did not write variant columns without a `config/variant-manager.php` file.
 - Fixed a bug where an empty `variantFieldMap` entry exported a CSV with no variant columns.
 - Fixed the `src/config.php` template mapping `'price' => 'basePrice'`, which named the price column `price[default]` where the rest of the documentation says `basePrice[default]`.
 - Fixed a CSV column for a standard variant field the map does not list, such as `enabled` or `isDefault`, failing the import with an unknown field error.

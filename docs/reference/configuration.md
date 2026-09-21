@@ -90,6 +90,8 @@ Three keys have special handling:
 
 Other entries write to product custom fields by handle. See [supported field types](#supported-field-types) below.
 
+A handle absent from the product type's field layout is left out of that product's export, header and cell together. Under `'*'`, that happens for any handle only some product types have. An import skips that column for the same reason.
+
 Example per-product-type map:
 
 ```php
@@ -186,7 +188,7 @@ Valid values are `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `co
 
 An attribute already set to a type this list omits keeps it, and the menu still shows it, so no attribute is rewritten on the next save. Change that attribute and the omitted type is gone from its menu.
 
-This setting is also editable at **Settings -> Plugins -> Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
+This setting is also editable at **Variant Manager -> Settings**. A value here overrides what that screen saves, and the control shows a warning saying so.
 
 ### `variantMakerProductTypes`
 
@@ -201,18 +203,18 @@ return [
 ];
 ```
 
-A product type also needs a Variant Attributes field in its variant field layout, since that is where a generated variant stores its combination. Listing a product type without one leaves the tab hidden.
+A product type also needs a Variant Attributes field in its variant field layout, because that is where a generated variant stores its combination. Listing a product type without one leaves the tab hidden.
 
-This setting is also editable at **Settings -> Plugins -> Variant Manager**. A value here overrides what that screen saves, and the control shows a warning saying so.
+This setting is also editable at **Variant Manager -> Settings**. A value here overrides what that screen saves, and the control shows a warning saying so.
 
 ### `defaultDisplayType`
 
 - Type: `string`
 - Default: `'dropdown'`
 
-Display type given to an attribute the first time it is registered, by whichever route does so. Attributes that already exist keep the type they have.
+Display type given to an attribute the first time it is registered. The **New attribute** slideout sets its own type instead. Attributes that already exist keep the type they have.
 
-Takes the same values as `availableDisplayTypes`. An unrecognized value falls back to `dropdown`. This setting is also editable at **Settings -> Plugins -> Variant Manager**, where the menu offers only the types `availableDisplayTypes` allows.
+Takes the same values as `availableDisplayTypes`. An unrecognized value falls back to `dropdown`. This setting is also editable at **Variant Manager -> Settings**, where the menu offers only the types `availableDisplayTypes` allows.
 
 ## Supported field types
 

@@ -1,6 +1,6 @@
 {% import '_includes/forms.twig' as forms %}
 
-{% if not product.id %}
+{% if not product.id or product.isUnpublishedDraft %}
 	{{ forms.field({
 		label: 'variantMaker.name'|t('variant-manager'),
 	}, '<p class="light">' ~ 'variantMaker.saveFirst'|t('variant-manager') ~ '</p>') }}
@@ -11,6 +11,10 @@
 
 	<div {{ static ? '' : 'data-vm-variant-maker' }} data-vm-product-id="{{ product.id }}">
 		{% set rowBuilder %}
+			{% if not static %}
+				<button type="button" class="btn vm-autofill" data-vm-autofill-rows>{{ 'variantMaker.autofillRows'|t('variant-manager') }}</button>
+			{% endif %}
+
 			<div class="vm-row vm-row--head">
 				<span>{{ 'attributes.attribute'|t('variant-manager') }}</span>
 				<span>{{ 'variantMaker.options'|t('variant-manager') }}</span>
@@ -82,7 +86,7 @@
 									{{ forms.text({
 										name: 'variantMaker[properties][' ~ propertyName ~ '][value]',
 										value: property.value,
-										placeholder: ('variantMaker.placeholder.' ~ propertyName)|t('variant-manager'),
+										placeholder: propertyName == 'price' ? 'variantMaker.placeholder.price'|t('variant-manager') : null,
 										labelledBy: 'vm-property-' ~ propertyName,
 									}) }}
 								{% elseif propertyName == 'stock' %}
@@ -121,7 +125,7 @@
 			label: 'variantMaker.properties'|t('variant-manager'),
 			instructions: 'variantMaker.propertiesInstructions'|t('variant-manager'),
 		}, propertyTable
-			~ '<p class="light">' ~ 'variantMaker.formatTokens'|t('variant-manager') ~ '</p>'
+			~ '<p class="light" data-vm-tokens></p>'
 			~ (generatesTitles ? '<p class="light">' ~ 'variantMaker.titlesGenerated'|t('variant-manager') ~ '</p>' : '')
 			~ '<p class="light">' ~ 'variantMaker.propertiesExcluded'|t('variant-manager') ~ '</p>') }}
 
@@ -131,11 +135,14 @@
 		<div data-vm-preview aria-live="polite" aria-busy="false"></div>
 
 		{% if not static %}
+			{% set unsaved = product.isProvisionalDraft %}
+
 			<div class="vm-generate">
-				<button type="button" class="btn submit" data-vm-generate>{{ 'variantMaker.generate'|t('variant-manager') }}</button>
-				<span class="light">{{ 'variantMaker.generateInstructions'|t('variant-manager', {
+				<button type="button" class="btn submit{{ unsaved ? ' disabled' }}"{{ unsaved ? ' disabled' }} data-vm-generate>{{ 'variantMaker.generate'|t('variant-manager') }}</button>
+				<span class="light{{ unsaved ? ' hidden' }}" data-vm-generate-instructions>{{ 'variantMaker.generateInstructions'|t('variant-manager', {
 					activity: '<a href="' ~ url('variant-manager/dashboard') ~ '">' ~ 'variantMaker.results'|t('variant-manager') ~ '</a>',
 				})|raw }}</span>
+				<span class="light{{ unsaved ? '' : ' hidden' }}" data-vm-generate-save-first>{{ 'variantMaker.generateSaveFirst'|t('variant-manager') }}</span>
 			</div>
 		{% endif %}
 	</div>

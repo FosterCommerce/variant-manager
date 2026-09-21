@@ -67,7 +67,7 @@ class VariantMakerSettings extends Model
 		$stored = Json::decodeIfJson($json ?? '');
 		$stored = is_array($stored) ? $stored : [];
 
-		// Keep only the keys this model still declares, since an earlier shape stored others
+		// Keep only the keys this model still declares. An earlier shape stored others.
 		$settings = new self(array_intersect_key($stored, array_flip((new self())->attributes())));
 		$settings->properties = self::propertiesFromPost(array_map(
 			static fn (mixed $property): array => (array) $property,

@@ -42,7 +42,7 @@ The modal opens with "Are you sure you want to process this zip file?" and shows
   - **Replace all variants**: for any CSV that matches an existing product, delete every existing variant first, then import the CSV.
 - **Process Zip** to start, or **Cancel** to abandon.
 
-Click **Process Zip**. The plugin extracts every CSV and queues one job per file. The dashboard responds with "File yourfile.zip has been queued for processing".
+Click **Process Zip**. The plugin extracts every CSV and queues one job per file. Variant Manager shows "File yourfile.zip has been queued for processing".
 
 ## Watching progress
 
@@ -64,7 +64,7 @@ The most common failures in a bulk import:
 
 - **Wrong product type for some files**: every CSV in the zip uses the same product type. If some products belong to a different product type, split them into separate zips.
 - **Some files have SKUs that already belong to other products**: each failing file logs its own error. Fix those CSVs and reupload them individually or in a smaller zip.
-- **Missing ID prefix**: any filename without a leading `{id}__` creates a new product, whatever it is called. Re-export the product to get the right filename.
+- **Missing ID prefix**: the file creates a new product instead of updating one. Re-export the product to get the right filename.
 - **Queue stalled mid-batch**: the unprocessed jobs stay pending until the queue runs. `./craft queue/run` resumes.
 
 **Delete failed jobs rather than retrying them.** Fix the source CSV and upload it again. See [cleaning up failed import jobs](./troubleshooting.md#cleaning-up-failed-import-jobs).

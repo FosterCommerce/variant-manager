@@ -1,6 +1,53 @@
 # Upgrading
 
-Upgrade one major at a time, in order. Coming from 2.x to 4.x means working through both sections below, starting with 3.x.
+Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, and 4.1.0 sections in that order. A store on 4.0.x needs only the 4.1.0 section.
+
+## Upgrading to 4.1.0
+
+4.1.0 requires Craft Commerce 5.7.0 or later, which is where `commerce-saveProductType` was introduced. Composer refuses the update on an earlier Commerce.
+
+Run `./craft up` to apply the migration. Templates and the CSV format are unchanged.
+
+The migration writes to project config: it re-keys each attribute's field layouts and revokes the removed permissions from every user group. Run `./craft project-config/write` afterwards, then commit `config/project/`.
+
+An environment that applies the old config keeps the old layout keys and grants the removed permissions back, so no attribute or option shows its custom fields.
+
+### Permissions
+
+Everything that changes catalog data now checks Commerce's `commerce-saveProductType`. For the full list, see [permissions reference](./reference/permissions.md).
+
+`variant-manager:import` and `variant-manager:manage-attributes` are removed. `variant-manager:manage` now gates only clearing the activity log.
+
+The migration revokes both removed permissions and grants no replacement, because catalog access now comes from Commerce. Grant `commerce-saveProductType` per product type to anyone who imports or generates variants.
+
+A group with `variant-manager:import` and no Commerce permission cannot use the tools until you grant it `commerce-saveProductType`.
+
+The Variant Maker previously checked `commerce-editProductType`, which Commerce 5 removed.
+
+### Service methods changed
+
+| 4.0.3 | 4.1.0 |
+| --- | --- |
+| `VariantMaker::attributesInUse($product)` | `VariantMaker::rowsFromVariants($product)` |
+| `VariantMaker::settingsRows($product, $settings)` | `VariantMaker::settingsRows($settings)` |
+| `AttributeConfigs::getFieldLayout($nameKey)` | `AttributeConfigs::getFieldLayout($attributeUid)` |
+| `AttributeConfigs::getOptionFieldLayout($nameKey)` | `AttributeConfigs::getOptionFieldLayout($attributeUid)` |
+| `AttributeConfigs::save($nameKey, $layout, $optionLayout)` | `AttributeConfigs::save($attribute, $layout, $optionLayout)` |
+| `AttributeConfigs::remove($nameKey)` | `AttributeConfigs::remove($attributeUid)` |
+
+`rowsFromVariants()` returns each attribute with the options that product's variants store.
+
+`getFieldLayout()`, `getOptionFieldLayout()`, and `remove()` take a string, so a call still passing a name key runs without error and reads the wrong branch of project config. A call passing one to `save()` raises a `TypeError`.
+
+For the calls a module should use, see [writing to the registry](./dev-guide/registry-api.md).
+
+### Variants generated before 4.1.0
+
+The Variant Maker did not store attribute pairs on the variants it created in 4.0.0 through 4.0.3. The attribute filters and the registry exclude those variants, and the Variant Maker cannot match them, so no mode updates one. Add and Update both plan a new variant for the combination and leave the old one in place. The old variant still holds that SKU, so the run stops with "Another row builds this same SKU".
+
+The preview names them: each one is a Create row with that warning.
+
+Replace mode repairs them by deleting the unmatched variant and creating the combination again. Where Replace is too broad for the product, delete those variants and generate again.
 
 ## Upgrading to 4.x
 
@@ -20,7 +67,7 @@ Twig using `getAttributeOptions` or `getAttributeRegistry` keeps working. PHP th
 
 Element IDs and UIDs are unchanged, so any reference to an option still resolves.
 
-A query against the dropped options table raises a SQL error. A query filtering on the old element type string returns no rows instead, which is the silent one to look for. Check integrations that read the database directly.
+A query against the dropped options table raises a SQL error. A query filtering on the old element type string returns an empty result instead, which is the silent one to look for. Check integrations that read the database directly.
 
 ### Options moved under their attribute
 
@@ -46,7 +93,7 @@ If other code writes attribute values to variants outside the control panel, run
 ./craft variant-manager/attributes/backfill
 ```
 
-4.0.0 adds the [Variant Maker](./user-guide/variant-maker.md). No product type offers it until you turn it on at **Settings -> Plugins -> Variant Manager**, so an upgrade leaves every product type as it was.
+4.0.0 adds the [Variant Maker](./user-guide/variant-maker.md). No product type offers it until you turn it on at **Variant Manager -> Settings**, so an upgrade leaves every product type as it was.
 
 ## Upgrading to 3.x
 
@@ -78,9 +125,9 @@ It reads every variant and registers the names and values already stored on them
 
 This is a catch-up for data that predates 3.x. On 3.x, imports and control panel saves register what they store; values written by an integration stay unregistered until the backfill runs again.
 
-### Grant the new permission
+### Grant the attributes permission
 
-Existing user groups do not have `variant-manager:manage-attributes`. Grant it at **Users -> {group} -> Permissions** to anyone who needs to see the **Variant Attributes** section or run the utility. See [permissions](./reference/permissions.md).
+3.x added `variant-manager:manage-attributes`, which existing user groups do not have. Grant it at **Users -> {group} -> Permissions** to anyone who needs the **Variant Attributes** section or the utility. Upgrading straight to 4.1.0 removes this permission again, so skip this step and read [Permissions](#permissions) under 4.1.0 instead.
 
 ### Set field layouts in development
 

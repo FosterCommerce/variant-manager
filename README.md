@@ -7,7 +7,7 @@ A Craft CMS plugin for managing Craft Commerce variants as combinations of **att
 ## Overview
 
 - Add one Variant Attributes field to your variants instead of a hard-coded custom field per attribute (Color, Size, Material), and give each attribute and option its own custom fields for swatch images, hex values, and spec sheets.
-- Add a new attribute or option by importing it, with no change to a field, a field layout, or a template.
+- Add a new attribute or option in the control panel, or by importing a CSV that names it, with no change to a field, a field layout, or a template.
 - Build attribute pickers in Twig from each attribute's display type.
 - Import a CSV to create or update a product and its variants, or a zip of CSVs to import many at once.
 - Generate a product's variants from the attributes and options you choose, each combination with its own SKU and price.
@@ -26,7 +26,7 @@ A Craft CMS plugin for managing Craft Commerce variants as combinations of **att
 ## Requirements
 
 - Craft CMS `^5.0`
-- Craft Commerce `^5.0`
+- Craft Commerce `^5.7.0`
 - PHP `>=8.2.0`
 
 ## Install
@@ -36,7 +36,7 @@ composer require fostercommerce/variant-manager
 ./craft plugin/install variant-manager
 ```
 
-For the full installation and configuration guide, see [installation](./docs/installation.md). If you are coming from 2.x or 3.x, see [upgrading](./docs/upgrade.md).
+For the full installation and configuration guide, see [installation](./docs/installation.md). If you are upgrading from an earlier version, see [upgrading](./docs/upgrade.md).
 
 ## Variant attributes
 
@@ -52,13 +52,15 @@ Create or update a product and all of its variants from a spreadsheet.
 
 Upload a CSV (or a zip of CSVs) from **Variant Manager -> Dashboard**. A zip runs each file as its own queue job, so one bad file does not stop the rest. A filename starting with a product ID (`42__classic-tee.csv`, the shape every export uses) updates that product; any other filename creates a new one. Columns map to product fields, variant fields, per-site Commerce fields, inventory levels, and variant attributes. Every run writes to an activity log with its outcome and, on failure, the reason.
 
-See [importing](./docs/user-guide/importing.md), [CSV format](./docs/user-guide/csv-format.md), [bulk import](./docs/user-guide/bulk-import.md), [the activity log](./docs/user-guide/activity-log.md), and [troubleshooting](./docs/user-guide/troubleshooting.md).
+Uploading needs Commerce's `commerce-saveProductType` on the product type being written, the same permission every tool that changes catalog data uses.
+
+See [importing](./docs/user-guide/importing.md), [CSV format](./docs/user-guide/csv-format.md), [bulk import](./docs/user-guide/bulk-import.md), [the activity log](./docs/user-guide/activity-log.md), [choosing what to grant](./docs/user-guide/permissions.md), and [troubleshooting](./docs/user-guide/troubleshooting.md).
 
 ## Variant Maker
 
-Create a product's variants in the control panel, one for every combination of the attributes and options you pick.
+Generate a product's variants in the control panel, one for every combination of the attributes and options you pick.
 
-Set the title, price, stock, and purchasing switches each variant starts with. An option's SKU partial and price modifier assemble the combination's SKU and price. The preview lists every combination and what generating would change, before any variant is written. The attributes and options have to be registered first.
+Set the title, price, stock, and purchasing switches each variant starts with. An option's SKU partial and price modifier assemble the combination's SKU and price. The preview lists every combination and what generating would change, before any variant is written. Create the attributes and options while you set up the rows, or register them in advance.
 
 Disabled by default for every product type.
 
@@ -69,6 +71,8 @@ See [the Variant Maker](./docs/user-guide/variant-maker.md).
 Get a product's variants out as a CSV you can edit and reimport.
 
 Export one product from the **Export Product** button in its edit page sidebar, or many at once with the **Export Variant Data** action on a selection at **Commerce -> Products**. A single product downloads as one CSV; multiple products download as a zip. The column headers need no editing before the file is reimported.
+
+Exporting uses the plugin's own `variant-manager:export`, not the Commerce permission importing needs.
 
 See [exporting](./docs/user-guide/exporting.md).
 
@@ -90,4 +94,4 @@ Proprietary.
 
 ---
 
-<a href="https://www.fostercommerce.com" target="_blank"><img src="./resources/img/foster-commerce.svg" alt="Foster Commerce" width="160"></a>
+<a href="https://www.fostercommerce.com" target="_blank"><img src="./resources/img/foster-commerce.svg" alt="Foster Commerce" width="160" height="40"></a>

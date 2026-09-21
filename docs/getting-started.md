@@ -1,6 +1,6 @@
 # Getting started
 
-This walks you from `composer require` to a Commerce product whose variants each store their attributes as name and value pairs, built from a spreadsheet. By the end you will also know how to export them, edit the spreadsheet, and reimport.
+This covers everything from `composer require` to a Commerce product whose variants each store their attributes as name and value pairs, built from a spreadsheet. By the end you will also know how to export them, edit the spreadsheet, and reimport.
 
 To build a product's variants in the control panel instead, see [Variant Maker](./user-guide/variant-maker.md).
 
@@ -89,4 +89,4 @@ Use this to change many variants at once.
 - [Variant Attributes field](./reference/field-type.md), how the attribute data is stored and read.
 - [Variant attributes](./user-guide/variant-attributes.md), attaching swatches and notes to attribute values.
 - [Template tags](./dev-guide/template-tags.md) and [the add-to-cart recipe](./recipes/add-to-cart.md), using the attributes on the storefront.
-- [Upgrading](./upgrade.md), if you are coming from 2.x or 3.x.
+- [Upgrading](./upgrade.md), if you are coming from an earlier version.

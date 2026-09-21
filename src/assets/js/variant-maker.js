@@ -5,6 +5,7 @@
 		container: null,
 		rows: null,
 		preview: null,
+		tokens: null,
 		productId: null,
 		nextRowId: 1,
 		pending: null,
@@ -14,6 +15,7 @@
 			this.container = container;
 			this.rows = container.querySelector('[data-vm-rows]');
 			this.preview = container.querySelector('[data-vm-preview]');
+			this.tokens = container.querySelector('[data-vm-tokens]');
 			this.productId = container.dataset.vmProductId;
 			this.nextRowId = this.rows.querySelectorAll('[data-vm-row]').length + 1;
 
@@ -23,6 +25,7 @@
 			$(container).on('change', this.onChange.bind(this));
 
 			this.watchElementSaves();
+			this.watchUnsavedChanges();
 			this.syncInventoryRows();
 			this.refresh();
 		},
@@ -61,7 +64,12 @@
 			}
 
 			if (event.target.closest('[data-vm-add-row]')) {
-				this.fetchRow(this.nextRowId++);
+				this.fetchRow(this.nextRowId);
+				return;
+			}
+
+			if (event.target.closest('[data-vm-autofill-rows]')) {
+				this.autofillRows();
 				return;
 			}
 
@@ -70,6 +78,23 @@
 			if (deleteButton) {
 				this.deleteRow(deleteButton.closest('[data-vm-row]'));
 			}
+		},
+
+		/**
+		 * Generating reads the saved settings, not the rows on screen.
+		 */
+		watchUnsavedChanges: function () {
+			// Garnish matches the class, so this needs no reference to an editor the tab cannot reach
+			Garnish.on(Craft.ElementEditor, 'createProvisionalDraft', this.disableGenerate.bind(this));
+		},
+
+		disableGenerate: function () {
+			const generate = this.container.querySelector('[data-vm-generate]');
+			generate.classList.add('disabled');
+			generate.disabled = true;
+
+			this.container.querySelector('[data-vm-generate-instructions]').classList.add('hidden');
+			this.container.querySelector('[data-vm-generate-save-first]').classList.remove('hidden');
 		},
 
 		/**
@@ -151,35 +176,84 @@
 			this.scheduleRefresh();
 		},
 
+		/**
+		 * The element selects do not exist until the appended scripts have run, and both appends return promises.
+		 */
+		appendRows: function (response) {
+			const wrapper = document.createElement('div');
+			wrapper.innerHTML = response.data.html;
+			const rows = Array.from(wrapper.children);
+
+			rows.forEach((row) => this.rows.appendChild(row));
+			this.nextRowId += rows.length;
+
+			return Promise.all([
+				Craft.appendHeadHtml(response.data.headHtml),
+				Craft.appendBodyHtml(response.data.bodyHtml),
+			]).then(() => {
+				rows.forEach((row) => Craft.initUiElements($(row)));
+				this.scheduleRefresh();
+			});
+		},
+
 		fetchRow: function (rowId) {
 			Craft.sendActionRequest('POST', 'variant-manager/variant-maker/row', {
 				data: {
 					productId: this.productId,
 					rowId: rowId,
 				},
-			}).then((response) => {
-				const wrapper = document.createElement('div');
-				wrapper.innerHTML = response.data.html;
-				const row = wrapper.firstElementChild;
-
-				this.rows.appendChild(row);
-
-				// Both return promises, and the element selects do not exist until the appended scripts have run
-				return Promise.all([
-					Craft.appendHeadHtml(response.data.headHtml),
-					Craft.appendBodyHtml(response.data.bodyHtml),
-				]).then(() => {
-					Craft.initUiElements($(row));
-					this.scheduleRefresh();
-				});
-			}).catch((error) => {
+			}).then((response) => this.appendRows(response)).catch((error) => {
 				// A row that fails to build leaves a button wired to nothing, with no sign of why
-				Craft.cp.displayError(this.errorMessage(error));
+				Craft.cp.displayError(error?.response?.data?.message);
 			});
 		},
 
-		errorMessage: function (error) {
-			return error.response && error.response.data ? error.response.data.message : error.message;
+		autofillRows: function () {
+			const autofill = this.container.querySelector('[data-vm-autofill-rows]');
+
+			if (autofill.classList.contains('loading')) {
+				return;
+			}
+
+			autofill.classList.add('loading');
+
+			Craft.sendActionRequest('POST', 'variant-manager/variant-maker/autofill-rows', {
+				data: {
+					productId: this.productId,
+					nextRowId: this.nextRowId,
+					attributeIds: this.filledAttributeIds(),
+				},
+			}).then((response) => {
+				if (response.data.html === '') {
+					Craft.cp.displayNotice(response.data.message);
+					return;
+				}
+
+				return this.appendRows(response);
+			}).catch((error) => {
+				Craft.cp.displayError(error?.response?.data?.message);
+			}).finally(() => {
+				autofill.classList.remove('loading');
+			});
+		},
+
+		/**
+		 * The dataset holds the attribute a row has now, not the one it rendered with.
+		 */
+		filledAttributeIds: function () {
+			return Array.from(this.rows.querySelectorAll('[data-vm-row]'))
+				.map((row) => row.dataset.vmAttributeId)
+				.filter((attributeId) => attributeId !== '');
+		},
+
+		showDefaultFormats: function (defaults) {
+			['title', 'sku'].forEach((propertyName) => {
+				const input = this.container.querySelector('[data-vm-property="' + propertyName + '"] [data-vm-value] input');
+
+				if (input) {
+					input.placeholder = (defaults && defaults[propertyName]) || '';
+				}
+			});
 		},
 
 		generate: function () {
@@ -191,7 +265,7 @@
 			}).then((response) => {
 				Craft.cp.displayNotice(response.data.message);
 			}).catch((error) => {
-				Craft.cp.displayError(this.errorMessage(error));
+				Craft.cp.displayError(error?.response?.data?.message);
 			});
 		},
 
@@ -229,13 +303,15 @@
 			}).then((response) => {
 				if (requestId === this.requestId) {
 					this.preview.innerHTML = response.data.html;
+					this.tokens.textContent = response.data.tokens || '';
+					this.showDefaultFormats(response.data.placeholders);
 					this.preview.setAttribute('aria-busy', 'false');
 				}
 			}).catch((error) => {
 				if (requestId === this.requestId) {
 					this.preview.innerHTML = '';
 					this.preview.setAttribute('aria-busy', 'false');
-					Craft.cp.displayError(this.errorMessage(error));
+					Craft.cp.displayError(error?.response?.data?.message);
 				}
 			});
 		},

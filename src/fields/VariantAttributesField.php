@@ -47,7 +47,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 
 	public function serializeValue(mixed $value, ?ElementInterface $element = null): mixed
 	{
-		// Store as-is, since the column is JSON
+		// Store as-is. The column is JSON.
 		return $value;
 	}
 

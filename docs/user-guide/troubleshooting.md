@@ -6,7 +6,7 @@ If no entry here matches, the dashboard's activity log (**Variant Manager -> Das
 
 ## The upload started but the product was not created or updated
 
-Imports run as queue jobs, not immediately. The upload responds with "File ... has been queued for processing". The product only appears or changes once the job runs.
+Imports run as queue jobs, not immediately. Variant Manager shows "File ... has been queued for processing". The product only appears or changes once the job runs.
 
 Check:
 
@@ -38,7 +38,7 @@ You are uploading what Variant Manager reads as a new product (the filename does
 
 Two possibilities:
 
-- You meant to **update** an existing product, but the filename has no `{id}__` prefix, so the import tried to create one. Export the product and reupload that file under the name it came with.
+- You meant to **update** an existing product, but the filename has no `{id}__` prefix, so the import creates a product instead. Export the product and reupload that file under the name it came with.
 - You meant to **create** a new product, but its SKUs collide with another product. SKUs are unique across the whole store. Change the SKUs and re-upload.
 
 ## "One or more SKUs already exist on different products: ..."
@@ -49,7 +49,7 @@ Fix: change the colliding SKU in your CSV. SKUs are not shareable between produc
 
 ## "No product has ID ..." on upload
 
-The filename starts with digits and `__`, but no product has that ID. A `{digits}__` prefix is always read as an update, so it fails instead of creating a product. For a single CSV the check runs before upload, no job is queued, and the control panel shows the message as an error toast. Inside a zip, only the zip's own name is checked, so the file fails in its queue job and the activity log records it as "Invalid product id", with a lower-case `id`.
+The filename starts with digits and `__`, but no product has that ID. The upload fails instead of creating a product, because Variant Manager always reads a `{digits}__` prefix as an update. For a single CSV the check runs before upload, no job is queued, and the control panel shows the message as an error toast. Inside a zip, only the zip's own name is checked, so the file fails in its queue job and the activity log records it as "Invalid product id", with a lower-case `id`.
 
 Two causes:
 
@@ -110,8 +110,8 @@ To delete every existing variant first, see [existing product update options](./
 
 Three causes:
 
-1. The variant's `inventoryTracked[siteHandle]` is not `1`. Untracked variants ignore inventory columns.
-2. The column header pattern is wrong. It must be `Inventory[locationHandle]: totalName`. `locationHandle` is the handle from **Commerce -> Settings -> Inventory Locations**. `totalName` is one of `available`, `reserved`, `damaged`, `safety`, `qualityControl`. The space after the colon matters.
+1. The variant's `inventoryTracked[siteHandle]` is not `1`. The import skips inventory columns on untracked variants.
+2. The column header pattern is wrong. It must be `Inventory[locationHandle]: totalName`. `locationHandle` is the handle from **Commerce -> Settings -> Inventory Locations**. `totalName` is one of `available`, `reserved`, `damaged`, `safety`, `qualityControl`, `committed`. The space after the colon matters.
 3. The variant has no inventory levels for the given location (for example a fresh import where the variant was just created with `inventoryTracked` off, then turned on later). Save the product once in the CP to create the inventory levels, then reimport.
 
 ## Variant attributes are missing or wrong on the imported variants
@@ -124,7 +124,7 @@ Likely causes:
 
 ## The Variant Attributes list is empty
 
-Attributes and options are registered by any variant save, a CSV import, the Variant Attributes utility, or the backfill command. A store whose variants predate the plugin has no registry rows until one of those runs.
+A store whose variants predate the plugin has no registry rows until one of the routes in [where rows come from](./variant-attributes.md#where-rows-come-from) runs.
 
 Fix: run **Utilities -> Variant Attributes -> Start backfill**, or `./craft variant-manager/attributes/backfill`. See [variant attributes](./variant-attributes.md).
 
@@ -132,14 +132,15 @@ Fix: run **Utilities -> Variant Attributes -> Start backfill**, or `./craft vari
 
 The template is calling `.variantAttributes(...)` with a value that is not a string or an associative array. For the supported filter shapes, see [querying variants](../dev-guide/twig-queries.md).
 
-## The Upload Product or Export Product button is missing
+## A Variant Manager button or section is missing
 
-Each control appears only for a user with its permission, so a missing button means a missing permission.
+Each control appears only for a user with its permission.
 
-- **Upload Product** needs `variant-manager:import`.
 - **Export Product** needs `variant-manager:export`.
-- **Clear activity logs** and **Bulk edit field** need `variant-manager:manage`.
-- Viewing or editing variant attributes requires `variant-manager:manage-attributes`.
+- **Clear activity logs** needs `variant-manager:manage`.
+- Everything that changes catalog data needs Commerce's `commerce-saveProductType` on at least one product type. For the full list, see [permissions reference](../reference/permissions.md).
+
+**Bulk edit field** also needs a matching handle in `bulkEditableVariantFields`.
 
 Set permissions at **Users -> {group} -> Permissions** or on an individual user.
 

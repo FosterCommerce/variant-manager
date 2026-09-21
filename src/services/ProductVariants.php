@@ -84,13 +84,13 @@ class ProductVariants extends Component
 			// Turn the attributes into associative arrays
 			$variants[] = array_reduce(
 				$variant->{$fieldHandle} ?? [],
-				static function (array $carry, array $pair) use ($only): array {
-					$key = $pair['attributeName'];
-					if ($only === null || $only === [] || in_array($key, $only, true)) {
-						$carry[$key] = $pair['attributeValue'];
+				static function (array $valuesByName, array $pair) use ($only): array {
+					$attributeName = $pair['attributeName'];
+					if ($only === null || $only === [] || in_array($attributeName, $only, true)) {
+						$valuesByName[$attributeName] = $pair['attributeValue'];
 					}
 
-					return $carry;
+					return $valuesByName;
 				},
 				[]
 			);
@@ -100,7 +100,7 @@ class ProductVariants extends Component
 
 		$valuesByName = [];
 		foreach ($merged as $name => $values) {
-			// Wrap a lone value, since array_merge_recursive only nests on a repeated name
+			// Wrap a lone value. array_merge_recursive nests only on a repeated name.
 			$valuesByName[$name] = array_values(array_unique(is_array($values) ? $values : [$values]));
 		}
 

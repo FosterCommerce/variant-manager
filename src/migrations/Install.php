@@ -37,7 +37,7 @@ class Install extends Migration
 		]);
 
 		// The key is the attribute plus the name, so Blue under two attributes is two rows
-		// An attribute uses 0 rather than null, since MySQL treats null attributeIds as distinct
+		// An attribute uses 0 rather than null, because MySQL treats null attributeIds as distinct
 		$this->createIndex(null, Table::ATTRIBUTES, ['attributeId', 'nameKey'], true);
 		$this->addForeignKey(null, Table::ATTRIBUTES, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
 

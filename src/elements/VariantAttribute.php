@@ -6,6 +6,8 @@ use Craft;
 use craft\base\Element;
 use craft\elements\User;
 use craft\helpers\Cp;
+use craft\helpers\Db;
+use craft\helpers\ElementHelper;
 use craft\helpers\Html;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
@@ -13,6 +15,7 @@ use craft\models\FieldLayout;
 use craft\services\Structures;
 use fostercommerce\variantmanager\elements\db\VariantAttributeQuery;
 use fostercommerce\variantmanager\enums\DisplayType;
+use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\records\VariantAttribute as VariantAttributeRecord;
@@ -46,6 +49,16 @@ class VariantAttribute extends Element
 	 * @var list<self>|null
 	 */
 	private ?array $options = null;
+
+	public function init(): void
+	{
+		parent::init();
+
+		// Set the default for a new attribute. Yii configures a queried row before init().
+		if ($this->id === null) {
+			$this->displayType = Plugin::getInstance()->getSettings()->getDefaultDisplayType()->value;
+		}
+	}
 
 	public static function displayName(): string
 	{
@@ -147,25 +160,21 @@ class VariantAttribute extends Element
 	{
 		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
 
+		// The settings are saved against the canonical attribute, and a provisional draft's own uid has no entry
 		if (! $this->isOption()) {
-			return $attributeConfigs->getFieldLayout($this->nameKey);
+			return $attributeConfigs->getFieldLayout((string) $this->getCanonicalUid());
 		}
 
 		$attribute = $this->getParentAttribute();
 
 		return $attribute === null
 			? null
-			: $attributeConfigs->getOptionFieldLayout($attribute->nameKey);
+			: $attributeConfigs->getOptionFieldLayout((string) $attribute->uid);
 	}
 
 	public function getDisplayType(): DisplayType
 	{
 		return DisplayType::tryFrom($this->displayType) ?? DisplayType::Dropdown;
-	}
-
-	public function getCpEditUrl(): ?string
-	{
-		return UrlHelper::cpUrl("variant-manager/attributes/{$this->id}");
 	}
 
 	public function getPostEditUrl(): ?string
@@ -175,20 +184,69 @@ class VariantAttribute extends Element
 
 	public function canView(User $user): bool
 	{
-		return $user->can('variant-manager:manage-attributes');
+		return PermissionHelper::canSaveAnyProductType($user);
 	}
 
 	public function canSave(User $user): bool
 	{
-		return $user->can('variant-manager:manage-attributes');
+		return PermissionHelper::canSaveAnyProductType($user);
 	}
 
 	/**
-	 * Rows are derived from what variants store, so the prune utility removes the unused ones.
+	 * An option whose attributeId names no top-level attribute would have no parent and no field layout.
+	 */
+	public function validateAttributeId(string $attribute): void
+	{
+		if ($this->attributeId !== 0 && ! Plugin::getInstance()->getVariantAttributes()->getAttributeById($this->attributeId) instanceof self) {
+			$this->addError($attribute, Craft::t('variant-manager', 'attributes.notFound'));
+		}
+	}
+
+	/**
+	 * The registry's attributeId and nameKey index is unique, so a duplicate fails on insert.
+	 */
+	public function validateNameNotTaken(): void
+	{
+		$name = $this->resolvedName();
+		$nameKey = self::normalizeName($name);
+
+		if ($nameKey === '') {
+			return;
+		}
+
+		$query = self::find()
+			->attributeId($this->attributeId)
+			->nameKey(Db::escapeParam($nameKey))
+			->status(null)
+			// A trashed row keeps its nameKey, so the unique index still rejects a duplicate
+			->trashed(null);
+
+		$canonicalId = $this->getCanonicalId();
+
+		if ($canonicalId !== null) {
+			$query->id("not {$canonicalId}");
+		}
+
+		if (! $query->exists()) {
+			return;
+		}
+
+		$this->addError('name', $this->isOption()
+			? Craft::t('variant-manager', 'options.nameTaken', [
+				'name' => trim($name),
+				'attribute' => (string) $this->getParentAttribute()?->name,
+			])
+			: Craft::t('variant-manager', 'attributes.nameTaken', [
+				'name' => trim($name),
+			]));
+	}
+
+	/**
+	 * Only a draft is deletable, since the prune utility removes every saved row no variant uses.
 	 */
 	public function canDelete(User $user): bool
 	{
-		return false;
+		return $this->getIsDraft() && PermissionHelper::canSaveAnyProductType($user);
 	}
 
 	/**
@@ -208,16 +266,24 @@ class VariantAttribute extends Element
 				}
 			}
 
+			$isDraftOrRevision = ElementHelper::isDraftOrRevision($this);
+
 			$record->attributeId = $this->attributeId;
 			$record->name = $this->name;
-			$record->nameKey = $this->nameKey;
+			// A draft needs its own row for the element query's inner join, and the unique index rejects a shared key
+			$record->nameKey = $isDraftOrRevision ? $this->uid : $this->nameKey;
 			$record->displayType = $this->displayType;
 			$record->skuPartial = $this->skuPartial;
 			$record->priceModifier = $this->priceModifier;
 			$record->save(false);
 
-			if ($isNew) {
+			// Place a canonical row once, because an unpublished draft keeps its id through the apply
+			if ($isNew && $this->getIsCanonical()) {
 				$this->placeInStructure();
+			}
+
+			// Applying a draft keeps its id, so isNew is false on the save that creates the attribute
+			if (! $isDraftOrRevision && $this->firstSave) {
 				$this->logCreation();
 			}
 		}
@@ -229,6 +295,11 @@ class VariantAttribute extends Element
 	{
 		if (! parent::beforeDelete()) {
 			return false;
+		}
+
+		// The in-use checks match on the name a draft shares with its canonical row
+		if (ElementHelper::isDraftOrRevision($this)) {
+			return true;
 		}
 
 		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
@@ -247,7 +318,7 @@ class VariantAttribute extends Element
 			return false;
 		}
 
-		// Include already-trashed options on a hard delete, since the cascade removes their rows
+		// Include already-trashed options on a hard delete, because the cascade removes their rows
 		$options = self::find()
 			->attributeId($this->id)
 			->trashed($this->hardDelete ? null : false)
@@ -256,7 +327,7 @@ class VariantAttribute extends Element
 		$elementsService = Craft::$app->getElements();
 
 		foreach ($options as $option) {
-			// Flag the option, since afterRestore() only restores options flagged here
+			// Flag the option. afterRestore() restores only the options flagged here.
 			$option->deletedWithOwner = true;
 			$elementsService->deleteElement($option, $this->hardDelete);
 		}
@@ -282,17 +353,29 @@ class VariantAttribute extends Element
 	public function beforeSave(bool $isNew): bool
 	{
 		$this->structureId = Plugin::getInstance()->getVariantAttributes()->getStructureId();
-		$this->name = trim($this->name);
+		$this->name = $this->resolvedName();
 		$this->nameKey = self::normalizeName($this->name);
 
 		return parent::beforeSave($isNew);
 	}
 
+	protected function cpEditUrl(): ?string
+	{
+		return "variant-manager/attributes/{$this->getCanonicalId()}";
+	}
+
 	protected function uiLabel(): ?string
 	{
-		return $this->title === $this->name
+		// A row with no name yet has no label of its own
+		if ($this->name === '') {
+			return null;
+		}
+
+		$title = (string) $this->title;
+
+		return $title === '' || $title === $this->name
 			? $this->name
-			: "{$this->name} ({$this->title})";
+			: "{$this->name} ({$title})";
 	}
 
 	protected function crumbs(): array
@@ -330,6 +413,11 @@ class VariantAttribute extends Element
 
 	protected static function defineSources(string $context): array
 	{
+		// The index route renders a template rather than an action, so the gate belongs on the source
+		if (! PermissionHelper::canSaveAnyProductType()) {
+			return [];
+		}
+
 		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
 
 		return [
@@ -338,7 +426,7 @@ class VariantAttribute extends Element
 				'label' => Craft::t('variant-manager', 'attributes.allAttributes'),
 				'criteria' => [],
 				'structureId' => $variantAttributes->getStructureId(),
-				'structureEditable' => Craft::$app->getRequest()->getIsConsoleRequest() || Craft::$app->getUser()->checkPermission('variant-manager:manage-attributes'),
+				'structureEditable' => PermissionHelper::canSaveAnyProductType(),
 				'defaultViewMode' => 'structure',
 				'defaultSort' => ['structure', 'asc'],
 			],
@@ -347,14 +435,12 @@ class VariantAttribute extends Element
 
 	protected static function defineFieldLayouts(?string $source): array
 	{
-		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
-
-		return [...$attributeConfigs->getAllAttributeLayouts(), ...$attributeConfigs->getAllOptionLayouts()];
+		return Plugin::getInstance()->getAttributeConfigs()->getAllLayouts();
 	}
 
 	protected static function defineSearchableAttributes(): array
 	{
-		// Name only, since the title is indexed already
+		// Name only. The title is indexed already.
 		return ['name'];
 	}
 
@@ -377,7 +463,7 @@ class VariantAttribute extends Element
 
 	protected static function defineDefaultTableAttributes(string $source): array
 	{
-		// uiLabel() puts the name in the title column, so a name column repeats it
+		// Leave the name out of the columns, because uiLabel() puts it in the title column
 		return ['displayType'];
 	}
 
@@ -396,7 +482,15 @@ class VariantAttribute extends Element
 		$rules[] = [['attributeId'],
 			'number',
 			'integerOnly' => true];
-		$rules[] = [['name'], 'required'];
+		$rules[] = [['attributeId'], 'validateAttributeId'];
+		$rules[] = [['name'],
+			'required',
+			'on' => [self::SCENARIO_DEFAULT, self::SCENARIO_LIVE]];
+		// Creating an element validates on essentials, and the pickers create every attribute and option that way
+		$rules[] = [['name'],
+			'validateNameNotTaken',
+			'skipOnEmpty' => false,
+			'on' => [self::SCENARIO_DEFAULT, self::SCENARIO_LIVE, self::SCENARIO_ESSENTIALS]];
 		$rules[] = [['displayType'],
 			'in',
 			'range' => array_column(DisplayType::cases(), 'value')];
@@ -405,6 +499,27 @@ class VariantAttribute extends Element
 			'max' => 255];
 		$rules[] = [['priceModifier'], 'number'];
 		return $rules;
+	}
+
+	private function resolvedName(): string
+	{
+		$name = trim($this->name);
+
+		return $name === '' ? trim((string) $this->title) : $name;
+	}
+
+	/**
+	 * The read-only half of the field SystemNameField renders while the row is still a draft.
+	 */
+	private function systemNameFieldHtml(): string
+	{
+		if ($this->getIsUnpublishedDraft()) {
+			return '';
+		}
+
+		return Cp::fieldHtml(Html::encode($this->name), [
+			'label' => Craft::t('variant-manager', 'attributes.name'),
+		]);
 	}
 
 	private function placeInStructure(): void
@@ -440,21 +555,14 @@ class VariantAttribute extends Element
 
 	private function attributeMetaFieldsHtml(bool $static): string
 	{
-		$fields = Cp::selectFieldHtml([
+		return $this->systemNameFieldHtml() . Cp::selectFieldHtml([
 			'label' => Craft::t('variant-manager', 'attributes.displayType'),
 			'id' => 'displayType',
 			'name' => 'displayType',
 			'options' => DisplayType::options(Plugin::getInstance()->getSettings()->getAvailableDisplayTypes($this->displayType)),
 			'value' => $this->displayType,
 			'disabled' => $static,
-		]);
-
-		// Variants match on the attribute name string, so the name is read only
-		return $fields . Cp::textFieldHtml([
-			'label' => Craft::t('variant-manager', 'attributes.name'),
-			'id' => 'name',
-			'value' => $this->name,
-			'disabled' => true,
+			'errors' => $this->getErrors('displayType'),
 		]);
 	}
 
@@ -468,19 +576,14 @@ class VariantAttribute extends Element
 			'label' => Craft::t('variant-manager', 'options.usedBy'),
 		]);
 
-		// Variants match on the option value string, so the value is read only
-		$fields .= Cp::textFieldHtml([
-			'label' => Craft::t('variant-manager', 'attributes.name'),
-			'id' => 'name',
-			'value' => $this->name,
-			'disabled' => true,
-		]);
+		$fields .= $this->systemNameFieldHtml();
 
 		$fields .= Cp::textFieldHtml([
 			'label' => Craft::t('variant-manager', 'options.skuPartial'),
 			'id' => 'skuPartial',
 			'name' => 'skuPartial',
 			'value' => $this->skuPartial,
+			'errors' => $this->getErrors('skuPartial'),
 		]);
 
 		return $fields . Cp::textFieldHtml([
@@ -488,6 +591,7 @@ class VariantAttribute extends Element
 			'id' => 'priceModifier',
 			'name' => 'priceModifier',
 			'value' => $this->priceModifier,
+			'errors' => $this->getErrors('priceModifier'),
 		]);
 	}
 }

@@ -42,9 +42,11 @@ use fostercommerce\variantmanager\elements\actions\Export;
 use fostercommerce\variantmanager\elements\conditions\VariantAttributeConditionRule;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\elements\VariantManagerVariant;
+use fostercommerce\variantmanager\fieldlayoutelements\SystemNameField;
 use fostercommerce\variantmanager\fieldlayoutelements\VariantMakerTab;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
+use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ActivityLogs;
 use fostercommerce\variantmanager\services\AttributeConfigs;
@@ -74,7 +76,7 @@ class Plugin extends BasePlugin
 {
 	private const VARIANT_MAKER_TAB_UID = 'f05d5b7a-9a3e-4a2f-9f4e-6b1c2d3e4f50';
 
-	public string $schemaVersion = '1.7.0';
+	public string $schemaVersion = '1.9.0';
 
 	public bool $hasCpSettings = true;
 
@@ -111,16 +113,24 @@ class Plugin extends BasePlugin
 			'url' => 'variant-manager/dashboard',
 		];
 
-
 		$nav['subnav']['variants'] = [
 			'label' => 'Variants',
 			'url' => 'variant-manager/variants',
 		];
 
-		if (Craft::$app->getUser()->checkPermission('variant-manager:manage-attributes')) {
+		if (PermissionHelper::canSaveAnyProductType()) {
 			$nav['subnav']['attributes'] = [
 				'label' => Craft::t('variant-manager', 'attributes.attributes'),
 				'url' => 'variant-manager/attributes',
+			];
+		}
+
+		if (Craft::$app->getUser()->getIsAdmin()) {
+			$nav['subnav']['settings'] = [
+				// Craft's own Settings item sits in the same sidebar, so name the section this one opens
+				'ariaLabel' => Craft::t('variant-manager', 'settings.navAriaLabel'),
+				'label' => Craft::t('app', 'Settings'),
+				'url' => 'variant-manager/settings',
 			];
 		}
 
@@ -137,6 +147,12 @@ class Plugin extends BasePlugin
 	{
 		/** @var VariantAttributes */
 		return $this->get('variantAttributes');
+	}
+
+	public function getCsv(): Csv
+	{
+		/** @var Csv */
+		return $this->get('csv');
 	}
 
 	public function getAttributeConfigs(): AttributeConfigs
@@ -226,7 +242,7 @@ class Plugin extends BasePlugin
 			static function (RegisterElementActionsEvent $event): void {
 				if (
 					BulkEditField::hasEditableField()
-					&& Craft::$app->getUser()->checkPermission('variant-manager:manage')
+					&& PermissionHelper::canSaveAnyProductType()
 				) {
 					$event->actions[] = BulkEditField::class;
 				}
@@ -393,7 +409,7 @@ class Plugin extends BasePlugin
 	{
 		$request = Craft::$app->getRequest();
 
-		// Skip a console request, since only a web request routes by action segments
+		// Skip a console request. Only a web request routes by action segments.
 		if ($request->getIsConsoleRequest()) {
 			return false;
 		}
@@ -416,7 +432,7 @@ class Plugin extends BasePlugin
 					return;
 				}
 
-				// A revision is a snapshot, so generating variants from one has nothing to act on
+				// Skip a revision. A snapshot has no live variants to generate against.
 				if ($product->getIsRevision()) {
 					return;
 				}
@@ -432,7 +448,7 @@ class Plugin extends BasePlugin
 					return;
 				}
 
-				// setElements() reads the tab's layout, so it has to be configured before them
+				// Configure the tab's layout before its elements. setElements() reads the layout.
 				// Give the tab a stable uid, or the element editor's re-render mismaps every tab
 				$createFieldLayoutFormEvent->tabs[] = new FieldLayoutTab([
 					'layout' => $createFieldLayoutFormEvent->sender,
@@ -454,12 +470,13 @@ class Plugin extends BasePlugin
 				/** @var FieldLayout $fieldLayout */
 				$fieldLayout = $defineFieldLayoutFieldsEvent->sender;
 
-				// Add a Title field, since Craft doesn't supply one for these element types
+				// Add a Title field, because Craft does not supply one for these element types
 				if ($fieldLayout->type === VariantAttribute::class) {
 					$defineFieldLayoutFieldsEvent->fields[] = [
 						'class' => TitleField::class,
 						'label' => Craft::t('variant-manager', 'attributes.displayName'),
 					];
+					$defineFieldLayoutFieldsEvent->fields[] = SystemNameField::class;
 				}
 			}
 		);
@@ -509,8 +526,8 @@ class Plugin extends BasePlugin
 			static function (ElementEvent $elementEvent): void {
 				$element = $elementEvent->element;
 
-				// Skip a propagated save, since it repeats the first site's values
-				// Skip a draft or revision, since its values may never be published
+				// Skip a propagated save. It repeats the first site's values.
+				// Skip a draft or revision. Its values might never be published.
 				if (! $element instanceof Variant || $element->propagating || ElementHelper::isDraftOrRevision($element)) {
 					return;
 				}
@@ -539,7 +556,7 @@ class Plugin extends BasePlugin
 					default => $target->attributeId,
 				};
 
-				// The key is attributeId plus nameKey, so a move to another attribute would change it
+				// Refuse a move to another attribute, because the key is attributeId plus nameKey
 				$moveElementEvent->isValid = $newAttributeId === $element->attributeId;
 			},
 		);
@@ -564,18 +581,11 @@ class Plugin extends BasePlugin
 			$registerUserPermissionsEvent->permissions[] = [
 				'heading' => Craft::t('variant-manager', 'Variant Manager'),
 				'permissions' => [
-					'variant-manager:import' => [
-						'label' => Craft::t('variant-manager', 'Import/edit products and variants'),
-						'warning' => Craft::t('variant-manager', 'Imports can potentially overwrite existing variants.'),
+					'variant-manager:manage' => [
+						'label' => Craft::t('variant-manager', 'permissions.manage'),
 					],
 					'variant-manager:export' => [
-						'label' => Craft::t('variant-manager', 'Export products and variants'),
-					],
-					'variant-manager:manage' => [
-						'label' => Craft::t('variant-manager', 'Manage'),
-					],
-					'variant-manager:manage-attributes' => [
-						'label' => Craft::t('variant-manager', 'permissions.manageAttributes'),
+						'label' => Craft::t('variant-manager', 'permissions.export'),
 					],
 				],
 			];

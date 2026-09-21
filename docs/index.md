@@ -2,13 +2,9 @@
 
 A Craft CMS plugin for managing Craft Commerce variants as combinations of **attributes and options**.
 
-## Install and upgrade
-
-[Installation](./installation.md). Coming from 2.x or 3.x? See [upgrading](./upgrade.md).
-
 ## Where to go
 
-**Getting started:** [a walkthrough](./getting-started.md) from install to your first import.
+**Getting started:** [a walkthrough](./getting-started.md) from install to your first import, [installation](./installation.md), and [upgrading](./upgrade.md) from an earlier version.
 
 **User guide:**
 
@@ -23,6 +19,7 @@ A Craft CMS plugin for managing Craft Commerce variants as combinations of **att
 
 - [Template tags](./dev-guide/template-tags.md), reading attributes and their metadata in Twig.
 - [Querying variants](./dev-guide/twig-queries.md), the three filter shapes for finding variants by attribute.
+- [Writing to the registry](./dev-guide/registry-api.md), registering attributes and options from a module or plugin.
 - [Custom queue](./dev-guide/custom-queue.md), running imports on a dedicated queue.
 
 **Reference:**

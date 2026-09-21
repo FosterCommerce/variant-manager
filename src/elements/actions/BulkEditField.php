@@ -10,6 +10,7 @@ use craft\elements\db\ElementQueryInterface;
 use craft\fields\Date;
 use craft\helpers\Cp;
 use craft\helpers\Json;
+use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\Plugin;
 
 class BulkEditField extends ElementAction
@@ -83,9 +84,9 @@ class BulkEditField extends ElementAction
 
 	window.disclosureMenuHandlersAdded = true;
 
-	// Keep mousedowns inside the menu, since Garnish's CustomSelect preventDefaults them
+	// Keep mousedowns inside the menu, because Garnish's CustomSelect preventDefaults them
 	document.addEventListener('mousedown', function(event) {
-		// Let the lightswitch see its own mousedown, since it toggles on the mouseup that follows
+		// Let the lightswitch take its own mousedown. It toggles on the mouseup that follows.
 		if (event.target.closest('.lightswitch')) {
 			return;
 		}
@@ -104,7 +105,7 @@ class BulkEditField extends ElementAction
 		const fieldHandle = document.getElementById('vm-bulk-edit-field').value;
 		const container = document.querySelector('[data-vm-bulk-edit-value-for="' + fieldHandle + '"]');
 
-		// Read the on class, since the lightswitch's value sits in a hidden input
+		// Read the on class. A lightswitch posts its value from a hidden input.
 		const lightswitch = container.querySelector('.lightswitch');
 		let value;
 		if (lightswitch) {
@@ -134,7 +135,7 @@ EOT;
 
 	public function performAction(ElementQueryInterface $query): bool
 	{
-		if (! Craft::$app->getUser()->checkPermission('variant-manager:manage')) {
+		if (! PermissionHelper::canSaveAnyProductType()) {
 			$this->setMessage(Craft::t('variant-manager', 'You do not have permission to bulk edit variants.'));
 			return false;
 		}
@@ -164,6 +165,12 @@ EOT;
 		$failureCount = 0;
 		foreach ($query->status(null)->all() as $variant) {
 			if (! $variant instanceof Variant) {
+				++$failureCount;
+				continue;
+			}
+
+			// Commerce resolves this to the owner product's type, so a selection can span types the user cannot save
+			if (! $elementsService->canSave($variant)) {
 				++$failureCount;
 				continue;
 			}

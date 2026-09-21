@@ -24,12 +24,12 @@ In the CP, go to **Variant Manager -> Dashboard**.
 You see:
 
 - An **Upload Product** button (top right).
-- A **Clear activity logs** button next to it, for users with the `variant-manager:manage` permission.
+- A **Clear activity logs** button next to it.
 - An activity log table of past imports below.
 
 ## 3. Click Upload Product and pick your file
 
-The file picker opens. Select your CSV (or zip, see [bulk import](./bulk-import.md)). Variant Manager reads the filename for a product ID prefix and opens a modal asking you to confirm. A file starting with `{id}__` updates that product; any other filename creates a new one.
+The file picker opens. Select your CSV (or zip, see [bulk import](./bulk-import.md)). Variant Manager reads the filename for a product ID prefix and opens a modal asking you to confirm.
 
 The modal asks one of three sets of questions, depending on the filename.
 
@@ -47,7 +47,7 @@ Click **Create Product** to queue the import.
 
 "Are you sure you want to edit an existing product named **\"{title}\"**?"
 
-The modal does not show a Product Type dropdown, since the existing product keeps its type. It does show one new choice:
+The modal does not show a Product Type dropdown, because the existing product keeps its type. It does show one new choice:
 
 #### Existing product update options
 
@@ -66,7 +66,7 @@ If you picked a zip file the modal asks the same questions as a new product, plu
 
 ## 4. Wait for the queue
 
-The upload responds with "File {your-file}.csv has been queued for processing" and the page refreshes. The import runs as a Craft queue job, not immediately.
+Variant Manager shows "File {your-file}.csv has been queued for processing" and the page refreshes. The import runs as a Craft queue job, not immediately.
 
 Watch the dashboard's activity log for the result:
 

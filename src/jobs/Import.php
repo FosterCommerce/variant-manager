@@ -58,7 +58,7 @@ class Import extends BaseJob
 	{
 		$user = \Craft::$app->getUsers()->getUserById($this->importByUserId);
 		try {
-			$product = Plugin::getInstance()->csv->import($this->filename, $this->csvData, $this->productTypeHandle, $this->refreshVariants);
+			$product = Plugin::getInstance()->getCsv()->import($this->filename, $this->csvData, $this->productTypeHandle, $this->refreshVariants);
 
 			// getCpEditUrl() needs the saved product's ID
 			$link = Html::a(Html::encode($product->title), (string) $product->getCpEditUrl(), [

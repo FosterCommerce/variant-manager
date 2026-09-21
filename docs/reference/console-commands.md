@@ -61,7 +61,7 @@ List attributes and options whose name or value is no longer stored on any varia
 ./craft variant-manager/attributes/orphans
 ```
 
-Reads every variant, then compares against the registry. Prints one line per orphan and deletes no rows.
+Reads every variant, then compares against the registry. Prints one line per orphan and does not delete rows.
 
 ```sh
 ./craft variant-manager/attributes/orphans --prune
@@ -84,15 +84,15 @@ Print what generating a set of combinations would do to a product's variants.
 ./craft variant-manager/variant-maker/plan 4054 --select="Size=Small,Medium;Color=Red"
 ```
 
-The first argument is the product ID. Prints one line per combination with its status, the SKU, and the price, and any SKU warning under it. Saves no changes.
+The first argument is the product ID. Prints one line per combination with its status, the SKU, and the price, and any SKU warning under it. The command does not save changes.
 
-The selection is read from `--select` rather than the product's saved builder.
+The selection is read from `--select` rather than the product's saved Variant Maker settings.
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--select` | `''` | Attributes and values to combine, as `Name=A,B;Other Name=C`. |
 | `--mode` | `add` | One of `add`, `update`, or `replace`. `add` reports every existing combination as unchanged. `update` reports one as an update where the built title, SKU, or price differs. `replace` does that and adds a delete row for each variant the set does not cover. |
-| `--skuFormat` | `''` | SKU format, using `{Attribute Name}` tokens that resolve to each option's SKU partial, or to the option value where no partial is set. Blank uses the default variant SKU followed by each option. |
+| `--skuFormat` | `''` | SKU format, using `{Attribute Name}` tokens that resolve to each option's SKU partial, or to the option value where no partial is set. Blank uses the product slug followed by each option. |
 | `--basePrice` | `''` | Price each combination starts from. Blank uses the product's default variant price. |
 
 See [Variant Maker](../user-guide/variant-maker.md).

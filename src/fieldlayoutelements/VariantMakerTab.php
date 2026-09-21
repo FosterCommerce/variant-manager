@@ -29,7 +29,7 @@ class VariantMakerTab extends BaseUiElement
 		return Craft::$app->getView()->renderTemplate('variant-manager/variant-maker/tab', [
 			'product' => $element,
 			'settings' => $settings,
-			'savedRows' => $variantMaker->settingsRows($element, $settings),
+			'savedRows' => $variantMaker->settingsRows($settings),
 			'inventoryLocations' => $element->getStore()->getInventoryLocationsOptions(),
 			'generatesTitles' => VariantMakerService::generatesTitles($element),
 			'propertyNames' => VariantMakerSettings::propertyNames(),

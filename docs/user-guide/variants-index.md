@@ -47,4 +47,4 @@ Two limits:
 
 Each field renders its own input, so a date field gets a date picker.
 
-Once at least one handle in the setting matches a field on a variant field layout, the action appears for users with `variant-manager:manage`. See [permissions](./permissions.md).
+Once at least one handle in the setting matches a field on a variant field layout, the action appears for users with Commerce's `commerce-saveProductType`. See [permissions](./permissions.md).

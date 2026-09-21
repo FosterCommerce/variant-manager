@@ -4,8 +4,10 @@ namespace fostercommerce\variantmanager\controllers;
 
 use Craft;
 use craft\helpers\Queue;
+use craft\models\FieldLayout;
 use craft\web\Controller;
 use fostercommerce\variantmanager\elements\VariantAttribute;
+use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\jobs\BackfillAttributes;
 use fostercommerce\variantmanager\jobs\PruneAttributeOrphans;
 use fostercommerce\variantmanager\Plugin;
@@ -33,8 +35,8 @@ class AttributesController extends Controller
 
 		return $this->renderTemplate('variant-manager/attributes/_settings', [
 			'attribute' => $attribute,
-			'attributeFieldLayout' => $attributeConfigs->getFieldLayout($attribute->nameKey),
-			'optionFieldLayout' => $attributeConfigs->getOptionFieldLayout($attribute->nameKey),
+			'attributeFieldLayout' => $attributeConfigs->getFieldLayout((string) $attribute->uid),
+			'optionFieldLayout' => $attributeConfigs->getOptionFieldLayout((string) $attribute->uid),
 			'readOnly' => ! Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
 		]);
 	}
@@ -56,13 +58,18 @@ class AttributesController extends Controller
 
 		$fieldsService = Craft::$app->getFields();
 
-		$fieldLayout = $fieldsService->assembleLayoutFromPost();
-		$fieldLayout->type = VariantAttribute::class;
+		// Build with the type. A layout resolves its native fields once during construction.
+		$fieldLayout = new FieldLayout([
+			'type' => VariantAttribute::class,
+		]);
+		$fieldLayout->setTabs($fieldsService->assembleLayoutFromPost()->getTabs());
 
-		$optionFieldLayout = $fieldsService->assembleLayoutFromPost('option-layout');
-		$optionFieldLayout->type = VariantAttribute::class;
+		$optionFieldLayout = new FieldLayout([
+			'type' => VariantAttribute::class,
+		]);
+		$optionFieldLayout->setTabs($fieldsService->assembleLayoutFromPost('option-layout')->getTabs());
 
-		if (! Plugin::getInstance()->getAttributeConfigs()->save($attribute->nameKey, $fieldLayout, $optionFieldLayout)) {
+		if (! Plugin::getInstance()->getAttributeConfigs()->save($attribute, $fieldLayout, $optionFieldLayout)) {
 			$this->setFailFlash(Craft::t('variant-manager', 'attributes.settingsSaveFailed'));
 			return null;
 		}
@@ -75,7 +82,7 @@ class AttributesController extends Controller
 	public function actionBackfill(): Response
 	{
 		$this->requirePostRequest();
-		$this->requirePermission('variant-manager:manage-attributes');
+		PermissionHelper::requireSaveAnyProductType();
 
 		Queue::push(new BackfillAttributes(), queue: Plugin::getInstance()->queue);
 
@@ -87,7 +94,7 @@ class AttributesController extends Controller
 	public function actionPruneOrphans(): Response
 	{
 		$this->requirePostRequest();
-		$this->requirePermission('variant-manager:manage-attributes');
+		PermissionHelper::requireSaveAnyProductType();
 
 		// Reading every variant takes minutes on a large catalog, well past the queue's default TTR
 		Queue::push(new PruneAttributeOrphans(), ttr: 3600, queue: Plugin::getInstance()->queue);

@@ -1,4 +1,7 @@
 {% extends '_layouts/elementindex' %}
+
+{% do view.registerAssetBundle('fostercommerce\\variantmanager\\VariantAttributeIndexAssetBundle') %}
+
 {% set title = 'attributes.attributes'|t('variant-manager') %}
 {% set selectedSubnavItem = 'attributes' %}
 {% set elementType = 'fostercommerce\\variantmanager\\elements\\VariantAttribute' %}

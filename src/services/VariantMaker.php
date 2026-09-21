@@ -21,6 +21,7 @@ use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\records\VariantMaker as VariantMakerRecord;
 use Money\Teller;
 use yii\base\Component;
+use yii\base\InvalidConfigException;
 use yii\db\Expression;
 
 /**
@@ -39,8 +40,12 @@ class VariantMaker extends Component
 	 */
 	public const SKU_MAX_LENGTH = 255;
 
+	private const TITLE_SEPARATOR = ' / ';
+
+	private const SKU_SEPARATOR = '-';
+
 	/**
-	 * @var array<string, string> the properties a plan row carries as its own field
+	 * @var array<string, string> the properties a plan row stores as its own field
 	 */
 	private const NAMED_VALUES = [
 		VariantMakerSettings::PROPERTY_TITLE => 'title',
@@ -83,7 +88,7 @@ class VariantMaker extends Component
 		$price = $settings->property(VariantMakerSettings::PROPERTY_PRICE);
 		$basePrice = self::amount($price->value ?? $product->getDefaultVariant()?->basePrice ?? 0);
 
-		// Skip the title where the product type formats it, since our value would be overwritten on save
+		// Skip the title where the product type formats it, because the save overwrites our value
 		$commerceOwnsTitles = self::generatesTitles($product);
 
 		$rows = [];
@@ -119,24 +124,23 @@ class VariantMaker extends Component
 			unset($existingVariants[$row->combinationKey]);
 		}
 
-		$this->flagSkuIssues($rows, $product);
-
-		if ($mode !== self::MODE_REPLACE) {
-			return $rows;
-		}
-
 		// Replace removes every existing variant the generated combinations did not cover
-		foreach ($existingVariants as $combinationKey => $variant) {
-			$rows[] = new VariantMakerPlanRow([
-				'pairs' => $this->variantPairs($variant),
-				'combinationKey' => $combinationKey,
-				'status' => VariantMakerPlanRow::STATUS_DELETE,
-				'variantId' => $variant->id,
-				'currentSku' => $variant->sku,
-				'currentTitle' => $variant->title,
-				'currentPrice' => (string) $variant->basePrice,
-			]);
+		if ($mode === self::MODE_REPLACE) {
+			foreach ($existingVariants as $combinationKey => $variant) {
+				$rows[] = new VariantMakerPlanRow([
+					'pairs' => $this->variantPairs($variant),
+					'combinationKey' => $combinationKey,
+					'status' => VariantMakerPlanRow::STATUS_DELETE,
+					'variantId' => $variant->id,
+					'currentSku' => $variant->sku,
+					'currentTitle' => $variant->title,
+					'currentPrice' => (string) $variant->basePrice,
+				]);
+			}
 		}
+
+		// Flag after the delete rows are planned. A deleted variant no longer holds the SKU it frees.
+		$this->flagSkuIssues($rows, $product);
 
 		return $rows;
 	}
@@ -155,6 +159,14 @@ class VariantMaker extends Component
 			'updated' => 0,
 			'deleted' => 0,
 		];
+
+		// Read the field handle from the product type because a new variant has no owner
+		$fieldHandle = FieldHelper::getFirstVariantAttributesField($product->getType()->getVariantFieldLayout())?->handle;
+
+		// Refuse the run rather than write variants that no filter or storefront picker can match
+		if ($fieldHandle === null) {
+			throw new InvalidConfigException("Product type “{$product->getType()->name}” has no Variant Attributes field.");
+		}
 
 		$elementsService = Craft::$app->getElements();
 		$transaction = Craft::$app->getDb()->beginTransaction();
@@ -183,7 +195,7 @@ class VariantMaker extends Component
 					continue;
 				}
 
-				$this->applyRow($variant, $row);
+				$this->applyRow($variant, $row, $fieldHandle);
 				$written[] = $variant;
 
 				if (isset($row->properties[VariantMakerSettings::PROPERTY_STOCK])) {
@@ -194,12 +206,12 @@ class VariantMaker extends Component
 			}
 
 			if ($written !== [] || $removedIds !== []) {
-				// Commerce rebuilds the product's default variant from whatever it is given, so hand it every variant
-				Plugin::getInstance()->csv->saveVariants($product, $this->wholeVariantSet($product, $written, $removedIds));
+				// Pass every variant, because Commerce rebuilds the default from the set it is given
+				Plugin::getInstance()->getCsv()->saveVariants($product, $this->wholeVariantSet($product, $written, $removedIds));
 			}
 
 			// Inventory items only exist once the variant is saved
-			// Keep these writes inside the transaction. Our rollback still reverses the inventory rows, since Yii nests Commerce's own transaction as a savepoint.
+			// Keep these writes inside the transaction. Yii nests Commerce's own transaction as a savepoint, so a rollback reverses the inventory rows too.
 			foreach ($pendingStock as [$variant, $quantity]) {
 				$this->setStock($variant, $quantity, $settings->inventoryLocationId);
 			}
@@ -243,22 +255,38 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * The saved rows with their elements loaded, falling back to the attributes the product already uses.
+	 * The shape a blank format builds, so each field can show it as a placeholder.
+	 *
+	 * @param array<string, list<string>> $valuesByName
+	 * @return array{title: string, sku: string}|null
+	 */
+	public function defaultFormats(Product $product, array $valuesByName): ?array
+	{
+		if ($valuesByName === []) {
+			return null;
+		}
+
+		$tokens = array_map(
+			static fn (int|string $attributeName): string => '{' . $attributeName . '}',
+			array_keys($valuesByName),
+		);
+
+		return [
+			'title' => implode(self::TITLE_SEPARATOR, $tokens),
+			'sku' => implode(self::SKU_SEPARATOR, array_filter(
+				[self::skuSegment($this->baseSku($product)), ...$tokens],
+				static fn (string $segment): bool => $segment !== '',
+			)),
+		];
+	}
+
+	/**
+	 * The saved rows with their elements loaded.
 	 *
 	 * @return list<array{attribute: VariantAttribute, options: list<VariantAttribute>}>
 	 */
-	public function settingsRows(Product $product, VariantMakerSettings $settings): array
+	public function settingsRows(VariantMakerSettings $settings): array
 	{
-		if ($settings->rows === []) {
-			return array_map(
-				static fn (VariantAttribute $attribute): array => [
-					'attribute' => $attribute,
-					'options' => [],
-				],
-				$this->attributesInUse($product),
-			);
-		}
-
 		$elementsById = [];
 
 		foreach (VariantAttribute::find()->id(self::idsIn($settings))->all() as $element) {
@@ -299,21 +327,33 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * Attributes the product's variants already store, so the form opens on what this product actually uses.
+	 * Builder rows for the attributes and values the product's variants already store.
 	 *
-	 * @return list<VariantAttribute>
+	 * @return list<array{attribute: VariantAttribute, options: list<VariantAttribute>}>
 	 */
-	public function attributesInUse(Product $product): array
+	public function rowsFromVariants(Product $product): array
 	{
-		$names = [];
+		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
 
-		foreach (Variant::find()->product($product)->status(null)->all() as $variant) {
-			foreach ($this->variantPairs($variant) as $pair) {
-				$names[$pair['attributeName']] = true;
-			}
+		// attributePairs() keys on the normalized pair, so two spellings of one value arrive as one
+		$pairs = $variantAttributes->attributePairs(Variant::find()->product($product)->status(null)->all());
+
+		// Register first. A value stored before the plugin recorded it has no row yet.
+		$variantAttributes->ensureFromAttributePairs(array_values($pairs));
+
+		$valuesByName = [];
+
+		foreach ($pairs as $pair) {
+			$valuesByName[$pair['attributeName']][] = $pair['attributeValue'];
 		}
 
-		return array_values(Plugin::getInstance()->getVariantAttributes()->getAttributesByNames(array_keys($names)));
+		return array_values(array_map(
+			static fn (array $entry): array => [
+				'attribute' => $entry['attribute'],
+				'options' => array_values($entry['options']),
+			],
+			$variantAttributes->getRegistry($valuesByName),
+		));
 	}
 
 	/**
@@ -498,7 +538,7 @@ class VariantMaker extends Component
 		return $variant instanceof Variant ? $variant : null;
 	}
 
-	private function applyRow(Variant $variant, VariantMakerPlanRow $row): void
+	private function applyRow(Variant $variant, VariantMakerPlanRow $row, string $fieldHandle): void
 	{
 		if ($row->title !== null) {
 			$variant->title = $row->title;
@@ -518,12 +558,7 @@ class VariantMaker extends Component
 			}
 		}
 
-		// Each product type names its own field, so the variant's layout is what says where the pairs go
-		$field = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout());
-
-		if ($field !== null) {
-			$variant->setFieldValue($field->handle, $row->pairs);
-		}
+		$variant->setFieldValue($fieldHandle, $row->pairs);
 	}
 
 	/**
@@ -664,13 +699,14 @@ class VariantMaker extends Component
 		if (trim($skuFormat) === '') {
 			$segments = array_map(self::skuSegment(...), [$baseSku, ...array_values($partials)]);
 
-			return implode('-', array_filter($segments, static fn (string $segment): bool => $segment !== ''));
+			return implode(self::SKU_SEPARATOR, array_filter($segments, static fn (string $segment): bool => $segment !== ''));
 		}
 
 		$tokens = [];
 
 		foreach ($partials as $attributeName => $partial) {
-			$tokens['{' . $attributeName . '}'] = $partial;
+			// Normalize here too, because a copied placeholder must build the SKU it displayed
+			$tokens['{' . $attributeName . '}'] = self::skuSegment($partial);
 		}
 
 		return strtr($skuFormat, $tokens);
@@ -700,7 +736,7 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * A price typed into the control panel carries the locale's separators, which Money's parser rejects.
+	 * A price typed into the control panel uses the locale's separators, which Money's parser rejects.
 	 */
 	private static function amount(float|int|string $value): string
 	{
@@ -823,7 +859,7 @@ class VariantMaker extends Component
 		$values = array_map(static fn (array $pair): string => $pair['attributeValue'], $combination);
 
 		if (trim($titleFormat) === '') {
-			return implode(' / ', $values);
+			return implode(self::TITLE_SEPARATOR, $values);
 		}
 
 		$tokens = [];
@@ -911,7 +947,7 @@ class VariantMaker extends Component
 
 		$storedAttributes = $variant->{$fieldHandle};
 
-		// Treat an unparseable value as no pairs, since the field stores JSON
+		// Treat an unparseable value as empty. The field stores JSON.
 		if (! is_array($storedAttributes)) {
 			return [];
 		}
@@ -964,9 +1000,12 @@ class VariantMaker extends Component
 		);
 	}
 
+	/**
+	 * The product slug. A default variant's SKU already holds the partials from an earlier run.
+	 */
 	private function baseSku(Product $product): string
 	{
-		return $product->getDefaultVariant()?->sku ?? (string) $product->slug;
+		return (string) $product->slug;
 	}
 
 	private function teller(Product $product): Teller

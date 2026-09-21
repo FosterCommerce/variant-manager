@@ -5,7 +5,7 @@ A Craft CMS plugin for managing Craft Commerce variants as combinations of **att
 ## Requirements
 
 - Craft CMS `^5.0`
-- Craft Commerce `^5.0`
+- Craft Commerce `^5.7.0`
 - PHP `>=8.2.0`
 
 ## Install
@@ -25,7 +25,7 @@ With DDEV:
 ddev composer require fostercommerce/variant-manager -w && ddev craft plugin/install variant-manager
 ```
 
-After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** appears for users with `variant-manager:manage-attributes`.
+After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** appears for users who can save at least one product type in Commerce.
 
 ## Configure
 
@@ -55,7 +55,7 @@ For what each key does in full, see [configuration reference](./reference/config
 
 ### In the control panel
 
-**Settings -> Plugins -> Variant Manager** has three settings and requires an admin account:
+**Variant Manager -> Settings** has three settings and requires an admin account:
 
 - **Available Display Types**, which display types an attribute can be given.
 - **Default Display Type**, what a newly registered attribute starts as.
@@ -75,13 +75,13 @@ The plugin ships a **Variant Attributes** field type. Add it to every Commerce p
 2. Set the **Field Type** to **Variant Attributes**. Give it a name and handle, for example `variantAttributes`. The field has no settings of its own.
 3. **Commerce -> Settings -> Product Types -> {product type} -> Variant Fields** and drag the field into the variant field layout.
 
-The plugin reads one Variant Attributes field per variant field layout, and ignores any others.
+The plugin reads one Variant Attributes field per variant field layout, and skips any others.
 
 For how the field stores data, see [Variant Attributes field reference](./reference/field-type.md).
 
 ## Permissions
 
-Grant the plugin's permissions on user groups at **Users -> {group} -> Permissions** or on individual users. `accessPlugin-variant-manager` is required to see the plugin's CP section at all.
+Grant `accessPlugin-variant-manager` to any group that needs the **Variant Manager** section. Everything that changes catalog data uses Commerce's `commerce-saveProductType`, granted per product type.
 
 For the full list, see [permissions reference](./reference/permissions.md).
 
