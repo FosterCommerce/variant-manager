@@ -6,10 +6,12 @@ use Craft;
 use craft\db\Migration;
 use craft\helpers\Db;
 use fostercommerce\variantmanager\db\Table;
-use fostercommerce\variantmanager\services\AttributeConfigs;
 
 class m260908_110000_add_display_type_col extends Migration
 {
+	// The path these settings used before the field set migration moved them
+	private const CONFIG_PATH = 'variant-manager.attributes';
+
 	public function safeUp(): bool
 	{
 		$this->addColumn(
@@ -19,7 +21,7 @@ class m260908_110000_add_display_type_col extends Migration
 		);
 
 		// Display types were project config before this release
-		$configs = Craft::$app->getProjectConfig()->get(AttributeConfigs::CONFIG_PATH);
+		$configs = Craft::$app->getProjectConfig()->get(self::CONFIG_PATH);
 
 		if (! is_array($configs)) {
 			return true;

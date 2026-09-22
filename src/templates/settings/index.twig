@@ -67,6 +67,35 @@
 
 	<hr>
 
+	<h2>{{ 'fieldSets.fieldSets'|t('variant-manager') }}</h2>
+
+	<p>{{ 'fieldSets.intro'|t('variant-manager') }}</p>
+
+	{% if fieldSets is not empty %}
+		<table class="data fullwidth collapsible">
+			<thead>
+				<tr>
+					<th scope="col">{{ 'fieldSets.name'|t('variant-manager') }}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for fieldSet in fieldSets %}
+					<tr>
+						<th scope="row" data-title="{{ 'fieldSets.name'|t('variant-manager') }}">
+							<a href="{{ url('variant-manager/field-sets/' ~ fieldSet.uid) }}">{{ fieldSet.name }}</a>
+						</th>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	{% endif %}
+
+	{% if not readOnly %}
+		<p><a class="btn add icon" href="{{ url('variant-manager/field-sets/new') }}">{{ 'fieldSets.newFieldSet'|t('variant-manager') }}</a></p>
+	{% endif %}
+
+	<hr>
+
 	<h2>{{ 'attributes.attributes'|t('variant-manager') }}</h2>
 
 	<p>{{ 'attributes.settingsIntro'|t('variant-manager') }}</p>
@@ -79,6 +108,7 @@
 				<tr>
 					<th scope="col">{{ 'attributes.name'|t('variant-manager') }}</th>
 					<th scope="col">{{ 'attributes.displayType'|t('variant-manager') }}</th>
+					<th scope="col">{{ 'fieldSets.fieldSet'|t('variant-manager') }}</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -88,6 +118,7 @@
 							<a href="{{ url('variant-manager/attributes/' ~ attribute.id ~ '/settings') }}">{{ attribute.name }}</a>
 						</th>
 						<td data-title="{{ 'attributes.displayType'|t('variant-manager') }}">{{ attribute.getDisplayType().label }}</td>
+						<td data-title="{{ 'fieldSets.fieldSet'|t('variant-manager') }}">{{ fieldSets[attribute.fieldSetUid].name ?? 'fieldSets.none'|t('variant-manager') }}</td>
 					</tr>
 				{% endfor %}
 			</tbody>

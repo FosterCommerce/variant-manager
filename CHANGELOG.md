@@ -1,5 +1,23 @@
 # Release Notes for Variant Manager
 
+## Unreleased
+
+### Added
+
+- Added field sets, each a name and a pair of field layouts that any number of variant attributes share.
+- Added `FieldSets` and `Plugin::getFieldSets()`.
+- Added a `fieldSetUid` param to `VariantAttribute` queries.
+
+### Changed
+
+- An attribute's fields now come from the field set assigned to it, and its settings screen no longer has field layouts of its own.
+- Pruning an orphaned attribute no longer removes field layouts from project config.
+- An attribute's field set can now be assigned where `allowAdminChanges` is off, because the assignment is stored in the database rather than project config.
+
+### Removed
+
+- Removed `AttributeConfigs` and `Plugin::getAttributeConfigs()`. Use `Plugin::getFieldSets()`.
+
 ## 4.1.1 - 2026-09-21
 
 ### Changed

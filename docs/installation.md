@@ -63,7 +63,7 @@ For what each key does in full, see [configuration reference](./reference/config
 
 A config file entry overrides the matching screen setting, and the screen shows a warning where one does.
 
-The attribute table at the bottom of the same screen opens each attribute's own page, where **Attribute Fields** and **Option Fields**, the two field layouts, are set. Those are stored in project config too. See [variant attributes](./user-guide/variant-attributes.md).
+The same screen lists every field set by name. A field set holds two field layouts that any number of attributes share, and the attribute table shows which one each attribute uses and links to the page where you change that attribute's field set. A field set is project config; the assignment is stored on the attribute in the database. For field sets, see [variant attributes](./user-guide/variant-attributes.md#field-sets).
 
 One more is set elsewhere: an attribute's **display type**, on the attribute itself at **Variant Manager -> Variant Attributes**, stored in the database.
 

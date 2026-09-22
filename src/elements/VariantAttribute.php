@@ -16,6 +16,7 @@ use craft\services\Structures;
 use fostercommerce\variantmanager\elements\db\VariantAttributeQuery;
 use fostercommerce\variantmanager\enums\DisplayType;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
+use fostercommerce\variantmanager\models\FieldSet;
 use fostercommerce\variantmanager\Plugin;
 use fostercommerce\variantmanager\records\Activity;
 use fostercommerce\variantmanager\records\VariantAttribute as VariantAttributeRecord;
@@ -42,6 +43,8 @@ class VariantAttribute extends Element
 	public ?string $skuPartial = null;
 
 	public ?float $priceModifier = null;
+
+	public ?string $fieldSetUid = null;
 
 	private ?VariantAttribute $parentAttribute = null;
 
@@ -158,18 +161,14 @@ class VariantAttribute extends Element
 
 	public function getFieldLayout(): ?FieldLayout
 	{
-		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
+		$fieldSets = Plugin::getInstance()->getFieldSets();
 
-		// The settings are saved against the canonical attribute, and a provisional draft's own uid has no entry
+		// Never return null. An attribute with no field set still renders in the element editor.
 		if (! $this->isOption()) {
-			return $attributeConfigs->getFieldLayout((string) $this->getCanonicalUid());
+			return ($fieldSets->getFieldSetByUid($this->fieldSetUid) ?? new FieldSet())->getFieldLayout();
 		}
 
-		$attribute = $this->getParentAttribute();
-
-		return $attribute === null
-			? null
-			: $attributeConfigs->getOptionFieldLayout((string) $attribute->uid);
+		return ($fieldSets->getFieldSetByUid($this->getParentAttribute()?->fieldSetUid) ?? new FieldSet())->getOptionFieldLayout();
 	}
 
 	public function getDisplayType(): DisplayType
@@ -275,6 +274,7 @@ class VariantAttribute extends Element
 			$record->displayType = $this->displayType;
 			$record->skuPartial = $this->skuPartial;
 			$record->priceModifier = $this->priceModifier;
+			$record->fieldSetUid = $this->fieldSetUid;
 			$record->save(false);
 
 			// Place a canonical row once, because an unpublished draft keeps its id through the apply
@@ -435,7 +435,7 @@ class VariantAttribute extends Element
 
 	protected static function defineFieldLayouts(?string $source): array
 	{
-		return Plugin::getInstance()->getAttributeConfigs()->getAllLayouts();
+		return Plugin::getInstance()->getFieldSets()->getAllLayouts();
 	}
 
 	protected static function defineSearchableAttributes(): array

@@ -7,7 +7,6 @@ use craft\db\Migration;
 use craft\db\Query;
 use craft\db\Table as CraftTable;
 use fostercommerce\variantmanager\db\Table;
-use fostercommerce\variantmanager\services\AttributeConfigs;
 
 /**
  * Key attribute settings on the attribute uid rather than its name key.
@@ -16,6 +15,9 @@ use fostercommerce\variantmanager\services\AttributeConfigs;
  */
 class m260920_120000_key_attribute_configs_on_uid extends Migration
 {
+	// The path these settings used before the field set migration moved them
+	private const CONFIG_PATH = 'variant-manager.attributes';
+
 	public function safeUp(): bool
 	{
 		$projectConfig = Craft::$app->getProjectConfig();
@@ -44,7 +46,7 @@ class m260920_120000_key_attribute_configs_on_uid extends Migration
 
 		foreach ($uidsByNameKey as $nameKey => $attributeUid) {
 			// Read on the old path. A period in the name key splits the same way it did on write.
-			$config = $projectConfig->get(AttributeConfigs::CONFIG_PATH . '.' . $nameKey);
+			$config = $projectConfig->get(self::CONFIG_PATH . '.' . $nameKey);
 
 			if (! is_array($config)) {
 				continue;
@@ -55,7 +57,7 @@ class m260920_120000_key_attribute_configs_on_uid extends Migration
 
 			if ($layouts !== []) {
 				$projectConfig->set(
-					AttributeConfigs::CONFIG_PATH . '.' . $attributeUid,
+					self::CONFIG_PATH . '.' . $attributeUid,
 					$layouts,
 					"Key the “{$nameKey}” variant attribute settings on its uid"
 				);
@@ -66,7 +68,7 @@ class m260920_120000_key_attribute_configs_on_uid extends Migration
 
 		// Remove after every write, because removing a name key takes the keys nested under it too
 		foreach ($migrated as $nameKey) {
-			$projectConfig->remove(AttributeConfigs::CONFIG_PATH . '.' . $nameKey);
+			$projectConfig->remove(self::CONFIG_PATH . '.' . $nameKey);
 		}
 
 		return true;

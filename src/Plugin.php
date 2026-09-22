@@ -49,8 +49,8 @@ use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\models\Settings;
 use fostercommerce\variantmanager\services\ActivityLogs;
-use fostercommerce\variantmanager\services\AttributeConfigs;
 use fostercommerce\variantmanager\services\Csv;
+use fostercommerce\variantmanager\services\FieldSets;
 use fostercommerce\variantmanager\services\ProductVariants;
 use fostercommerce\variantmanager\services\VariantAttributes;
 use fostercommerce\variantmanager\services\VariantMaker;
@@ -69,14 +69,14 @@ use yii\queue\Queue;
  * @property-read ActivityLogs $activityLogs
  * @property-read VariantAttributes $variantAttributes
  * @property-read VariantMaker $variantMaker
- * @property-read AttributeConfigs $attributeConfigs
+ * @property-read FieldSets $fieldSets
  * @property-read null|array $cpNavItem
  */
 class Plugin extends BasePlugin
 {
 	private const VARIANT_MAKER_TAB_UID = 'f05d5b7a-9a3e-4a2f-9f4e-6b1c2d3e4f50';
 
-	public string $schemaVersion = '1.9.0';
+	public string $schemaVersion = '1.10.0';
 
 	public bool $hasCpSettings = true;
 
@@ -98,7 +98,7 @@ class Plugin extends BasePlugin
 
 		Craft::$app->onInit(function (): void {
 			$this->registerComponents();
-			$this->getAttributeConfigs()->registerOverriddenFieldHandles();
+			$this->getFieldSets()->registerOverriddenFieldHandles();
 			$this->registerQueue();
 			$this->attachEventHandlers();
 		});
@@ -155,10 +155,10 @@ class Plugin extends BasePlugin
 		return $this->get('csv');
 	}
 
-	public function getAttributeConfigs(): AttributeConfigs
+	public function getFieldSets(): FieldSets
 	{
-		/** @var AttributeConfigs */
-		return $this->get('attributeConfigs');
+		/** @var FieldSets */
+		return $this->get('fieldSets');
 	}
 
 	public function getSettingsResponse(): mixed
@@ -282,6 +282,8 @@ class Plugin extends BasePlugin
 					],
 					'variant-manager/attributes/<elementId:\d+>' => 'elements/edit',
 					'variant-manager/attributes/<attributeId:\d+>/settings' => 'variant-manager/attributes/settings',
+					'variant-manager/field-sets/new' => 'variant-manager/field-sets/edit',
+					'variant-manager/field-sets/<fieldSetUid:[^\/]+>' => 'variant-manager/field-sets/edit',
 				];
 			}
 		);
@@ -316,7 +318,7 @@ class Plugin extends BasePlugin
 			'activityLogs' => ActivityLogs::class,
 			'variantAttributes' => VariantAttributes::class,
 			'variantMaker' => VariantMaker::class,
-			'attributeConfigs' => AttributeConfigs::class,
+			'fieldSets' => FieldSets::class,
 		]);
 	}
 
@@ -569,8 +571,6 @@ class Plugin extends BasePlugin
 
 				$garbageCollector = Craft::$app->getGc();
 				$garbageCollector->deletePartialElements(VariantAttribute::class, Table::ATTRIBUTES, 'id');
-
-				Plugin::getInstance()->getAttributeConfigs()->removeOrphaned();
 			},
 		);
 	}

@@ -3,9 +3,12 @@
 namespace fostercommerce\variantmanager\controllers;
 
 use Craft;
+use craft\db\Query;
+use craft\db\Table as CraftTable;
+use craft\helpers\Db;
 use craft\helpers\Queue;
-use craft\models\FieldLayout;
 use craft\web\Controller;
+use fostercommerce\variantmanager\db\Table;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\jobs\BackfillAttributes;
@@ -31,13 +34,9 @@ class AttributesController extends Controller
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'attributes.notFound'));
 		}
 
-		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
-
 		return $this->renderTemplate('variant-manager/attributes/_settings', [
 			'attribute' => $attribute,
-			'attributeFieldLayout' => $attributeConfigs->getFieldLayout((string) $attribute->uid),
-			'optionFieldLayout' => $attributeConfigs->getOptionFieldLayout((string) $attribute->uid),
-			'readOnly' => ! Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
+			'fieldSets' => Plugin::getInstance()->getFieldSets()->getAllFieldSets(),
 		]);
 	}
 
@@ -47,7 +46,8 @@ class AttributesController extends Controller
 	public function actionSaveSettings(): ?Response
 	{
 		$this->requirePostRequest();
-		$this->requireAdmin();
+		// The assignment is a column on the attribute, not project config, so a locked-down environment can still set it
+		$this->requireAdmin(false);
 
 		$attributeId = (int) $this->request->getRequiredBodyParam('attributeId');
 		$attribute = VariantAttribute::find()->attributeId(0)->id($attributeId)->one();
@@ -56,23 +56,25 @@ class AttributesController extends Controller
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'attributes.notFound'));
 		}
 
-		$fieldsService = Craft::$app->getFields();
+		$fieldSetUid = $this->request->getBodyParam('fieldSetUid') ?: null;
+		$attribute->fieldSetUid = is_string($fieldSetUid) ? $fieldSetUid : null;
 
-		// Build with the type. A layout resolves its native fields once during construction.
-		$fieldLayout = new FieldLayout([
-			'type' => VariantAttribute::class,
-		]);
-		$fieldLayout->setTabs($fieldsService->assembleLayoutFromPost()->getTabs());
-
-		$optionFieldLayout = new FieldLayout([
-			'type' => VariantAttribute::class,
-		]);
-		$optionFieldLayout->setTabs($fieldsService->assembleLayoutFromPost('option-layout')->getTabs());
-
-		if (! Plugin::getInstance()->getAttributeConfigs()->save($attribute, $fieldLayout, $optionFieldLayout)) {
+		if (! Craft::$app->getElements()->saveElement($attribute)) {
 			$this->setFailFlash(Craft::t('variant-manager', 'attributes.settingsSaveFailed'));
 			return null;
 		}
+
+		// Carry it onto any open draft, because applying one writes that row back over the canonical
+		Db::update(Table::ATTRIBUTES, [
+			'fieldSetUid' => $attribute->fieldSetUid,
+		], [
+			'id' => (new Query())
+				->select(['id'])
+				->from(CraftTable::ELEMENTS)
+				->where([
+					'canonicalId' => $attribute->id,
+				]),
+		]);
 
 		$this->setSuccessFlash(Craft::t('variant-manager', 'attributes.settingsSaved'));
 

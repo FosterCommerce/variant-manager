@@ -20,6 +20,8 @@ class VariantAttributeQuery extends ElementQuery
 
 	public mixed $attributeId = null;
 
+	public mixed $fieldSetUid = null;
+
 	protected array $defaultOrderBy = [
 		'variant_manager_attributes.name' => SORT_ASC,
 	];
@@ -48,6 +50,15 @@ class VariantAttributeQuery extends ElementQuery
 		return $this;
 	}
 
+	/**
+	 * Narrows the query results to attributes assigned the given field set.
+	 */
+	public function fieldSetUid(mixed $value): static
+	{
+		$this->fieldSetUid = $value;
+		return $this;
+	}
+
 	protected function fieldLayouts(): array
 	{
 		// These layouts are in project config, not the fieldlayouts table
@@ -73,6 +84,7 @@ class VariantAttributeQuery extends ElementQuery
 			'variant_manager_attributes.displayType',
 			'variant_manager_attributes.skuPartial',
 			'variant_manager_attributes.priceModifier',
+			'variant_manager_attributes.fieldSetUid',
 		]);
 
 		if (isset($this->attributeId)) {
@@ -81,6 +93,10 @@ class VariantAttributeQuery extends ElementQuery
 
 		if (isset($this->nameKey)) {
 			$this->subQuery->andWhere(Db::parseParam('variant_manager_attributes.nameKey', $this->nameKey));
+		}
+
+		if (isset($this->fieldSetUid)) {
+			$this->subQuery->andWhere(Db::parseParam('variant_manager_attributes.fieldSetUid', $this->fieldSetUid));
 		}
 
 		return true;

@@ -67,7 +67,7 @@ Reads every variant, then compares against the registry. Prints one line per orp
 ./craft variant-manager/attributes/orphans --prune
 ```
 
-Deletes exactly the orphans the scan found. A value a variant started storing after the scan began is deleted too, and re-registered on that variant's next save without its custom field values. The display type is on the attribute's row, so deleting the row deletes it. The two field layouts are project config, and where `allowAdminChanges` is off the row is deleted but its field layout config stays. This is permanent, and any custom field values on the deleted rows are lost.
+Deletes exactly the orphans the scan found. A value a variant started storing after the scan began is deleted too, and re-registered on that variant's next save without its custom field values. The display type is on the attribute's row, so deleting the row deletes it. The attribute's field set stays in project config, because other attributes can use it. This is permanent, and any custom field values on the deleted rows are lost.
 
 | Option | Default | Description |
 |--------|---------|-------------|

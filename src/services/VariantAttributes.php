@@ -535,18 +535,9 @@ class VariantAttributes extends Component
 			$elementsService->deleteElement($option, true);
 		}
 
-		$attributeConfigs = Plugin::getInstance()->getAttributeConfigs();
-		$projectConfig = Craft::$app->getProjectConfig();
-
+		// Deleting an attribute keeps its field set, which other attributes may use
 		foreach ($orphans['attributes'] as $attribute) {
-			if (! $elementsService->deleteElement($attribute, true)) {
-				continue;
-			}
-
-			// Remove the config here, after the delete commits, rather than from afterDelete()
-			if (! $projectConfig->readOnly) {
-				$attributeConfigs->remove((string) $attribute->uid);
-			}
+			$elementsService->deleteElement($attribute, true);
 		}
 
 		return [

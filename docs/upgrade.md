@@ -1,6 +1,27 @@
 # Upgrading
 
-Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, and 4.1.0 sections in that order. A store on 4.0.x needs only the 4.1.0 section.
+Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, 4.1.0, and 4.2.0 sections in that order. A store on 4.0.x needs the 4.1.0 and 4.2.0 sections.
+
+## Upgrading to 4.2.0
+
+Run `./craft up` to apply the migration. Templates and the CSV format are unchanged.
+
+An attribute's field layouts move into a **field set**, a named pair of layouts that any number of attributes share. The migration gives every attribute with saved field layouts its own field set, named after the attribute, so every attribute keeps the fields it had.
+
+Where several attributes should share one set, open each attribute, assign it the set you are keeping, then delete the field sets you no longer need. A field set cannot be deleted while an attribute uses it.
+
+Run the migration in development, where it writes the field sets to project config. Run `./craft project-config/write` afterwards, then commit `config/project/`. Where `allowAdminChanges` is off, the migration assigns each attribute its field set but does not write to project config, so the deployed `config/project/` files supply the field sets.
+
+`AttributeConfigs` is removed. It was marked internal in 4.1.1; field sets are read and written through `FieldSets`.
+
+| 4.1.1 | 4.2.0 |
+| --- | --- |
+| `Plugin::getAttributeConfigs()` | `Plugin::getFieldSets()` |
+| `AttributeConfigs::getFieldLayout($attributeUid)` | `FieldSets::getFieldSetByUid($attribute->fieldSetUid)?->getFieldLayout()` |
+| `AttributeConfigs::getOptionFieldLayout($attributeUid)` | `FieldSets::getFieldSetByUid($attribute->fieldSetUid)?->getOptionFieldLayout()` |
+| `AttributeConfigs::getAllLayouts()` | `FieldSets::getAllLayouts()` |
+| `AttributeConfigs::save($attribute, $layout, $optionLayout)` | `FieldSets::save($fieldSet)` |
+| `AttributeConfigs::remove($attributeUid)` | `FieldSets::delete($fieldSetUid)` |
 
 ## Upgrading to 4.1.0
 
@@ -39,7 +60,7 @@ The Variant Maker previously checked `commerce-editProductType`, which Commerce 
 
 `getFieldLayout()`, `getOptionFieldLayout()`, and `remove()` take a string, so a call still passing a name key runs without error and reads the wrong branch of project config. A call passing one to `save()` raises a `TypeError`.
 
-`AttributeConfigs` is internal. For the calls a module should use, see [writing to the registry](./dev-guide/registry-api.md).
+In 4.1.1, `AttributeConfigs` is internal. 4.2.0 removes it. For the calls a module should use, see [writing to the registry](./dev-guide/registry-api.md).
 
 ### Variants generated before 4.1.0
 
@@ -129,6 +150,3 @@ This is a catch-up for data that predates 3.x. On 3.x, imports and control panel
 
 3.x added `variant-manager:manage-attributes`, which existing user groups do not have. Grant it at **Users -> {group} -> Permissions** to anyone who needs the **Variant Attributes** section or the utility. Upgrading straight to 4.1.0 removes this permission again, so skip this step and read [Permissions](#permissions) under 4.1.0 instead.
 
-### Set field layouts in development
-
-An attribute's two field layouts are project config. Set them in your development environment and deploy them. The screen is read-only where `allowAdminChanges` is off, so they cannot be set in production directly.

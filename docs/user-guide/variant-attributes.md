@@ -64,7 +64,7 @@ Each attribute is its own filter. **Add a filter** offers **Variant Attribute: S
 
 The filters appear on variant listings, including the Variants index and a product's **Variants** tab. On product listings, a product matches when one of its variants does.
 
-### Display type and fields
+### Display type
 
 **Display Type** is set on the attribute itself, at **Variant Manager -> Variant Attributes**. It sets how the options render on your storefront: dropdown, radio buttons, text buttons, image swatches, color swatches, or lightswitch. It has no effect in the control panel. Dropdown is the default.
 
@@ -72,14 +72,20 @@ The filters appear on variant listings, including the Variants index and a produ
 
 **Default Display Type**, on the same screen, sets the display type for an attribute the first time any route in the table above registers it. The **New attribute** slideout starts on that type, and you can change it there. Attributes that already exist keep the type they have.
 
-The field layouts are set on each attribute's own page. Click an attribute in the table at **Variant Manager -> Settings** to open it. There are two:
+### Field sets
+
+A field set is a named pair of field layouts that any number of attributes share:
 
 - **Attribute Fields** apply to the attribute itself, for a value covering all of its options.
 - **Option Fields** apply to each option, for a swatch image, a spec sheet, or a note.
 
-Add whatever the storefront needs.
+Build one at **Variant Manager -> Settings -> New field set**, then open an attribute from the table on that screen and choose it under **Field Set**. An attribute without a field set does not show custom fields. Attributes sharing a field set share its fields, so Color and Trim Color can both use one swatch image field without building the layout twice.
 
-Set these in development and deploy them. They are project config, and the screen is read-only where `allowAdminChanges` is off.
+You cannot delete a field set while an attribute uses it. Its page lists those attributes under **Attributes using this field set**.
+
+Changing or clearing an attribute's field set hides the values stored under the old layout. Editing and saving a field of the new set then deletes them. Treat the switch as permanent.
+
+Build a field set in development and deploy it, because it is project config. The field set screen is read-only where `allowAdminChanges` is off. The assignment is a column on the attribute rather than project config, so you set it in each environment.
 
 ### Removing rows
 

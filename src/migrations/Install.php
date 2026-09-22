@@ -30,6 +30,7 @@ class Install extends Migration
 			'displayType' => $this->string()->notNull()->defaultValue('dropdown'),
 			'skuPartial' => $this->string(),
 			'priceModifier' => $this->decimal(14, 2),
+			'fieldSetUid' => $this->char(36)->null(),
 			'dateCreated' => $this->dateTime()->notNull(),
 			'dateUpdated' => $this->dateTime()->notNull(),
 			'uid' => $this->uid(),
@@ -39,6 +40,7 @@ class Install extends Migration
 		// The key is the attribute plus the name, so Blue under two attributes is two rows
 		// An attribute uses 0 rather than null, because MySQL treats null attributeIds as distinct
 		$this->createIndex(null, Table::ATTRIBUTES, ['attributeId', 'nameKey'], true);
+		$this->createIndex(null, Table::ATTRIBUTES, ['fieldSetUid'], false);
 		$this->addForeignKey(null, Table::ATTRIBUTES, ['id'], CraftTable::ELEMENTS, ['id'], 'CASCADE');
 
 		$this->createTable(Table::STRUCTURES, [
