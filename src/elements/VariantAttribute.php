@@ -8,6 +8,8 @@ use craft\db\Query;
 use craft\db\Table as CraftTable;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Duplicate;
+use craft\elements\deletionblockers\DeletionBlockerInterface;
+use craft\elements\ElementCollection;
 use craft\elements\User;
 use craft\helpers\ArrayHelper;
 use craft\helpers\Cp;
@@ -19,6 +21,7 @@ use craft\helpers\UrlHelper;
 use craft\models\FieldLayout;
 use fostercommerce\variantmanager\db\Table;
 use fostercommerce\variantmanager\elements\db\VariantAttributeQuery;
+use fostercommerce\variantmanager\elements\deletionblockers\VariantsInUseBlocker;
 use fostercommerce\variantmanager\enums\DisplayType;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\models\FieldSet;
@@ -439,16 +442,27 @@ class VariantAttribute extends Element
 	}
 
 	/**
-	 * Hard-delete records, matching beforeDelete(), so the confirmation message reads as a permanent delete.
+	 * @param ElementCollection<array-key, self> $elements
+	 * @return list<DeletionBlockerInterface>
+	 */
+	public static function deletionBlockers(ElementCollection $elements, bool $hardDelete): array
+	{
+		return [new VariantsInUseBlocker($elements, $hardDelete)];
+	}
+
+	/**
+	 * Leave `hard` off, because it makes Craft 5.10 search the trash and report a delete that never ran.
 	 *
-	 * @return list<array{type: class-string, hard: bool}>
+	 * beforeDelete() sets hardDelete on the record itself, so the delete is permanent either way.
+	 *
+	 * @return list<array{type: class-string, confirmationMessage: string}>
 	 */
 	protected static function defineActions(string $source): array
 	{
 		return [
 			[
 				'type' => Delete::class,
-				'hard' => true,
+				'confirmationMessage' => Craft::t('variant-manager', 'attributes.deleteConfirm'),
 			],
 		];
 	}
@@ -698,7 +712,6 @@ class VariantAttribute extends Element
 			'errors' => $this->getErrors('displayType'),
 		]) . Cp::selectFieldHtml([
 			'label' => Craft::t('variant-manager', 'fieldSets.fieldSet'),
-			'instructions' => Craft::t('variant-manager', 'fieldSets.fieldSetInstructions'),
 			'id' => 'fieldSetUid',
 			'name' => 'fieldSetUid',
 			'options' => $fieldSetOptions,

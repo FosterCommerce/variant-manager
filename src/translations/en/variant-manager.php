@@ -62,6 +62,8 @@ return [
 	'attributes.notFound' => 'Attribute not found.',
 	'attributes.filterLabel' => 'Variant Attribute: {attribute}',
 	'attributes.activityCreated' => 'Created attribute {name}',
+	'attributes.deleteBlocked' => '{count, plural, =1{1 selected record is} other{# selected records are}} still stored on variants.',
+	'attributes.deleteConfirm' => 'Delete the selected records? This can’t be undone.',
 	'attributes.deleteInUse' => 'Variants still use one of this attribute’s options. Remove them from every variant first.',
 	'attributes.cannotNest' => 'A variant attribute can’t be nested under another.',
 	'attributes.nameTaken' => '“{name}” is already a variant attribute.',
@@ -89,7 +91,6 @@ return [
 	// Field sets
 	'fieldSets.fieldSet' => 'Field Set',
 	'fieldSets.fieldSets' => 'Field Sets',
-	'fieldSets.fieldSetInstructions' => 'The field layouts this attribute and its options use. Choosing “None” leaves them without custom fields.',
 	'fieldSets.intro' => 'A field set is a pair of field layouts, one for an attribute and one for its options, that any number of attributes share.',
 	'fieldSets.handle' => 'Handle',
 	'fieldSets.handleInstructions' => 'A unique identifier for this field set. Two field sets can share a name, but not a handle.',

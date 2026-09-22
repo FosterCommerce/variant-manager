@@ -1,24 +1,36 @@
 # Release Notes for Variant Manager
 
+## 4.2.1 - 2026-09-22
+
+### Changed
+
+- The delete confirmation now names the selected records that variants still store, on Craft 5.10 and later.
+
+### Fixed
+
+- Fixed a bug where deleting variant attributes or options from the index reported success without deleting them.
+- Fixed a bug where the “Used by” list on a field set did not link to its attributes.
+
 ## 4.2.0 - 2026-09-22
 
 ### Added
 
-- Added field sets, each a name, a unique handle, and a pair of field layouts that any number of variant attributes share. An attribute's field set can be changed where `allowAdminChanges` is off.
-- Added a Field Sets section to the Variant Manager settings screen, for creating and editing field sets.
+- Added field sets, each a name, a unique handle, and a pair of field layouts that any number of variant attributes share.
+- Added a Field Sets section to the Variant Manager settings screen.
 - Added a “Field Set” field to an attribute's sidebar, and a “Field Set” column to the Variant Attributes index.
-- Added a menu beside “New attribute” on the Variant Attributes index, for creating an option.
-- Added the ability to delete variant attributes and options from the control panel. Deleting is permanent, and a record any variant uses cannot be deleted.
-- Added the ability to move an option to another variant attribute, by dragging it or from a “Variant Attribute” field in its sidebar.
+- Added a menu for creating a new option from the Variant Attributes index.
+- Added the ability to delete variant attributes and options from the control panel.
+- Added the ability to move an option to another variant attribute.
 - Added `fostercommerce\variantmanager\models\FieldSet`, `fostercommerce\variantmanager\services\FieldSets` and `Plugin::getFieldSets()`.
 
 ### Changed
 
-- An attribute's fields now come from the field set assigned to it. The migration gives every attribute a field set of its own, named after the attribute and holding the layouts it had.
-- Variant attributes and options are now labeled by their display name throughout the control panel, and the Variant Attributes index shows “System Name” as a column by default.
+- An attribute's fields now come from the field set assigned to it.
+- Variant attributes and options are now labeled by their display name throughout the control panel.
+- The Variant Attributes index now shows “System Name” as a column by default.
 - “Variant Attributes” now comes before “Variants” in the Variant Manager nav.
 - A blank `attributePrefix` now fails the import and the export, which previously read every column as an attribute.
-- A CSV the import rejects, a settings error, and a stopped variant generation now end their queue job instead of failing it. Every other failure still leaves a failed job to retry.
+- A CSV the import rejects, a settings error, and a stopped variant generation now end their queue job instead of failing it.
 - `Csv::import()` and `Csv::saveVariants()` now throw `fostercommerce\variantmanager\errors\ImportDataException` where they threw `RuntimeException`. Catch `ImportDataException`, or its base `yii\base\Exception`.
 - Pruning an orphaned attribute no longer removes field layouts from project config.
 
