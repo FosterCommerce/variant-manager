@@ -62,7 +62,7 @@ return [
 	'attributes.notFound' => 'Attribute not found.',
 	'attributes.filterLabel' => 'Variant Attribute: {attribute}',
 	'attributes.activityCreated' => 'Created attribute {name}',
-	'attributes.deleteBlocked' => '{count, plural, =1{1 selected record is} other{# selected records are}} still stored on variants.',
+	'attributes.deleteBlocked' => '{count, plural, =1{1 selected record is} other{# selected records are}} still used by variants.',
 	'attributes.deleteConfirm' => 'Delete the selected records? This can’t be undone.',
 	'attributes.deleteInUse' => 'Variants still use one of this attribute’s options. Remove them from every variant first.',
 	'attributes.cannotNest' => 'A variant attribute can’t be nested under another.',

@@ -4,17 +4,21 @@ namespace fostercommerce\variantmanager\elements\deletionblockers;
 
 use Craft;
 use craft\elements\deletionblockers\BaseDeletionBlocker;
+use craft\helpers\Cp;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\Plugin;
 
 /**
- * Reports the selected records that variants still store, which beforeDelete() refuses.
+ * Reports the selected records that variants still use.
  *
- * @since 4.3.0
+ * @since 4.2.1
  */
 class VariantsInUseBlocker extends BaseDeletionBlocker
 {
-	private int $inUseCount = 0;
+	/**
+	 * @var list<VariantAttribute>
+	 */
+	private array $inUseElements = [];
 
 	public function init(): void
 	{
@@ -30,7 +34,7 @@ class VariantsInUseBlocker extends BaseDeletionBlocker
 				: $variantAttributes->isAttributeInUse($element);
 
 			if ($inUse) {
-				++$this->inUseCount;
+				$this->inUseElements[] = $element;
 			}
 		}
 
@@ -39,22 +43,28 @@ class VariantsInUseBlocker extends BaseDeletionBlocker
 
 	public function isActive(): bool
 	{
-		return $this->inUseCount !== 0;
+		return $this->inUseElements !== [];
 	}
 
 	public function getSummary(): string
 	{
 		return Craft::t('variant-manager', 'attributes.deleteBlocked', [
-			'count' => $this->inUseCount,
+			'count' => count($this->inUseElements),
 		]);
 	}
 
+	public function getDetails(): ?string
+	{
+		return Cp::elementPreviewHtml($this->inUseElements);
+	}
+
 	/**
+	 * An action would have to resolve the blocker, and only removing the value from every variant does that.
+	 *
 	 * @return array<array-key, mixed>
 	 */
 	public function getActions(): array
 	{
-		// Only removing the value from every variant unblocks the delete, which no action here can do
 		return [];
 	}
 }

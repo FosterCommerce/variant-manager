@@ -93,7 +93,7 @@ Build a field set in development and deploy it, because it is project config. Th
 
 ### Removing records
 
-Open a record and choose **Delete record** from the action menu beside **Save**. On the index, select records and choose **Delete permanently** from the actions menu. Deleting an attribute deletes its options too. To discard a record you are still creating, choose **Delete draft** from its slideout's action menu.
+Open a record and choose **Delete record** from the action menu beside **Save**. On the index, select records and choose **Delete** from the actions menu. Deleting an attribute deletes its options too. To discard a record you are still creating, choose **Delete draft** from its slideout's action menu.
 
 The control panel does not delete an option while a variant stores its value, or an attribute while a variant stores one of its options. Take the value off every variant first.
 

@@ -1,10 +1,17 @@
 # Release Notes for Variant Manager
 
+## 4.2.2 - 2026-09-22
+
+### Fixed
+
+- Fixed a bug where the delete confirmation did not say which selected records variants use.
+- Fixed a bug where Craft's own deletion blockers were left out of the delete confirmation.
+
 ## 4.2.1 - 2026-09-22
 
 ### Changed
 
-- The delete confirmation now names the selected records that variants still store, on Craft 5.10 and later.
+- The delete confirmation now refuses a selection that includes a record variants still use, on Craft 5.10 and later.
 
 ### Fixed
 

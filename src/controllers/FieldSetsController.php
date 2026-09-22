@@ -158,10 +158,9 @@ class FieldSetsController extends Controller
 		}
 
 		return Html::ul(array_map(
-			static fn (VariantAttribute $attribute): string => Html::a(
-				Html::encode($attribute->getUiLabel()),
-				(string) $attribute->getCpEditUrl()
-			),
+			static fn (VariantAttribute $attribute): string => Cp::elementChipHtml($attribute, [
+				'hyperlink' => true,
+			]),
 			$attributes
 		), [
 			'encode' => false,

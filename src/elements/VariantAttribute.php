@@ -275,7 +275,9 @@ class VariantAttribute extends Element
 	/**
 	 * Run the in-use check in beforeDelete(), because a variant query per record would slow the element index.
 	 *
-	 * TODO: move it into deletionBlockers() once the plugin requires Craft 5.10, so the confirmation message states the reason.
+	 * VariantsInUseBlocker repeats it for the confirm modal, which Craft calls only from 5.10.
+	 *
+	 * TODO: drop this check when Craft 5.10 becomes the floor.
 	 */
 	public function canDelete(User $user): bool
 	{
@@ -447,13 +449,13 @@ class VariantAttribute extends Element
 	 */
 	public static function deletionBlockers(ElementCollection $elements, bool $hardDelete): array
 	{
-		return [new VariantsInUseBlocker($elements, $hardDelete)];
+		return [new VariantsInUseBlocker($elements, $hardDelete), ...parent::deletionBlockers($elements, $hardDelete)];
 	}
 
 	/**
 	 * Leave `hard` off, because it makes Craft 5.10 search the trash and report a delete that never ran.
 	 *
-	 * beforeDelete() sets hardDelete on the record itself, so the delete is permanent either way.
+	 * The record sets hardDelete in beforeDelete(), so the delete is still permanent.
 	 *
 	 * @return list<array{type: class-string, confirmationMessage: string}>
 	 */
