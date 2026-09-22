@@ -34,6 +34,8 @@ use craft\services\Gc;
 use craft\services\Structures;
 use craft\services\UserPermissions;
 use craft\services\Utilities;
+use craft\web\Request as WebRequest;
+use craft\web\Response as WebResponse;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use fostercommerce\variantmanager\db\Table;
@@ -58,6 +60,7 @@ use fostercommerce\variantmanager\utilities\AttributesUtility;
 use yii\base\Event;
 use yii\di\Instance;
 use yii\queue\Queue;
+use yii\web\BadRequestHttpException;
 
 /**
  * @method static Plugin getInstance()
@@ -89,6 +92,8 @@ class Plugin extends BasePlugin
 	 *
 	 * @see [craft-blitz](https://github.com/putyourlightson/craft-blitz/blob/a7dc7b3d1f547e141d165c71c9ad6290a9dc2792/src/Blitz.php#L131)
 	 * @see [Custom Queues](https://putyourlightson.com/plugins/blitz#custom-queues)
+	 *
+	 * @var Queue|array<string, mixed>|string
 	 */
 	public Queue|array|string $queue = 'queue';
 
@@ -98,12 +103,16 @@ class Plugin extends BasePlugin
 
 		Craft::$app->onInit(function (): void {
 			$this->registerComponents();
-			$this->getFieldSets()->registerOverriddenFieldHandles();
 			$this->registerQueue();
 			$this->attachEventHandlers();
+			// Register the handles after attachEventHandlers(), because building the layouts needs the native fields it adds
+			$this->getFieldSets()->registerOverriddenFieldHandles();
 		});
 	}
 
+	/**
+	 * @return array<string, mixed>|null
+	 */
 	public function getCpNavItem(): ?array
 	{
 		$nav = parent::getCpNavItem();
@@ -113,17 +122,17 @@ class Plugin extends BasePlugin
 			'url' => 'variant-manager/dashboard',
 		];
 
-		$nav['subnav']['variants'] = [
-			'label' => 'Variants',
-			'url' => 'variant-manager/variants',
-		];
-
 		if (PermissionHelper::canSaveAnyProductType()) {
 			$nav['subnav']['attributes'] = [
 				'label' => Craft::t('variant-manager', 'attributes.attributes'),
 				'url' => 'variant-manager/attributes',
 			];
 		}
+
+		$nav['subnav']['variants'] = [
+			'label' => 'Variants',
+			'url' => 'variant-manager/variants',
+		];
 
 		if (Craft::$app->getUser()->getIsAdmin()) {
 			$nav['subnav']['settings'] = [
@@ -161,9 +170,20 @@ class Plugin extends BasePlugin
 		return $this->get('fieldSets');
 	}
 
+	public function getQueue(): Queue
+	{
+		/** @var Queue $queue */
+		$queue = $this->queue;
+
+		return $queue;
+	}
+
 	public function getSettingsResponse(): mixed
 	{
-		return Craft::$app->getResponse()->redirect(UrlHelper::cpUrl('variant-manager/settings'));
+		/** @var WebResponse $response */
+		$response = Craft::$app->getResponse();
+
+		return $response->redirect(UrlHelper::cpUrl('variant-manager/settings'));
 	}
 
 	public function getReadOnlySettingsResponse(): mixed
@@ -256,6 +276,7 @@ class Plugin extends BasePlugin
 			CraftVariable::class,
 			CraftVariable::EVENT_INIT,
 			static function (Event $event): void {
+				/** @var CraftVariable $variable */
 				$variable = $event->sender;
 				$variable->set('variantManager', ProductVariants::class);
 			}
@@ -281,7 +302,6 @@ class Plugin extends BasePlugin
 						'template' => 'variant-manager/attributes/index.twig',
 					],
 					'variant-manager/attributes/<elementId:\d+>' => 'elements/edit',
-					'variant-manager/attributes/<attributeId:\d+>/settings' => 'variant-manager/attributes/settings',
 					'variant-manager/field-sets/new' => 'variant-manager/field-sets/edit',
 					'variant-manager/field-sets/<fieldSetUid:[^\/]+>' => 'variant-manager/field-sets/edit',
 				];
@@ -416,6 +436,7 @@ class Plugin extends BasePlugin
 			return false;
 		}
 
+		/** @var WebRequest $request */
 		return in_array(implode('/', $request->getActionSegments() ?? []), [
 			'elements/save',
 			'elements/apply-draft',
@@ -441,12 +462,12 @@ class Plugin extends BasePlugin
 
 				$productType = $product->getType();
 
-				if (! Plugin::getInstance()->getSettings()->offersVariantMaker($productType->handle)) {
+				if (! Plugin::getInstance()->getSettings()->offersVariantMaker((string) $productType->handle)) {
 					return;
 				}
 
 				// A product type with no attributes field gives the generated variants nowhere to store a combination
-				if (FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout()) === null) {
+				if (! FieldHelper::getFirstVariantAttributesField($productType->getVariantFieldLayout()) instanceof VariantAttributesField) {
 					return;
 				}
 
@@ -558,8 +579,25 @@ class Plugin extends BasePlugin
 					default => $target->attributeId,
 				};
 
-				// Refuse a move to another attribute, because the key is attributeId plus nameKey
-				$moveElementEvent->isValid = $newAttributeId === $element->attributeId;
+				if ($newAttributeId === $element->attributeId) {
+					return;
+				}
+
+				// Throw rather than invalidate the event, because Structures reports a refusal with no message
+				if (! $element->isOption()) {
+					throw new BadRequestHttpException(Craft::t('variant-manager', 'attributes.cannotNest'));
+				}
+
+				if ($newAttributeId === 0) {
+					throw new BadRequestHttpException(Craft::t('variant-manager', 'options.cannotUnnest'));
+				}
+
+				if ($element->nameTakenUnder($newAttributeId)) {
+					throw new BadRequestHttpException(Craft::t('variant-manager', 'options.nameTaken', [
+						'name' => $element->name,
+						'attribute' => (string) Plugin::getInstance()->getVariantAttributes()->getAttributeById($newAttributeId)?->name,
+					]));
+				}
 			},
 		);
 

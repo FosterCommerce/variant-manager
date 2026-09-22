@@ -12,9 +12,15 @@ use fostercommerce\variantmanager\Plugin;
 
 class VariantManagerVariant extends CommerceVariant
 {
+	/**
+	 * @return VariantQuery<int, self>
+	 */
 	public static function find(): VariantQuery
 	{
-		return new VariantManagerVariantQuery(static::class);
+		/** @var VariantQuery<int, self> $query */
+		$query = new VariantManagerVariantQuery(static::class);
+
+		return $query;
 	}
 
 	/**
@@ -30,6 +36,9 @@ class VariantManagerVariant extends CommerceVariant
 		return Craft::$app->getFields()->getLayoutsByType(CommerceVariant::class);
 	}
 
+	/**
+	 * @return array<string, mixed>
+	 */
 	protected static function defineSortOptions(): array
 	{
 		return [

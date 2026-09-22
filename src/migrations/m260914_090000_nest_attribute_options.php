@@ -60,7 +60,7 @@ class m260914_090000_nest_attribute_options extends Migration
 			'id' => $structure->id,
 		]);
 
-		return $structure->id;
+		return (int) $structure->id;
 	}
 
 	private function addAttributeIdColumn(): void
@@ -81,6 +81,7 @@ class m260914_090000_nest_attribute_options extends Migration
 			->all();
 
 		foreach ($options as $option) {
+			/** @var array<string, mixed> $option */
 			$this->insert(Table::ATTRIBUTES, [
 				'id' => $option['id'],
 				'attributeId' => $option['attributeId'],
@@ -134,8 +135,9 @@ class m260914_090000_nest_attribute_options extends Migration
 		$optionIdsByAttributeId = [];
 
 		foreach ($rows as $row) {
-			$id = (int) $row['id'];
-			$attributeId = (int) $row['attributeId'];
+			/** @var array<string, scalar|null> $row */
+			$id = (int) ($row['id'] ?? 0);
+			$attributeId = (int) ($row['attributeId'] ?? 0);
 
 			if ($attributeId === 0) {
 				$attributeIds[] = $id;

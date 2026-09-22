@@ -23,7 +23,7 @@ class VariantInventoryTrackedConditionRule extends BaseLightswitchConditionRule 
 	}
 
 	/**
-	 * @param VariantQuery $query
+	 * @param VariantQuery<int, Variant> $query
 	 */
 	public function modifyQuery(ElementQueryInterface $query): void
 	{

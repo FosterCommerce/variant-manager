@@ -36,7 +36,9 @@ class ProductVariantsController extends Controller
 	{
 		PermissionHelper::requireSaveAnyProductType();
 
-		$productId = explode('__', (string) $this->request->getQueryParam('name'))[0] ?? null;
+		/** @var string|null $uploadName */
+		$uploadName = $this->request->getQueryParam('name');
+		$productId = explode('__', (string) $uploadName)[0] ?? null;
 		if (! ctype_digit((string) $productId)) {
 			$productId = null;
 		}
@@ -48,7 +50,7 @@ class ProductVariantsController extends Controller
 				->status(null)
 				->one();
 
-			if ($product === null) {
+			if (! $product instanceof Product) {
 				throw new NotFoundHttpException(Craft::t('variant-manager', 'import.unknownProductId', [
 					'id' => $productId,
 				]));
@@ -61,12 +63,15 @@ class ProductVariantsController extends Controller
 
 		$productTypes = [];
 
-		foreach (CommercePlugin::getInstance()->productTypes->getAllProductTypes() as $productType) {
+		/** @var CommercePlugin $commerce */
+		$commerce = CommercePlugin::getInstance();
+
+		foreach ($commerce->getProductTypes()->getAllProductTypes() as $productType) {
 			$productTypes[] = [$productType->handle, $productType->name];
 		}
 
 		return $this->asJson([
-			'exists' => $product !== null,
+			'exists' => $product instanceof Product,
 			'name' => $product?->title,
 			'productTypes' => $productTypes,
 		]);
@@ -85,8 +90,9 @@ class ProductVariantsController extends Controller
 
 		try {
 			$uploadedFile = UploadedFile::getInstanceByName('variant-uploads');
+			/** @var string|null $productTypeHandle */
 			$productTypeHandle = $this->request->getBodyParam('productTypeHandle') ?: null;
-			$refreshVariants = $this->request->getBodyParam('refreshVariants') ?: false;
+			$refreshVariants = (bool) $this->request->getBodyParam('refreshVariants');
 
 			if (! isset($uploadedFile)) {
 				throw new BadRequestHttpException('No file was uploaded');
@@ -99,7 +105,7 @@ class ProductVariantsController extends Controller
 				$this->requireImportPermission($uploadedFile->name, $productTypeHandle);
 				Queue::push(
 					ImportJob::fromFile($uploadedFile, $productTypeHandle, $refreshVariants),
-					queue: Plugin::getInstance()->queue,
+					queue: Plugin::getInstance()->getQueue(),
 				);
 			} else {
 				$this->setFailFlash("{$uploadedFile->name} is not a valid file type");
@@ -123,6 +129,7 @@ class ProductVariantsController extends Controller
 	 */
 	public function actionExport(): void
 	{
+		/** @var string $ids */
 		$ids = $this->request->getRequiredQueryParam('ids');
 
 		$this->requirePermission('variant-manager:export');
@@ -135,7 +142,8 @@ class ProductVariantsController extends Controller
 
 		$csvService = Plugin::getInstance()->getCsv();
 		$results = [];
-		foreach (explode('|', (string) $ids) as $id) {
+
+		foreach (explode('|', $ids) as $id) {
 			try {
 				$result = $csvService->export($id);
 			} catch (FieldMapException $fieldMapException) {
@@ -143,10 +151,11 @@ class ProductVariantsController extends Controller
 				throw new ServerErrorHttpException($fieldMapException->getMessage(), 0, $fieldMapException);
 			}
 
-			if ($result === false) {
+			if (! is_array($result)) {
 				throw new NotFoundHttpException("Product with ID {$id} not found");
 			}
 
+			/** @var array{filename: string, export: array<array-key, mixed>|string} $result */
 			$results[] = $result;
 		}
 
@@ -182,12 +191,12 @@ class ProductVariantsController extends Controller
 				$zipArchive->close();
 
 				$attachmentName = (new \DateTime())->format('YmdHis');
-				$this->response->sendContentAsFile(file_get_contents($zipPath), "products_{$attachmentName}.zip");
+				$this->response->sendContentAsFile((string) file_get_contents($zipPath), "products_{$attachmentName}.zip");
 				FileHelper::unlink($zipPath);
 			}
 		} else {
 			$this->response->format = Response::FORMAT_JSON;
-			$this->response->data = array_map(static fn ($r) => $r['export'], $results);
+			$this->response->data = array_map(static fn (array $result): mixed => $result['export'], $results);
 		}
 	}
 
@@ -206,7 +215,7 @@ class ProductVariantsController extends Controller
 		$filenames = [];
 
 		for ($i = 0; $i < $zip->numFiles; ++$i) {
-			$filename = $zip->getNameIndex($i);
+			$filename = (string) $zip->getNameIndex($i);
 			$pathinfo = pathinfo($filename);
 
 			// Skip dotfiles and __MACOSX entries so only real CSVs are extracted
@@ -227,7 +236,7 @@ class ProductVariantsController extends Controller
 			$file = $extractToDir . DIRECTORY_SEPARATOR . $filename;
 			Queue::push(
 				ImportJob::fromFilename($file, $productTypeHandle, $refreshVariants),
-				queue: Plugin::getInstance()->queue,
+				queue: Plugin::getInstance()->getQueue(),
 			);
 			unlink($file);
 		}
@@ -249,9 +258,11 @@ class ProductVariantsController extends Controller
 			$product = Product::find()->id((int) $productId)->status(null)->one();
 			$productType = $product?->getType();
 		} else {
+			/** @var CommercePlugin $commerce */
+			$commerce = CommercePlugin::getInstance();
 			$productType = $productTypeHandle === null
 				? null
-				: CommercePlugin::getInstance()->getProductTypes()->getProductTypeByHandle($productTypeHandle);
+				: $commerce->getProductTypes()->getProductTypeByHandle($productTypeHandle);
 		}
 
 		$allowed = $productType instanceof ProductType

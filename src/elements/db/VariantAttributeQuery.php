@@ -2,6 +2,7 @@
 
 namespace fostercommerce\variantmanager\elements\db;
 
+use craft\db\Query;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Db;
 use fostercommerce\variantmanager\db\Table;
@@ -16,26 +17,43 @@ use fostercommerce\variantmanager\Plugin;
  */
 class VariantAttributeQuery extends ElementQuery
 {
-	public mixed $nameKey = null;
+	/**
+	 * @var int|string|list<int|string>|null
+	 */
+	public int|string|array|null $nameKey = null;
 
-	public mixed $attributeId = null;
+	/**
+	 * @var int|string|list<int|string>|null
+	 */
+	public int|string|array|null $attributeId = null;
 
-	public mixed $fieldSetUid = null;
+	/**
+	 * @var int|string|list<int|string>|null
+	 */
+	public int|string|array|null $fieldSetUid = null;
 
+	/**
+	 * @var array<string, int>
+	 */
 	protected array $defaultOrderBy = [
 		'variant_manager_attributes.name' => SORT_ASC,
 	];
 
 	public function init(): void
 	{
-		if (! isset($this->withStructure)) {
+		if ($this->withStructure === null) {
 			$this->withStructure = true;
 		}
 
 		parent::init();
 	}
 
-	public function nameKey(mixed $value): static
+	/**
+	 * Narrows the query results to records with the given normalized name.
+	 *
+	 * @param int|string|list<int|string>|null $value
+	 */
+	public function nameKey(int|string|array|null $value): static
 	{
 		$this->nameKey = $value;
 		return $this;
@@ -43,8 +61,10 @@ class VariantAttributeQuery extends ElementQuery
 
 	/**
 	 * Narrows the query results to the options of the given attributes, or to attributes with 0.
+	 *
+	 * @param int|string|list<int|string>|null $value
 	 */
-	public function attributeId(mixed $value): static
+	public function attributeId(int|string|array|null $value): static
 	{
 		$this->attributeId = $value;
 		return $this;
@@ -52,8 +72,10 @@ class VariantAttributeQuery extends ElementQuery
 
 	/**
 	 * Narrows the query results to attributes assigned the given field set.
+	 *
+	 * @param int|string|list<int|string>|null $value
 	 */
-	public function fieldSetUid(mixed $value): static
+	public function fieldSetUid(int|string|array|null $value): static
 	{
 		$this->fieldSetUid = $value;
 		return $this;
@@ -67,7 +89,7 @@ class VariantAttributeQuery extends ElementQuery
 
 	protected function beforePrepare(): bool
 	{
-		if (! isset($this->structureId)) {
+		if ($this->structureId === null) {
 			$this->structureId = Plugin::getInstance()->getVariantAttributes()->getStructureId();
 		}
 
@@ -77,7 +99,12 @@ class VariantAttributeQuery extends ElementQuery
 
 		$this->joinElementTable(Table::ATTRIBUTES);
 
-		$this->query->addSelect([
+		/** @var Query<int|string, mixed> $query */
+		$query = $this->query;
+		/** @var Query<int|string, mixed> $subQuery */
+		$subQuery = $this->subQuery;
+
+		$query->addSelect([
 			'variant_manager_attributes.attributeId',
 			'variant_manager_attributes.name',
 			'variant_manager_attributes.nameKey',
@@ -87,18 +114,37 @@ class VariantAttributeQuery extends ElementQuery
 			'variant_manager_attributes.fieldSetUid',
 		]);
 
-		if (isset($this->attributeId)) {
-			$this->subQuery->andWhere(Db::parseNumericParam('variant_manager_attributes.attributeId', $this->attributeId));
+		$condition = $this->attributeId === null ? null : Db::parseNumericParam('variant_manager_attributes.attributeId', $this->stringParam($this->attributeId));
+
+		if ($condition !== null) {
+			$subQuery->andWhere($condition);
 		}
 
-		if (isset($this->nameKey)) {
-			$this->subQuery->andWhere(Db::parseParam('variant_manager_attributes.nameKey', $this->nameKey));
+		$condition = $this->nameKey === null ? null : Db::parseParam('variant_manager_attributes.nameKey', $this->stringParam($this->nameKey));
+
+		if ($condition !== null) {
+			$subQuery->andWhere($condition);
 		}
 
-		if (isset($this->fieldSetUid)) {
-			$this->subQuery->andWhere(Db::parseParam('variant_manager_attributes.fieldSetUid', $this->fieldSetUid));
+		$condition = $this->fieldSetUid === null ? null : Db::parseParam('variant_manager_attributes.fieldSetUid', $this->stringParam($this->fieldSetUid));
+
+		if ($condition !== null) {
+			$subQuery->andWhere($condition);
 		}
 
 		return true;
+	}
+
+	/**
+	 * Cast to string, because parseNumericParam() is documented as taking string|string[] and these params accept int.
+	 *
+	 * @param int|string|list<int|string> $value
+	 * @return string|list<string>
+	 */
+	private function stringParam(int|string|array $value): string|array
+	{
+		return is_array($value)
+			? array_map(static fn (int|string $one): string => (string) $one, array_values($value))
+			: (string) $value;
 	}
 }

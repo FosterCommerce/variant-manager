@@ -11,7 +11,7 @@ Imports run as queue jobs, not immediately. Variant Manager shows "File ... has 
 Check:
 
 1. **Variant Manager -> Dashboard** for an activity log row for the file. A green dot means the import succeeded; a red dot means it failed, and the message names the reason.
-2. **Utilities -> Queue Manager**. A pending import job means the queue has not run. A failed job means the import threw an error. See [cleaning up failed import jobs](#cleaning-up-failed-import-jobs).
+2. **Utilities -> Queue Manager**. A pending import job means the queue has not run. A problem with the file or the settings leaves no job, and the reason is in the activity log. A failed job means another kind of failure, such as the database being unreachable. See [an import failed](#an-import-failed).
 3. The Craft log (`storage/logs/`) for the relevant exception if the activity log row's message is not enough.
 
 ## I uploaded the wrong filename and it created a duplicate product
@@ -124,7 +124,7 @@ Likely causes:
 
 ## The Variant Attributes list is empty
 
-A store whose variants predate the plugin has no registry rows until one of the routes in [where rows come from](./variant-attributes.md#where-rows-come-from) runs.
+A store whose variants predate the plugin has no registry records until one of the routes in [where records come from](./variant-attributes.md#where-records-come-from) runs.
 
 Fix: run **Utilities -> Variant Attributes -> Start backfill**, or `./craft variant-manager/attributes/backfill`. See [variant attributes](./variant-attributes.md).
 
@@ -148,24 +148,17 @@ Set permissions at **Users -> {group} -> Permissions** or on an individual user.
 
 The field handle is not listed in `bulkEditableVariantFields`. See [configuration reference](../reference/configuration.md#bulkeditablevariantfields).
 
-## Cleaning up failed import jobs
+## An import failed
 
-A failed job holds the CSV that failed, so retrying it produces the same error. Check the file for a bad filename, a duplicate SKU, smart quotes, or a wrong attribute prefix.
+A problem with the CSV or with `config/variant-manager.php` ends the job, so the queue holds no failed job to clear. The dashboard activity log holds the reason: a bad filename, a duplicate SKU, a missing `sku` column, or a blank `attributePrefix`. Fix the file and upload it again from **Variant Manager -> Dashboard**.
 
-**Delete the failed jobs rather than retrying them.** Fix the CSV and re-upload it from the dashboard, which creates a fresh job with the corrected data.
+Any other failure, such as the database being unreachable during a deploy, leaves a failed job you can retry.
 
-To delete a failed job:
-
-1. **Utilities -> Queue Manager**.
-2. Find the failed job. A single CSV shows as `Importing your-file`, without the extension; a file from a zip keeps it.
-3. Open it and press **Release** (or the trash icon on the row).
-4. Re-upload the corrected CSV from **Variant Manager -> Dashboard**.
-
-Retrying only helps for a transient failure, such as the database being unreachable during a deploy.
+A single CSV shows in Queue Manager as `Importing your-file`, with the extension dropped. A file from a zip keeps its extension.
 
 ## A zip import processed some files but not others
 
-Each CSV in the zip becomes its own queue job. A bad CSV in the zip fails its own job without stopping the others. Check the dashboard activity log for one row per CSV; failed files show the error from that CSV alone, and the rest imported normally.
+Each CSV in the zip becomes its own queue job. A bad CSV fails on its own without stopping the others. Check the dashboard activity log for one row per CSV; failed files show the error from that CSV alone, and the rest imported normally.
 
 Fix only the failed CSVs and re-upload them individually, or zip a corrected subset.
 

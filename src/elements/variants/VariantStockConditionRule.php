@@ -23,7 +23,7 @@ class VariantStockConditionRule extends BaseNumberConditionRule implements Eleme
 	}
 
 	/**
-	 * @param VariantQuery $query
+	 * @param VariantQuery<int, Variant> $query
 	 */
 	public function modifyQuery(ElementQueryInterface $query): void
 	{

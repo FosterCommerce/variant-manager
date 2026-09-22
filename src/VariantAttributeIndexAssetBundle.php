@@ -32,13 +32,19 @@ class VariantAttributeIndexAssetBundle extends AssetBundle
 			$view->registerTranslations('variant-manager', [
 				'variantMaker.newAttribute',
 				'variantMaker.newOption',
+				'attributes.newRecordChoose',
+				'attributes.noAttributeForOption',
 			]);
 
 			// JS draws the create buttons, and needs the permission the server enforces on create
-			$view->registerJs(sprintf(
-				'Craft.VariantManager = Craft.VariantManager || {}; Craft.VariantManager.canManageAttributes = %s;',
-				PermissionHelper::canSaveAnyProductType() ? 'true' : 'false',
-			), View::POS_BEGIN);
+			$view->registerJsWithVars(
+				static fn (string $canManageAttributes): string => <<<JS
+					Craft.VariantManager = Craft.VariantManager || {};
+					Craft.VariantManager.canManageAttributes = {$canManageAttributes};
+				JS,
+				[PermissionHelper::canSaveAnyProductType()],
+				View::POS_BEGIN
+			);
 		}
 	}
 }

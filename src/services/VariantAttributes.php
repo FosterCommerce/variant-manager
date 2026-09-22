@@ -11,6 +11,7 @@ use craft\helpers\Db;
 use fostercommerce\variantmanager\db\Table;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\elements\VariantManagerVariant;
+use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
 use Throwable;
@@ -96,7 +97,7 @@ class VariantAttributes extends Component
 			$this->attributesById = [];
 
 			foreach (VariantAttribute::find()->attributeId(0)->all() as $attribute) {
-				$this->attributesById[$attribute->id] = $attribute;
+				$this->attributesById[(int) $attribute->id] = $attribute;
 			}
 		}
 
@@ -134,11 +135,15 @@ class VariantAttributes extends Component
 
 			foreach ($storedAttributes as $pair) {
 				// One malformed row would otherwise fail the whole import or backfill batch
-				if (! is_string($pair['attributeName'] ?? null) || ! is_string($pair['attributeValue'] ?? null)) {
+				if (! is_string($pair['attributeName'] ?? null)) {
 					continue;
 				}
 
-				$pairs[self::pairKey($pair['attributeName'], $pair['attributeValue'])] = $pair;
+				if (! is_string($pair['attributeValue'] ?? null)) {
+					continue;
+				}
+
+				$pairs[$this->pairKey($pair['attributeName'], $pair['attributeValue'])] = $pair;
 			}
 		}
 
@@ -146,13 +151,13 @@ class VariantAttributes extends Component
 	}
 
 	/**
-	 * Get the registry rows whose name or value no longer appears on any variant.
+	 * Get the registry records whose name or value no longer appears on any variant.
 	 *
 	 * @return array{attributes: list<VariantAttribute>, options: list<VariantAttribute>}
 	 */
 	public function findOrphans(int $batchSize = 500): array
 	{
-		// Read the registry first: a row created during the scan is not an orphan
+		// Read the registry first: a record created during the scan is not an orphan
 		$attributes = VariantAttribute::find()->attributeId(0)->all();
 		$allOptions = VariantAttribute::find()->attributeId('not 0')->all();
 
@@ -215,14 +220,14 @@ class VariantAttributes extends Component
 	}
 
 	/**
-	 * Registry rows for the given names and their values, indexed by name and then by raw value.
+	 * Registry records for the given names and their values, indexed by name and then by raw value.
 	 *
 	 * @param array<string, list<string>> $valuesByName
 	 * @return array<string, array{attribute: VariantAttribute, options: array<string, VariantAttribute>}>
 	 */
 	public function getRegistry(array $valuesByName): array
 	{
-		$names = array_map(static fn (int|string $name): string => (string) $name, array_keys($valuesByName));
+		$names = array_map(static fn (int|string $name): string => $name, array_keys($valuesByName));
 		$attributes = $this->getAttributesByNames($names);
 
 		if ($attributes === []) {
@@ -243,7 +248,7 @@ class VariantAttributes extends Component
 
 		$optionQuery = VariantAttribute::find()
 			->attributeId(array_values($attributeIds))
-			->nameKey(array_map(static fn (int|string $nameKey): string => Db::escapeParam((string) $nameKey), array_keys($nameKeys)));
+			->nameKey(array_map(static fn (int|string $nameKey): string => Db::escapeParam($nameKey), array_keys($nameKeys)));
 
 		foreach ($optionQuery->all() as $option) {
 			$optionsByAttributeId[$option->attributeId][$option->nameKey] = $option;
@@ -281,12 +286,14 @@ class VariantAttributes extends Component
 	 * Get a query for the variants storing the option's attribute name and value.
 	 *
 	 * The match is a JSON search over all variant content, so page or count rather than call all()
+	 *
+	 * @return VariantQuery<int, Variant>|null
 	 */
 	public function variantQueryForOption(VariantAttribute $option): ?VariantQuery
 	{
 		$attribute = $option->getParentAttribute();
 
-		if ($attribute === null) {
+		if (! $attribute instanceof VariantAttribute) {
 			return null;
 		}
 
@@ -310,9 +317,9 @@ class VariantAttributes extends Component
 	 */
 	public function variantCountForOption(VariantAttribute $option): int
 	{
-		return Craft::$app->getCache()->getOrSet(
+		return (int) Craft::$app->getCache()?->getOrSet(
 			"variant-manager:option-usage:{$option->id}",
-			fn (): int => $this->variantQueryForOption($option)?->count() ?? 0,
+			fn (): int => (int) ($this->variantQueryForOption($option)?->count() ?? 0),
 			null,
 			new TagDependency([
 				'tags' => [
@@ -347,7 +354,7 @@ class VariantAttributes extends Component
 			foreach (Craft::$app->getFields()->getLayoutsByType(Variant::class) as $fieldLayout) {
 				$field = FieldHelper::getFirstVariantAttributesField($fieldLayout);
 
-				if ($field !== null) {
+				if ($field instanceof VariantAttributesField) {
 					$this->fieldHandle = $field->handle;
 					break;
 				}
@@ -358,7 +365,7 @@ class VariantAttributes extends Component
 	}
 
 	/**
-	 * Creates a registry row for each name that has none yet.
+	 * Creates a registry record for each name that has none yet.
 	 *
 	 * @param list<string> $names
 	 * @return array<string, VariantAttribute>
@@ -366,7 +373,7 @@ class VariantAttributes extends Component
 	 */
 	public function ensureAttributes(array $names): array
 	{
-		// A trashed row keeps its unique name key, so the row is restored rather than replaced
+		// A trashed record keeps its unique name key, so the record is restored rather than replaced
 		$attributes = $this->getAttributesByNames($names, true);
 
 		foreach ($names as $name) {
@@ -390,7 +397,7 @@ class VariantAttributes extends Component
 			try {
 				Craft::$app->getElements()->saveElement($attribute, false);
 			} catch (IntegrityException) {
-				// Another process registered this name key first, so use its row
+				// Another process registered this name key first, so use its record
 				$attribute = $this->getAttributesByNames([$name], true)[$nameKey] ?? null;
 
 				if (! $attribute instanceof VariantAttribute) {
@@ -403,7 +410,7 @@ class VariantAttributes extends Component
 			$attributes[$nameKey] = $attribute;
 
 			if ($this->attributesById !== null) {
-				$this->attributesById[$attribute->id] = $attribute;
+				$this->attributesById[(int) $attribute->id] = $attribute;
 			}
 		}
 
@@ -411,7 +418,7 @@ class VariantAttributes extends Component
 	}
 
 	/**
-	 * Creates an option row for each of an attribute's values that has none yet.
+	 * Creates an option record for each of an attribute's values that has none yet.
 	 *
 	 * @param list<string> $values
 	 * @throws Throwable
@@ -435,7 +442,7 @@ class VariantAttributes extends Component
 		$options = [];
 
 		// Filter to the given values so the query does not grow with the attribute's option count
-		// A trashed row keeps its unique name key, so the row is restored rather than replaced
+		// A trashed record keeps its unique name key, so the record is restored rather than replaced
 		$optionQuery = VariantAttribute::find()
 			->attributeId($attribute->id)
 			->nameKey(array_values($nameKeys))
@@ -465,7 +472,7 @@ class VariantAttributes extends Component
 			try {
 				Craft::$app->getElements()->saveElement($option, false);
 			} catch (IntegrityException) {
-				// Another process registered this name key first, so use its row
+				// Another process registered this name key first, so use its record
 				$option = VariantAttribute::find()
 					->attributeId($attribute->id)
 					->nameKey(Db::escapeParam($nameKey))
@@ -495,7 +502,7 @@ class VariantAttributes extends Component
 
 		// Skip pairs already registered by this process, so a large sync only queries for new pairs
 		foreach ($pairs as $pair) {
-			if (! isset($this->ensuredPairKeys[self::pairKey($pair['attributeName'], $pair['attributeValue'])])) {
+			if (! isset($this->ensuredPairKeys[$this->pairKey($pair['attributeName'], $pair['attributeValue'])])) {
 				$valuesByName[$pair['attributeName']][] = $pair['attributeValue'];
 			}
 		}
@@ -512,7 +519,7 @@ class VariantAttributes extends Component
 			$this->ensureOptions($attribute, $values);
 
 			foreach ($values as $value) {
-				$this->ensuredPairKeys[self::pairKey($name, $value)] = true;
+				$this->ensuredPairKeys[$this->pairKey($name, $value)] = true;
 			}
 		}
 	}
@@ -530,7 +537,7 @@ class VariantAttributes extends Component
 		$elementsService = Craft::$app->getElements();
 
 		// Options first. Deleting an attribute deletes the options under it.
-		// Hard delete, because a trashed row keeps its unique key and blocks re-registering the value
+		// Hard delete the record, because a trashed one keeps its unique key and blocks re-registering the value
 		foreach ($orphans['options'] as $option) {
 			$elementsService->deleteElement($option, true);
 		}
@@ -556,20 +563,21 @@ class VariantAttributes extends Component
 		$pairs = [];
 
 		foreach (Variant::find()->status(null)->batch($batchSize) as $variants) {
+			/** @var array<Variant> $variants */
 			$pairs = [...$pairs, ...$this->attributePairs($variants)];
 		}
 
 		return $pairs;
 	}
 
-	private static function pairKey(string $name, string $value): string
+	private function pairKey(string $name, string $value): string
 	{
 		return VariantAttribute::normalizeName($name) . "\0" . VariantAttribute::normalizeName($value);
 	}
 
 	private function restoreIfTrashed(ElementInterface $element): void
 	{
-		if ($element->dateDeleted !== null) {
+		if ($element->dateDeleted instanceof \DateTime) {
 			Craft::$app->getElements()->restoreElement($element);
 		}
 	}

@@ -20,11 +20,11 @@ A saved product then shows a **Variant Maker** tab, last in the row. A new produ
 
 One row per attribute. Pick the attribute, then pick as many of its options as you want.
 
-The attribute and option lists come from the registry. **New attribute** and **New option**, in the pickers, register a row from the product's edit page. See [creating attributes and options](./variant-attributes.md#creating-attributes-and-options).
+The attribute and option lists come from the registry. **New attribute** and **New option**, in the pickers, register a record from the product's edit page. See [creating attributes and options](./variant-attributes.md#creating-attributes-and-options).
 
 A store whose variants predate the plugin starts with an empty registry, so the pickers start empty. To register every attribute in the catalog at once, import a CSV, run the **Utilities -> Variant Attributes** utility, or run `./craft variant-manager/attributes/backfill`. See [variant attributes](./variant-attributes.md).
 
-**Load attributes from existing variants** adds a row for every attribute this product's variants store, with those values selected. The button registers a value the registry has no row for, skips an attribute that already has a row, and reports when every attribute already has one. The rows are not saved until you save the product.
+**Load attributes from existing variants** adds a row for every attribute this product's variants store, with those values selected. The button registers a value the registry has no record for, skips an attribute that already has a Variant Maker row, and reports when every attribute already has one. The rows are not saved until you save the product.
 
 Every option in a row is combined with every option in every other row. Three sizes, four colors, and two finishes make 24 combinations.
 

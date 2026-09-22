@@ -32,7 +32,7 @@ class AttributesController extends Controller
 	}
 
 	/**
-	 * Creates a registry row for every attribute name and option value already stored on a variant.
+	 * Creates a registry record for every attribute name and option value already stored on a variant.
 	 */
 	public function actionBackfill(): int
 	{
@@ -40,6 +40,7 @@ class AttributesController extends Controller
 		$variantCount = 0;
 
 		foreach (Variant::find()->status(null)->batch($this->batchSize) as $variants) {
+			/** @var array<Variant> $variants */
 			$variantCount += count($variants);
 			$variantAttributes->ensureFromAttributePairs(array_values($variantAttributes->attributePairs($variants)));
 

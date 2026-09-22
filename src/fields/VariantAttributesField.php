@@ -26,7 +26,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 		return Craft::t('variant-manager', 'Variant Attributes');
 	}
 
-	public static function valueType(): string
+	public static function phpType(): string
 	{
 		return 'array|null';
 	}
@@ -65,7 +65,8 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 	{
 		$view = Craft::$app->getView();
 		$view->registerAssetBundle(VariantAttributesFieldAssetBundle::class);
-		$namespacedId = $view->namespaceInputId(Html::id($this->handle));
+
+		$namespacedId = $view->namespaceInputId(Html::id((string) $this->handle));
 
 		return $view->renderTemplate('variant-manager/fields/variant_attributes', [
 			'namespacedId' => $namespacedId,
@@ -74,6 +75,11 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 		]);
 	}
 
+	/**
+	 * @param array<int, self> $instances
+	 * @param array<string, mixed> $params
+	 * @return array<array-key, mixed>|string|ExpressionInterface|false|null
+	 */
 	public static function queryCondition(
 		array $instances,
 		mixed $value,
@@ -87,7 +93,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 		$params = [];
 
 		foreach ($instances as $instance) {
-			$jsonPath = $instance->layoutElement->uid;
+			$jsonPath = (string) $instance->layoutElement?->uid;
 
 			if (! isset($value)) {
 				return null;
@@ -176,6 +182,10 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 		return $rows;
 	}
 
+	/**
+	 * @param array<array-key, mixed> $filter
+	 * @param array<array-key, mixed> $whereParts
+	 */
 	private function generateAssociativeFilter(string $contentColumn, array $filter, array &$whereParts): void
 	{
 		if (
@@ -188,7 +198,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 			throw new \RuntimeException('filter values must be strings');
 		}
 
-		$fieldUid = $this->layoutElement->uid;
+		$fieldUid = (string) $this->layoutElement?->uid;
 
 		foreach ($filter as $key => $value) {
 			$paramKey = StringHelper::randomString(4);
@@ -215,9 +225,12 @@ EOQ;
 		}
 	}
 
+	/**
+	 * @param array{conditions: list<string>, params: array<string, mixed>} $whereParts
+	 */
 	private function generateStringFilter(string $contentColumn, string $value, array &$whereParts): void
 	{
-		$fieldUid = $this->layoutElement->uid;
+		$fieldUid = (string) $this->layoutElement?->uid;
 		$paramKey = StringHelper::randomString(4);
 		$valueParam = ":av{$paramKey}";
 

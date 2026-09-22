@@ -51,6 +51,8 @@ The placeholder written into the Variant Attributes field when a row's attribute
 
 The prefix that marks an attribute column in a CSV. A column whose header starts with this string is mapped to a Variant Attributes entry whose name is the rest of the header. Default behavior: `Attribute: Color` becomes attribute `Color`.
 
+A blank value fails the import and the export, because the import cannot distinguish an attribute column from any other column.
+
 Changing this is a breaking change for any existing CSVs. Keep it consistent across your store.
 
 ### `inventoryPrefix`

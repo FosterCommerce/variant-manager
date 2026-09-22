@@ -11,7 +11,7 @@ composer require fostercommerce/variant-manager
 ./craft plugin/install variant-manager
 ```
 
-In the CP you see a **Variant Manager** nav item. As an admin you get all three entries: **Dashboard**, **Variants**, and **Variant Attributes**.
+In the CP you see a **Variant Manager** nav item. An admin sees every entry: **Dashboard**, **Variant Attributes**, **Variants**, and **Settings**.
 
 ## 2. Configure
 

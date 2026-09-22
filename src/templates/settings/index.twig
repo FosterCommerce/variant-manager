@@ -1,6 +1,5 @@
 {% extends '_layouts/cp.twig' %}
 
-{# @var attributes \fostercommerce\variantmanager\elements\VariantAttribute[] #}
 {# @var settings \fostercommerce\variantmanager\models\Settings #}
 
 {% import '_includes/forms' as forms %}
@@ -94,34 +93,4 @@
 		<p><a class="btn add icon" href="{{ url('variant-manager/field-sets/new') }}">{{ 'fieldSets.newFieldSet'|t('variant-manager') }}</a></p>
 	{% endif %}
 
-	<hr>
-
-	<h2>{{ 'attributes.attributes'|t('variant-manager') }}</h2>
-
-	<p>{{ 'attributes.settingsIntro'|t('variant-manager') }}</p>
-
-	{% if attributes is empty %}
-		<p class="light">{{ 'attributes.noAttributes'|t('variant-manager') }}</p>
-	{% else %}
-		<table class="data fullwidth collapsible">
-			<thead>
-				<tr>
-					<th scope="col">{{ 'attributes.name'|t('variant-manager') }}</th>
-					<th scope="col">{{ 'attributes.displayType'|t('variant-manager') }}</th>
-					<th scope="col">{{ 'fieldSets.fieldSet'|t('variant-manager') }}</th>
-				</tr>
-			</thead>
-			<tbody>
-				{% for attribute in attributes %}
-					<tr>
-						<th scope="row" data-title="{{ 'attributes.name'|t('variant-manager') }}">
-							<a href="{{ url('variant-manager/attributes/' ~ attribute.id ~ '/settings') }}">{{ attribute.name }}</a>
-						</th>
-						<td data-title="{{ 'attributes.displayType'|t('variant-manager') }}">{{ attribute.getDisplayType().label }}</td>
-						<td data-title="{{ 'fieldSets.fieldSet'|t('variant-manager') }}">{{ fieldSets[attribute.fieldSetUid].name ?? 'fieldSets.none'|t('variant-manager') }}</td>
-					</tr>
-				{% endfor %}
-			</tbody>
-		</table>
-	{% endif %}
 {% endblock %}

@@ -198,6 +198,9 @@ class VariantMakerSettings extends Model
 		return in_array($propertyName, [self::PROPERTY_SKU, self::PROPERTY_PRICE], true);
 	}
 
+	/**
+	 * @return array<array-key, mixed>
+	 */
 	protected function defineRules(): array
 	{
 		$rules = parent::defineRules();
@@ -214,11 +217,11 @@ class VariantMakerSettings extends Model
 	private static function propertyValue(string $propertyName, mixed $postedValue): bool|int|string|null
 	{
 		if (in_array($propertyName, [self::PROPERTY_TITLE, self::PROPERTY_SKU, self::PROPERTY_PRICE], true)) {
-			return ($postedValue ?? '') === '' ? null : (string) $postedValue;
+			return is_scalar($postedValue) && (string) $postedValue !== '' ? (string) $postedValue : null;
 		}
 
 		if ($propertyName === self::PROPERTY_STOCK) {
-			return ($postedValue ?? '') === '' ? null : (int) $postedValue;
+			return is_scalar($postedValue) && (string) $postedValue !== '' ? (int) $postedValue : null;
 		}
 
 		return (bool) $postedValue;

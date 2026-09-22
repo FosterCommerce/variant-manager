@@ -67,4 +67,4 @@ The most common failures in a bulk import:
 - **Missing ID prefix**: the file creates a new product instead of updating one. Re-export the product to get the right filename.
 - **Queue stalled mid-batch**: the unprocessed jobs stay pending until the queue runs. `./craft queue/run` resumes.
 
-**Delete failed jobs rather than retrying them.** Fix the source CSV and upload it again. See [cleaning up failed import jobs](./troubleshooting.md#cleaning-up-failed-import-jobs).
+A CSV the import rejects ends its job, so the queue holds no failed job. Fix the source CSV and upload it again. See [an import failed](./troubleshooting.md#an-import-failed).

@@ -2,7 +2,7 @@
 
 How a module or companion plugin registers attributes and options, and writes attribute pairs onto variants.
 
-The registry is the set of attribute and option rows behind every picker, filter, and storefront listing. For what the registry holds, see [variant attributes](../user-guide/variant-attributes.md).
+The registry is the set of attribute and option records behind every picker, filter, and storefront listing. For what the registry holds, see [variant attributes](../user-guide/variant-attributes.md).
 
 ## Registration on a variant save
 
@@ -77,7 +77,7 @@ $variantAttributes->ensureFromAttributePairs([
 ]);
 ```
 
-The method ignores a pair that already has a row, and restores a trashed row rather than duplicating it. It skips a pair registered earlier in the same request without querying again.
+The method ignores a pair that already has a record, and restores a trashed record rather than duplicating it. It skips a pair registered earlier in the same request without querying again.
 
 ### ensureAttributes
 
@@ -119,7 +119,7 @@ A variant resolves its field layout through its owner, and a `new Variant()` has
 
 ## Generating from PHP
 
-Call [Variant Maker](../user-guide/variant-maker.md) from code. Register the values first. Variant Maker combines only values that already have a row.
+Call [Variant Maker](../user-guide/variant-maker.md) from code. Register the values first. Variant Maker combines only values that already have a record.
 
 ```php
 $variantMaker = Plugin::getInstance()->getVariantMaker();
@@ -138,6 +138,6 @@ The plugin skips an empty or whitespace-only name or value.
 
 An option is unique per attribute by its normalized name, so `Blue` and `blue` are the same option. Two attributes can each have an option with the same name.
 
-A registered value that no variant uses stays until the orphan prune removes it. For the prune, see [removing rows](../user-guide/variant-attributes.md#removing-rows).
+A registered value that no variant uses stays until you delete it or the orphan prune removes it. For the prune, see [removing records](../user-guide/variant-attributes.md#removing-records).
 
-Deleting an attribute or option leaves every variant unchanged, because a variant stores the name and value as strings. See [variant attributes](../user-guide/variant-attributes.md).
+The plugin does not delete an attribute or option a variant still stores. Deleting an unused one leaves every variant unchanged, because a variant stores the name and value as strings. See [variant attributes](../user-guide/variant-attributes.md).

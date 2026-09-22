@@ -41,7 +41,12 @@ final class ActivityLogs extends Component
 			return false;
 		}
 
-		$logRetentionInterval = \DateInterval::createFromDateString($logRetention);
+		$logRetentionInterval = \DateInterval::createFromDateString((string) $logRetention);
+
+		if ($logRetentionInterval === false) {
+			Craft::warning("Could not read activityLogRetention '{$logRetention}', so expired activity logs were kept", __METHOD__);
+			return false;
+		}
 
 		$oldestActivityDate = (new \DateTime())->sub($logRetentionInterval);
 		Activity::deleteAll(['<', 'dateCreated', Db::prepareDateForDb($oldestActivityDate)]);
@@ -49,10 +54,7 @@ final class ActivityLogs extends Component
 		return true;
 	}
 
-	/**
-	 * @param array<array-key, mixed> $format
-	 */
-	private function stdout(string $string, ...$format): void
+	private function stdout(string $string, int ...$format): void
 	{
 		if (Craft::$app instanceof ConsoleApplication) {
 			Console::stdout($string, ...$format);

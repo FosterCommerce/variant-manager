@@ -25,7 +25,7 @@ With DDEV:
 ddev composer require fostercommerce/variant-manager -w && ddev craft plugin/install variant-manager
 ```
 
-After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** appears for users who can save at least one product type in Commerce.
+After install the CP navigation gets a **Variant Manager** item with **Dashboard** and **Variants**. **Variant Attributes** appears above **Variants** for users who can save at least one product type in Commerce. **Settings** appears for admins.
 
 ## Configure
 
@@ -63,7 +63,7 @@ For what each key does in full, see [configuration reference](./reference/config
 
 A config file entry overrides the matching screen setting, and the screen shows a warning where one does.
 
-The same screen lists every field set by name. A field set holds two field layouts that any number of attributes share, and the attribute table shows which one each attribute uses and links to the page where you change that attribute's field set. A field set is project config; the assignment is stored on the attribute in the database. For field sets, see [variant attributes](./user-guide/variant-attributes.md#field-sets).
+The same screen lists every field set by name. A field set holds two field layouts that any number of attributes share. To give an attribute a field set, choose one under **Field Set** in the attribute's sidebar at **Variant Manager -> Variant Attributes**. A field set is project config; the assignment is stored on the attribute in the database. For field sets, see [variant attributes](./user-guide/variant-attributes.md#field-sets).
 
 One more is set elsewhere: an attribute's **display type**, on the attribute itself at **Variant Manager -> Variant Attributes**, stored in the database.
 

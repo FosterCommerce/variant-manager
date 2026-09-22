@@ -13,6 +13,7 @@ use craft\commerce\Plugin as Commerce;
 use craft\db\Query;
 use craft\db\Table as CraftTable;
 use craft\helpers\Localization;
+use craft\web\Request as WebRequest;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\VariantMakerPlanRow;
@@ -69,7 +70,7 @@ class VariantMaker extends Component
 			return [];
 		}
 
-		$valuesByName = self::registeredValues($valuesByName, $registry);
+		$valuesByName = $this->registeredValues($valuesByName, $registry);
 
 		if ($valuesByName === []) {
 			return [];
@@ -86,7 +87,9 @@ class VariantMaker extends Component
 		$title = $settings->property(VariantMakerSettings::PROPERTY_TITLE);
 		$sku = $settings->property(VariantMakerSettings::PROPERTY_SKU);
 		$price = $settings->property(VariantMakerSettings::PROPERTY_PRICE);
-		$basePrice = self::amount($price->value ?? $product->getDefaultVariant()?->basePrice ?? 0);
+		/** @var float|int|string $priceValue */
+		$priceValue = $price->value ?? $product->getDefaultVariant()?->basePrice ?? 0;
+		$basePrice = $this->amount($priceValue);
 
 		// Skip the title where the product type formats it, because the save overwrites our value
 		$commerceOwnsTitles = self::generatesTitles($product);
@@ -106,11 +109,11 @@ class VariantMaker extends Component
 
 			$variant = $existingVariants[$row->combinationKey] ?? null;
 			$row->status = $this->statusFor($row, $variant, $settings, $teller, $stockByVariantId);
-			$row->properties = self::propertiesFor($settings, $row->status);
+			$row->properties = $this->propertiesFor($settings, $row->status);
 
 			// A value the run would not write must not read as a change in the preview
 			foreach (self::NAMED_VALUES as $propertyName => $field) {
-				if (! self::writes($settings, $propertyName, $row->status)) {
+				if (! $this->writes($settings, $propertyName, $row->status)) {
 					$row->{$field} = null;
 				}
 			}
@@ -180,7 +183,7 @@ class VariantMaker extends Component
 				$variant = $this->variantForRow($row);
 
 				// Another save may have removed the variant between the plan and this run
-				if ($variant === null) {
+				if (! $variant instanceof Variant) {
 					continue;
 				}
 
@@ -237,6 +240,7 @@ class VariantMaker extends Component
 			return null;
 		}
 
+		/** @var WebRequest $request */
 		$postedSettings = $request->getBodyParam('variantMaker');
 
 		return is_array($postedSettings) ? VariantMakerSettings::fromPost($postedSettings) : null;
@@ -274,7 +278,7 @@ class VariantMaker extends Component
 		return [
 			'title' => implode(self::TITLE_SEPARATOR, $tokens),
 			'sku' => implode(self::SKU_SEPARATOR, array_filter(
-				[self::skuSegment($this->baseSku($product)), ...$tokens],
+				[$this->skuSegment($this->baseSku($product)), ...$tokens],
 				static fn (string $segment): bool => $segment !== '',
 			)),
 		];
@@ -289,7 +293,7 @@ class VariantMaker extends Component
 	{
 		$elementsById = [];
 
-		foreach (VariantAttribute::find()->id(self::idsIn($settings))->all() as $element) {
+		foreach (VariantAttribute::find()->id($this->idsIn($settings))->all() as $element) {
 			$elementsById[$element->id] = $element;
 		}
 
@@ -338,7 +342,7 @@ class VariantMaker extends Component
 		// attributePairs() keys on the normalized pair, so two spellings of one value arrive as one
 		$pairs = $variantAttributes->attributePairs(Variant::find()->product($product)->status(null)->all());
 
-		// Register first. A value stored before the plugin recorded it has no row yet.
+		// Register first. A value stored before the plugin recorded it has no record yet.
 		$variantAttributes->ensureFromAttributePairs(array_values($pairs));
 
 		$valuesByName = [];
@@ -464,7 +468,7 @@ class VariantMaker extends Component
 	/**
 	 * Whether the run would write this property to a row of the given status.
 	 */
-	private static function writes(VariantMakerSettings $settings, string $propertyName, string $status): bool
+	private function writes(VariantMakerSettings $settings, string $propertyName, string $status): bool
 	{
 		if ($status === VariantMakerPlanRow::STATUS_CREATE) {
 			// A new variant is always titled, whether or not the maker owns titles
@@ -480,7 +484,7 @@ class VariantMaker extends Component
 	 *
 	 * @return array<string, bool|int|null>
 	 */
-	private static function propertiesFor(VariantMakerSettings $settings, string $status): array
+	private function propertiesFor(VariantMakerSettings $settings, string $status): array
 	{
 		$properties = [];
 
@@ -490,8 +494,11 @@ class VariantMaker extends Component
 				continue;
 			}
 
-			if (self::writes($settings, $propertyName, $status)) {
-				$properties[$propertyName] = $settings->property($propertyName)->value;
+			if ($this->writes($settings, $propertyName, $status)) {
+				// Title, SKU and price are the only string values, and NAMED_VALUES already skipped them
+				/** @var bool|int|null $value */
+				$value = $settings->property($propertyName)->value;
+				$properties[$propertyName] = $value;
 			}
 		}
 
@@ -523,7 +530,9 @@ class VariantMaker extends Component
 		}
 
 		if ($updates !== []) {
-			Commerce::getInstance()->getInventory()->executeUpdateInventoryLevels(UpdateInventoryLevelCollection::make($updates));
+			/** @var Commerce $commerce */
+			$commerce = Commerce::getInstance();
+			$commerce->getInventory()->executeUpdateInventoryLevels(UpdateInventoryLevelCollection::make($updates));
 		}
 	}
 
@@ -564,11 +573,13 @@ class VariantMaker extends Component
 	/**
 	 * A row is an update only where a property the maker owns for existing variants would actually change one.
 	 *
+	 * @param array<int, int> $stockByVariantId
+	 *
 	 * @phpstan-return VariantMakerPlanRow::STATUS_CREATE|VariantMakerPlanRow::STATUS_UPDATE|VariantMakerPlanRow::STATUS_UNCHANGED
 	 */
 	private function statusFor(VariantMakerPlanRow $row, ?Variant $variant, VariantMakerSettings $settings, Teller $teller, array $stockByVariantId): string
 	{
-		if ($variant === null) {
+		if (! $variant instanceof Variant) {
 			return VariantMakerPlanRow::STATUS_CREATE;
 		}
 
@@ -604,7 +615,11 @@ class VariantMaker extends Component
 		}
 
 		foreach (VariantMakerSettings::propertyNames() as $propertyName) {
-			if (isset(self::NAMED_VALUES[$propertyName]) || ! $settings->manages($propertyName)) {
+			if (isset(self::NAMED_VALUES[$propertyName])) {
+				continue;
+			}
+
+			if (! $settings->manages($propertyName)) {
 				continue;
 			}
 
@@ -641,18 +656,22 @@ class VariantMaker extends Component
 
 		$stockByVariantId = array_fill_keys($variantIds, 0);
 
-		$levels = Commerce::getInstance()->getInventory()->getInventoryLevelQuery()
+		/** @var Commerce $commerce */
+		$commerce = Commerce::getInstance();
+
+		$levels = $commerce->getInventory()->getInventoryLevelQuery()
 			->andWhere([
 				'ii.purchasableId' => $variantIds,
 			])
 			->all();
 
 		foreach ($levels as $level) {
+			/** @var array<string, scalar|null> $level */
 			// Commerce counts only positive availability toward stock, and sums it across locations
-			$available = (int) $level['availableTotal'];
+			$available = (int) ($level['availableTotal'] ?? 0);
 
 			if ($available > 0) {
-				$stockByVariantId[(int) $level['purchasableId']] += $available;
+				$stockByVariantId[(int) ($level['purchasableId'] ?? 0)] += $available;
 			}
 		}
 
@@ -660,7 +679,7 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * The option elements behind one combination, keyed by attribute name, skipping values with no registry row.
+	 * The option elements behind one combination, keyed by attribute name, skipping values with no registry record.
 	 *
 	 * @param list<array{attributeName: string, attributeValue: string}> $combination
 	 * @param array<string, array{attribute: VariantAttribute, options: array<string, VariantAttribute>}> $registry
@@ -697,7 +716,7 @@ class VariantMaker extends Component
 		}
 
 		if (trim($skuFormat) === '') {
-			$segments = array_map(self::skuSegment(...), [$baseSku, ...array_values($partials)]);
+			$segments = array_map(fn (mixed $segment): string => $this->skuSegment((string) $segment), [$baseSku, ...array_values($partials)]);
 
 			return implode(self::SKU_SEPARATOR, array_filter($segments, static fn (string $segment): bool => $segment !== ''));
 		}
@@ -706,20 +725,20 @@ class VariantMaker extends Component
 
 		foreach ($partials as $attributeName => $partial) {
 			// Normalize here too, because a copied placeholder must build the SKU it displayed
-			$tokens['{' . $attributeName . '}'] = self::skuSegment($partial);
+			$tokens['{' . $attributeName . '}'] = $this->skuSegment((string) $partial);
 		}
 
 		return strtr($skuFormat, $tokens);
 	}
 
 	/**
-	 * Drops the values no registry row backs, since a combination is built from each value's option.
+	 * Drops the values no registry record backs, since a combination is built from each value's option.
 	 *
 	 * @param array<string, list<string>> $valuesByName
 	 * @param array<string, array{attribute: VariantAttribute, options: array<string, VariantAttribute>}> $registry
 	 * @return array<string, list<string>>
 	 */
-	private static function registeredValues(array $valuesByName, array $registry): array
+	private function registeredValues(array $valuesByName, array $registry): array
 	{
 		$registered = [];
 
@@ -738,15 +757,19 @@ class VariantMaker extends Component
 	/**
 	 * A price typed into the control panel uses the locale's separators, which Money's parser rejects.
 	 */
-	private static function amount(float|int|string $value): string
+	private function amount(float|int|string $value): string
 	{
-		return (string) (Localization::normalizeNumber($value) ?: '0');
+		// Narrow the mixed return. Only a string argument comes back changed, and $value is already float|int|string
+		/** @var float|int|string $normalized */
+		$normalized = Localization::normalizeNumber($value);
+
+		return (string) $normalized === '' ? '0' : (string) $normalized;
 	}
 
 	/**
 	 * Nobody typed a SKU in the default format, so whitespace here comes from the option name.
 	 */
-	private static function skuSegment(string $value): string
+	private function skuSegment(string $value): string
 	{
 		return trim((string) preg_replace('/[\s-]+/u', '-', trim($value)), '-');
 	}
@@ -880,7 +903,7 @@ class VariantMaker extends Component
 
 		foreach ($options as $option) {
 			if ($option->priceModifier !== null) {
-				$price = $teller->add($price, self::amount($option->priceModifier));
+				$price = $teller->add($price, $this->amount($option->priceModifier));
 			}
 		}
 
@@ -971,7 +994,7 @@ class VariantMaker extends Component
 	 *
 	 * @return list<int>
 	 */
-	private static function idsIn(VariantMakerSettings $settings): array
+	private function idsIn(VariantMakerSettings $settings): array
 	{
 		$ids = [];
 
@@ -988,7 +1011,7 @@ class VariantMaker extends Component
 	 */
 	private function registeredIds(VariantMakerSettings $settings): array
 	{
-		$ids = self::idsIn($settings);
+		$ids = $this->idsIn($settings);
 
 		if ($ids === []) {
 			return [];
@@ -1010,8 +1033,10 @@ class VariantMaker extends Component
 
 	private function teller(Product $product): Teller
 	{
-		$currencyIso = Commerce::getInstance()->getPaymentCurrencies()->getPrimaryPaymentCurrencyIso($product->storeId);
+		/** @var Commerce $commerce */
+		$commerce = Commerce::getInstance();
+		$currencyIso = $commerce->getPaymentCurrencies()->getPrimaryPaymentCurrencyIso($product->storeId);
 
-		return Commerce::getInstance()->getCurrencies()->getTeller($currencyIso);
+		return $commerce->getCurrencies()->getTeller($currencyIso);
 	}
 }

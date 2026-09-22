@@ -10,6 +10,7 @@ use craft\elements\db\ElementQueryInterface;
 use craft\fields\Date;
 use craft\helpers\Cp;
 use craft\helpers\Json;
+use craft\web\Request;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\Plugin;
 
@@ -28,7 +29,7 @@ class BulkEditField extends ElementAction
 	public static function hasEditableField(): bool
 	{
 		foreach (Plugin::getInstance()->getSettings()->bulkEditableVariantFields as $fieldHandle) {
-			if ($fieldHandle === 'inventoryTracked' || self::resolveField($fieldHandle) !== null) {
+			if ($fieldHandle === 'inventoryTracked' || self::resolveField($fieldHandle) instanceof FieldInterface) {
 				return true;
 			}
 		}
@@ -54,7 +55,7 @@ class BulkEditField extends ElementAction
 			}
 
 			$field = self::resolveField($fieldHandle);
-			if ($field === null) {
+			if (! $field instanceof FieldInterface) {
 				continue;
 			}
 
@@ -149,7 +150,9 @@ EOT;
 		$isInventoryTracked = $this->fieldHandle === 'inventoryTracked';
 		$field = $isInventoryTracked ? null : self::resolveField($this->fieldHandle);
 		// Read raw, not as an action property: a Date value arrives as an array, which won't fit ?string.
-		$value = Craft::$app->getRequest()->getBodyParam('value');
+		/** @var Request $request */
+		$request = Craft::$app->getRequest();
+		$value = $request->getBodyParam('value');
 
 		// Our trigger JS sends only the visible input, so rebuild the array a Date field expects
 		// Money and Time have the same gap and are not rebuilt here

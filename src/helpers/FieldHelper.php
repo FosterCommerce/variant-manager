@@ -10,7 +10,7 @@ class FieldHelper
 {
 	public static function getFirstVariantAttributesField(?FieldLayout $fieldLayout): ?VariantAttributesField
 	{
-		if ($fieldLayout === null) {
+		if (! $fieldLayout instanceof FieldLayout) {
 			return null;
 		}
 
@@ -26,12 +26,12 @@ class FieldHelper
 	public static function isFirstVariantAttributesField(VariantAttributesField $variantAttributesField, ?ElementInterface $element): bool
 	{
 		// No element means nothing to rank, as when the input renders as a field preview
-		if ($element === null) {
+		if (! $element instanceof ElementInterface) {
 			return true;
 		}
 
 		$customFieldIndex = -1;
-		foreach ($element->getFieldLayout()->getCustomFields() as $customField) {
+		foreach ($element->getFieldLayout()?->getCustomFields() ?? [] as $customField) {
 			if ($customField::class === VariantAttributesField::class) {
 				++$customFieldIndex;
 

@@ -15,7 +15,7 @@ class ProductVariants extends Component
 	 * Get each attribute name and the values a product's variants use.
 	 *
 	 * @param Product|int $product The product to fetch variant attributes for.
-	 * @param array|string|null $only If set, limits the options returned to just the ones in the argument.
+	 * @param list<string>|string|null $only If set, limits the options returned to just the ones in the argument.
 	 * @return array<int, array{name: string, values: list<string>}>
 	 * @throws InvalidConfigException
 	 */
@@ -37,7 +37,7 @@ class ProductVariants extends Component
 	 * Get each attribute name and its values, with the matching registry attribute and options.
 	 *
 	 * @param Product|int $product The product to fetch variant attributes for.
-	 * @param array|string|null $only If set, limits the options returned to just the ones in the argument.
+	 * @param list<string>|string|null $only If set, limits the options returned to just the ones in the argument.
 	 * @return array<int, array{name: string, values: list<string>, attribute: ?VariantAttribute, options: array<string, VariantAttribute>}>
 	 * @throws InvalidConfigException
 	 */
@@ -61,6 +61,7 @@ class ProductVariants extends Component
 	}
 
 	/**
+	 * @param list<string>|string|null $only
 	 * @return array<string, list<string>>
 	 * @throws InvalidConfigException
 	 */
@@ -69,7 +70,7 @@ class ProductVariants extends Component
 		if (is_int($product)) {
 			$product = Product::find()->id($product)->one();
 
-			if (! isset($product)) {
+			if (! $product instanceof Product) {
 				throw new \RuntimeException('Product not found');
 			}
 		}

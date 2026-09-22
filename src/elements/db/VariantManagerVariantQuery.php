@@ -6,6 +6,9 @@ use Craft;
 use craft\commerce\elements\db\VariantQuery;
 use craft\commerce\elements\Variant as CommerceVariant;
 
+/**
+ * @extends VariantQuery<int, CommerceVariant>
+ */
 class VariantManagerVariantQuery extends VariantQuery
 {
 	public function getCacheTags(): array

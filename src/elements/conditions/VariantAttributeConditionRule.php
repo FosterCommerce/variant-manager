@@ -15,6 +15,7 @@ use craft\elements\db\ElementQueryInterface;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\Plugin;
+use yii\db\ExpressionInterface;
 
 /**
  * Filters variants, or products through their variants, by one attribute's registered values.
@@ -45,6 +46,9 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		return ["variantAttribute:{$this->attributeId}"];
 	}
 
+	/**
+	 * @return array<array-key, mixed>
+	 */
 	public function getConfig(): array
 	{
 		return parent::getConfig() + [
@@ -53,7 +57,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 	}
 
 	/**
-	 * @param ProductQuery|VariantQuery $query
+	 * @param ProductQuery<int, Product>|VariantQuery<int, Variant> $query
 	 */
 	public function modifyQuery(ElementQueryInterface $query): void
 	{
@@ -88,6 +92,9 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		return $this->matchVariant($element);
 	}
 
+	/**
+	 * @return array<array-key, mixed>
+	 */
 	protected function defineRules(): array
 	{
 		$rules = parent::defineRules();
@@ -98,6 +105,9 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		return $rules;
 	}
 
+	/**
+	 * @return list<array<string, string>>
+	 */
 	protected function options(): array
 	{
 		if ($this->attributeId === null) {
@@ -118,6 +128,9 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 
 	/**
 	 * Reuse an existing hasVariant filter, given as a query or as criteria.
+	 *
+	 * @param ProductQuery<int, Product> $query
+	 * @return VariantQuery<int, Variant>
 	 */
 	private function variantQuery(ProductQuery $query): VariantQuery
 	{
@@ -126,7 +139,10 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		}
 
 		if (is_array($query->hasVariant)) {
-			return Craft::configure(Variant::find(), ProductQueryHelper::cleanseQueryCriteria($query->hasVariant));
+			/** @var VariantQuery<int, Variant> $configured */
+			$configured = Craft::configure(Variant::find(), ProductQueryHelper::cleanseQueryCriteria($query->hasVariant));
+
+			return $configured;
 		}
 
 		return Variant::find();
@@ -134,14 +150,15 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 
 	/**
 	 * @param array<string, mixed> $params
+	 * @return array<array-key, mixed>|string|ExpressionInterface|null
 	 */
-	private function fieldCondition(array &$params): mixed
+	private function fieldCondition(array &$params): array|string|ExpressionInterface|null
 	{
 		$attribute = $this->attribute();
 		$option = $this->selectedOption();
 		$instances = $this->fieldInstances();
 
-		if ($attribute === null || $option === null || $instances === []) {
+		if (! $attribute instanceof VariantAttribute || ! $option instanceof VariantAttribute || $instances === []) {
 			return null;
 		}
 
@@ -157,12 +174,12 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		$attribute = $this->attribute();
 		$option = $this->selectedOption();
 
-		if ($attribute === null || $option === null) {
+		if (! $attribute instanceof VariantAttribute || ! $option instanceof VariantAttribute) {
 			return false;
 		}
 
 		foreach ($this->fieldInstances() as $field) {
-			$value = $variant->getFieldValue($field->handle);
+			$value = $variant->getFieldValue((string) $field->handle);
 
 			// An unparseable JSON field value is the raw string
 			if (! is_array($value)) {
@@ -189,9 +206,11 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 	private function selectedOption(): ?VariantAttribute
 	{
 		if ($this->selectedOption === null) {
-			$this->selectedOption = ($this->value === ''
+			$option = $this->value === ''
 				? null
-				: VariantAttribute::find()->id((int) $this->value)->one()) ?? false;
+				: VariantAttribute::find()->id((int) $this->value)->one();
+
+			$this->selectedOption = $option instanceof VariantAttribute ? $option : false;
 		}
 
 		return $this->selectedOption === false ? null : $this->selectedOption;

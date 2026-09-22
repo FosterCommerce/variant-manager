@@ -46,11 +46,11 @@ Re-save every attribute and option.
 ./craft resave/variant-attributes --update-search-index
 ```
 
-Craft's own resave command, with an action this plugin adds. `--update-search-index` rewrites the search keywords for each row, so a system name stored before the row was last saved becomes searchable. `resave/all` includes it.
+Craft's own resave command, with an action this plugin adds. `--update-search-index` rewrites the search keywords for each record, so a system name stored before the record was last saved becomes searchable. `resave/all` includes it.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--update-search-index` | `false` | Rewrite each row's search keywords. |
+| `--update-search-index` | `false` | Rewrite each record's search keywords. |
 | `--queue` | `false` | Run in the queue instead of the console. |
 
 ## `variant-manager/attributes/orphans`
@@ -61,13 +61,13 @@ List attributes and options whose name or value is no longer stored on any varia
 ./craft variant-manager/attributes/orphans
 ```
 
-Reads every variant, then compares against the registry. Prints one line per orphan and does not delete rows.
+Reads every variant, then compares against the registry. Prints one line per orphan and does not delete records.
 
 ```sh
 ./craft variant-manager/attributes/orphans --prune
 ```
 
-Deletes exactly the orphans the scan found. A value a variant started storing after the scan began is deleted too, and re-registered on that variant's next save without its custom field values. The display type is on the attribute's row, so deleting the row deletes it. The attribute's field set stays in project config, because other attributes can use it. This is permanent, and any custom field values on the deleted rows are lost.
+Deletes exactly the orphans the scan found. A value a variant started storing after the scan began is deleted too, and re-registered on that variant's next save without its custom field values. The display type is on the attribute's record, so deleting the record deletes it. The attribute's field set stays in project config, because other attributes can use it. This is permanent, and any custom field values on the deleted records are lost.
 
 | Option | Default | Description |
 |--------|---------|-------------|

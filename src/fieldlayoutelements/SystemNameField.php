@@ -25,6 +25,9 @@ class SystemNameField extends TextField
 		parent::__construct($config);
 	}
 
+	/**
+	 * @return array<array-key, mixed>
+	 */
 	public function fields(): array
 	{
 		$fields = parent::fields();
@@ -35,10 +38,10 @@ class SystemNameField extends TextField
 
 	public function formHtml(?ElementInterface $element = null, bool $static = false): ?string
 	{
-		if (self::isUnpublishedDraft($element) && ! $static) {
+		if ($this->isUnpublishedDraft($element) && ! $static) {
 			$view = Craft::$app->getView();
 
-			$view->registerJsWithVars(fn (string $titleId, string $nameId) => <<<JS
+			$view->registerJsWithVars(fn (string $titleId, string $nameId): string => <<<JS
 (() => {
   const nameInput = $('#' + {$nameId});
   if (!nameInput.val().length) {
@@ -56,9 +59,9 @@ JS, [
 
 	protected function inputHtml(?ElementInterface $element = null, bool $static = false): ?string
 	{
-		// Offer the field only before the row exists, because variants match on the system name.
+		// Offer the field only before the record exists, because variants match on the system name
 		// VariantAttribute::systemNameFieldHtml() renders the value read-only after that
-		return self::isUnpublishedDraft($element) ? parent::inputHtml($element, $static) : null;
+		return $this->isUnpublishedDraft($element) ? parent::inputHtml($element, $static) : null;
 	}
 
 	protected function defaultLabel(?ElementInterface $element = null, bool $static = false): ?string
@@ -68,12 +71,12 @@ JS, [
 
 	protected function defaultInstructions(?ElementInterface $element = null, bool $static = false): ?string
 	{
-		return self::isUnpublishedDraft($element)
+		return $this->isUnpublishedDraft($element)
 			? Craft::t('variant-manager', 'attributes.nameInstructions')
 			: null;
 	}
 
-	private static function isUnpublishedDraft(?ElementInterface $element): bool
+	private function isUnpublishedDraft(?ElementInterface $element): bool
 	{
 		return $element?->getIsUnpublishedDraft() === true;
 	}

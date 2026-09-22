@@ -34,12 +34,14 @@ class m260921_090000_collapse_permissions extends Migration
 		}
 
 		// Project config stores a group's permissions, and Craft rebuilds the join table from it
-		foreach ($projectConfig->get('users.groups') ?? [] as $uid => $group) {
-			$permissions = $group['permissions'] ?? [];
+		$groups = $projectConfig->get('users.groups');
+
+		foreach (is_array($groups) ? $groups : [] as $uid => $group) {
+			$permissions = is_array($group) ? (array) ($group['permissions'] ?? []) : [];
 			$kept = array_values(array_diff($permissions, self::REMOVED));
 
 			if ($kept !== $permissions) {
-				$projectConfig->set("users.groups.{$uid}.permissions", $kept);
+				$projectConfig->set('users.groups.' . $uid . '.permissions', $kept);
 			}
 		}
 

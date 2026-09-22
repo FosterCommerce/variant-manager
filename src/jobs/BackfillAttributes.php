@@ -33,6 +33,7 @@ class BackfillAttributes extends BaseBatchedElementJob
 
 	protected function processItem(mixed $variant): void
 	{
+		/** @var Variant $variant */
 		$this->pairs = [
 			...$this->pairs,
 			...Plugin::getInstance()->getVariantAttributes()->attributePairs([$variant]),

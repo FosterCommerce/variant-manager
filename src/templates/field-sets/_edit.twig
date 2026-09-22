@@ -1,92 +1,55 @@
-{% extends '_layouts/cp.twig' %}
 {% import '_includes/forms.twig' as forms %}
 
 {# @var fieldSet \fostercommerce\variantmanager\models\FieldSet #}
-{# @var attributesUsing \fostercommerce\variantmanager\elements\VariantAttribute[] #}
 
-{% set readOnly = readOnly ?? false %}
-{% set fullPageForm = not readOnly %}
-{% set isNew = fieldSet.uid is empty %}
-{% set title = isNew ? 'fieldSets.newFieldSet'|t('variant-manager') : fieldSet.name %}
+{% if fieldSet.uid %}{{ hiddenInput('fieldSetUid', fieldSet.uid) }}{% endif %}
 
-{% set crumbs = [
-	{ label: 'Settings'|t('app'), url: url('settings') },
-	{ label: 'Plugins'|t('app'), url: url('settings/plugins') },
-	{ label: 'Variant Manager', url: url('variant-manager/settings') },
-] %}
+{{ forms.textField({
+	first: true,
+	label: 'fieldSets.name'|t('variant-manager'),
+	id: 'name',
+	name: 'name',
+	value: fieldSet.name,
+	errors: fieldSet.getErrors('name'),
+	autofocus: true,
+	required: true,
+	disabled: readOnly,
+}) }}
 
-{% if readOnly %}
-	{% set contentNotice = readOnlyNotice() %}
-{% endif %}
+{{ forms.textField({
+	label: 'fieldSets.handle'|t('variant-manager'),
+	instructions: 'fieldSets.handleInstructions'|t('variant-manager'),
+	id: 'handle',
+	class: 'code',
+	name: 'handle',
+	value: fieldSet.handle,
+	errors: fieldSet.getErrors('handle'),
+	required: true,
+	disabled: readOnly,
+}) }}
 
-{% block content %}
-	{% if not readOnly %}
-		{{ actionInput('variant-manager/field-sets/save') }}
-		{{ redirectInput('variant-manager/settings') }}
-		{{ hiddenInput('fieldSetUid', fieldSet.uid) }}
-	{% endif %}
+<hr>
 
-	{{ forms.textField({
-		first: true,
-		label: 'fieldSets.name'|t('variant-manager'),
-		id: 'name',
-		name: 'name',
-		value: fieldSet.name,
-		errors: fieldSet.getErrors('name'),
-		autofocus: true,
-		required: true,
-		disabled: readOnly,
-	}) }}
+{{ forms.fieldLayoutDesignerField({
+	fieldLayout: fieldSet.getFieldLayout(),
+	label: 'attributes.attributeLayout'|t('variant-manager'),
+	instructions: 'attributes.attributeLayoutInstructions'|t('variant-manager'),
+	disabled: readOnly,
+}) }}
 
-	<hr>
+<hr>
 
+{% namespace 'option-layout' %}
 	{{ forms.fieldLayoutDesignerField({
-		fieldLayout: fieldSet.getFieldLayout(),
-		label: 'attributes.attributeLayout'|t('variant-manager'),
-		instructions: 'attributes.attributeLayoutInstructions'|t('variant-manager'),
+		fieldLayout: fieldSet.getOptionFieldLayout(),
+		label: 'attributes.optionLayout'|t('variant-manager'),
+		instructions: 'attributes.optionLayoutInstructions'|t('variant-manager'),
 		disabled: readOnly,
 	}) }}
+{% endnamespace %}
 
-	<hr>
-
-	{% namespace 'option-layout' %}
-		{{ forms.fieldLayoutDesignerField({
-			fieldLayout: fieldSet.getOptionFieldLayout(),
-			label: 'attributes.optionLayout'|t('variant-manager'),
-			instructions: 'attributes.optionLayoutInstructions'|t('variant-manager'),
-			disabled: readOnly,
-		}) }}
-	{% endnamespace %}
-
-	{% if not isNew and not readOnly %}
-		<hr>
-
-		{# data-form="false" makes Craft post from its own hidden form, which the page form would otherwise swallow #}
-		{{ tag('button', {
-			type: 'button',
-			class: ['btn', 'formsubmit', 'error'],
-			text: 'fieldSets.delete'|t('variant-manager'),
-			data: {
-				icon: 'trash',
-				form: 'false',
-				action: 'variant-manager/field-sets/delete',
-				params: { fieldSetUid: fieldSet.uid },
-				confirm: 'fieldSets.deleteConfirm'|t('variant-manager'),
-				redirect: 'variant-manager/settings'|hash,
-			},
-		}) }}
-	{% endif %}
-
-	{% if attributesUsing is not empty %}
-		<hr>
-
-		<h2>{{ 'fieldSets.usedBy'|t('variant-manager') }}</h2>
-
-		<ul class="bullets">
-			{% for attribute in attributesUsing %}
-				<li><a href="{{ url('variant-manager/attributes/' ~ attribute.id ~ '/settings') }}">{{ attribute.name }}</a></li>
-			{% endfor %}
-		</ul>
-	{% endif %}
-{% endblock %}
-
+{% if not fieldSet.handle %}
+	{% js %}
+		new Craft.HandleGenerator("#{{ 'name'|namespaceInputId }}", "#{{ 'handle'|namespaceInputId }}");
+	{% endjs %}
+{% endif %}

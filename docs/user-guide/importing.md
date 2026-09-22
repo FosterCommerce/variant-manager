@@ -91,4 +91,4 @@ Failed imports show their error in the activity log. Two common reasons: a missi
 
 **A failed import undoes only part of its work.** It deletes a product it created and restores variants it replaced. Variants it had already updated keep their new values, and its product field and inventory writes stand. Upload the corrected CSV to write every value from the file again.
 
-**Failed queue jobs**: delete them rather than retrying. Fix the CSV and re-upload it. See [cleaning up failed import jobs](./troubleshooting.md#cleaning-up-failed-import-jobs).
+A CSV the import rejects ends its job, so the queue holds no failed job. Fix the CSV and upload it again. See [an import failed](./troubleshooting.md#an-import-failed).

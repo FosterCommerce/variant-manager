@@ -17,8 +17,8 @@
 					})
 					.addClass('submit add icon');
 
-				this.addListener(this.$newElementBtn, 'activate', 'createVariantAttribute');
-				this.addButton(this.$newElementBtn);
+				this.addListener(this.$newElementBtn, 'activate', 'onNewElementBtn');
+				this.addButton(this.newElementBtnGroup(parentAttributeId));
 			}
 
 			this.base();
@@ -42,17 +42,92 @@
 			return attributeId < 0 ? null : attributeId;
 		},
 
-		createVariantAttribute: function () {
+		/**
+		 * The index holds attributes and options, so one create button can't cover both.
+		 */
+		newElementBtnGroup: function (parentAttributeId) {
+			if (parentAttributeId !== 0) {
+				return this.$newElementBtn;
+			}
+
+			const menuId = 'vm-new-record-menu-' + Craft.randomString(10);
+			const $group = $('<div class="btngroup"/>');
+			this.$newElementBtn.appendTo($group);
+
+			const $menuBtn = $('<button/>', {
+				type: 'button',
+				class: 'btn submit menubtn btngroup-btn-last',
+				'aria-controls': menuId,
+				'data-disclosure-trigger': '',
+				'aria-label': Craft.t('variant-manager', 'attributes.newRecordChoose'),
+			}).appendTo($group);
+
+			$('<div/>', {
+				id: menuId,
+				class: 'menu menu--disclosure',
+			}).appendTo($group);
+
+			$menuBtn.disclosureMenu();
+			const menu = $menuBtn.data('disclosureMenu');
+
+			menu.addItem({
+				label: Craft.t('variant-manager', 'variantMaker.newAttribute'),
+				onActivate: () => {
+					this.createVariantAttribute(0);
+				},
+			});
+
+			menu.addItem({
+				label: Craft.t('variant-manager', 'variantMaker.newOption'),
+				onActivate: () => {
+					this.onNewOption();
+				},
+			});
+
+			return $group;
+		},
+
+		onNewOption: function () {
+			const firstAttributeId = this.firstAttributeId();
+
+			if (firstAttributeId === null) {
+				Craft.cp.displayError(Craft.t('variant-manager', 'attributes.noAttributeForOption'));
+				return;
+			}
+
+			this.createVariantAttribute(firstAttributeId);
+		},
+
+		/**
+		 * The attribute a new option opens under, until its sidebar select names a different attribute.
+		 *
+		 * Read data-level off the element row, which the index sets only while the listing is sorted by structure.
+		 */
+		firstAttributeId: function () {
+			const attributeId = this.view.$elementContainer
+				.find('.element[data-level="1"]')
+				.first()
+				.data('id');
+
+			return attributeId === undefined ? null : Number(attributeId);
+		},
+
+		onNewElementBtn: function () {
+			this.createVariantAttribute(this.parentAttributeId());
+		},
+
+		createVariantAttribute: function (attributeId) {
+			// A second click before the slideout opens would create a second draft
 			if (this.$newElementBtn.hasClass('loading')) {
 				return;
 			}
 
 			this.$newElementBtn.addClass('loading');
 
-			Craft.sendActionRequest('POST', 'elements/create', {
+			return Craft.sendActionRequest('POST', 'elements/create', {
 				data: {
 					elementType: this.elementType,
-					attributeId: this.parentAttributeId(),
+					attributeId: attributeId,
 				},
 			}).then(({ data }) => {
 				const slideout = Craft.createElementEditor(this.elementType, {

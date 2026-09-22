@@ -45,7 +45,9 @@ class VariantMakerController extends Controller
 	 */
 	public function actionPlan(int $productId): int
 	{
-		$product = Commerce::getInstance()->getProducts()->getProductById($productId);
+		/** @var Commerce $commerce */
+		$commerce = Commerce::getInstance();
+		$product = $commerce->getProducts()->getProductById($productId);
 
 		if (! $product instanceof Product) {
 			$this->stderr("No product with ID {$productId}." . PHP_EOL, Console::FG_RED);
@@ -86,8 +88,8 @@ class VariantMakerController extends Controller
 				'%-10s %-40s %-32s %s' . PHP_EOL,
 				$row->status,
 				$combination,
-				self::change($row->currentSku, $row->sku, $row->status),
-				self::change($row->currentPrice, $row->price, $row->status),
+				$this->change($row->currentSku, $row->sku, $row->status),
+				$this->change($row->currentPrice, $row->price, $row->status),
 			));
 
 			if ($row->skuIssue !== null) {
@@ -107,7 +109,7 @@ class VariantMakerController extends Controller
 	/**
 	 * Only an update applies the proposed value, so only an update shows the arrow.
 	 */
-	private static function change(?string $current, ?string $proposed, string $status): string
+	private function change(?string $current, ?string $proposed, string $status): string
 	{
 		if ($proposed === null && $current === null) {
 			return $status === VariantMakerPlanRow::STATUS_CREATE ? 'default' : 'kept';

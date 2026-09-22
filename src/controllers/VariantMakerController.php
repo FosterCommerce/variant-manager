@@ -48,7 +48,7 @@ class VariantMakerController extends Controller
 		]);
 	}
 
-	public function actionGenerate(): Response
+	public function actionGenerate(): ?Response
 	{
 		$this->requirePostRequest();
 		$this->requireAcceptsJson();
@@ -79,7 +79,7 @@ class VariantMakerController extends Controller
 		Queue::push(new GenerateVariants([
 			'productId' => $product->getCanonicalId(),
 			'generatedByUserId' => (int) static::currentUser()?->id,
-		]), queue: Plugin::getInstance()->queue);
+		]), queue: Plugin::getInstance()->getQueue());
 
 		return $this->asSuccess(Craft::t('variant-manager', 'variantMaker.queued'));
 	}
@@ -97,7 +97,7 @@ class VariantMakerController extends Controller
 		$view = $this->getView();
 
 		return $this->asJson([
-			'html' => $this->rowHtml((int) $this->request->getRequiredBodyParam('rowId'), null, []),
+			'html' => $this->rowHtml($this->requiredIntParam('rowId'), null, []),
 			'headHtml' => $view->getHeadHtml(),
 			'bodyHtml' => $view->getBodyHtml(),
 		]);
@@ -112,7 +112,7 @@ class VariantMakerController extends Controller
 		$this->requireAcceptsJson();
 
 		$product = $this->product();
-		$nextRowId = (int) $this->request->getRequiredBodyParam('nextRowId');
+		$nextRowId = $this->requiredIntParam('nextRowId');
 		$postedAttributeIds = $this->request->getBodyParam('attributeIds') ?: [];
 		$filledAttributeIds = array_map('intval', is_array($postedAttributeIds) ? $postedAttributeIds : []);
 
@@ -159,10 +159,19 @@ class VariantMakerController extends Controller
 			->exists();
 	}
 
+	private function requiredIntParam(string $name): int
+	{
+		/** @var scalar $value */
+		$value = $this->request->getRequiredBodyParam($name);
+
+		return (int) $value;
+	}
+
 	private function product(): Product
 	{
-		$productId = (int) $this->request->getRequiredBodyParam('productId');
-		$product = Commerce::getInstance()->getProducts()->getProductById($productId);
+		/** @var Commerce $commerce */
+		$commerce = Commerce::getInstance();
+		$product = $commerce->getProducts()->getProductById($this->requiredIntParam('productId'));
 
 		if (! $product instanceof Product) {
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'variantMaker.productNotFound'));

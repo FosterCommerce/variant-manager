@@ -32,7 +32,7 @@ abstract class PermissionHelper
 	 */
 	public static function canSaveAnyProductType(?User $user = null): bool
 	{
-		if ($user === null && Craft::$app->getRequest()->getIsConsoleRequest()) {
+		if (! $user instanceof User && Craft::$app->getRequest()->getIsConsoleRequest()) {
 			return true;
 		}
 
@@ -43,7 +43,10 @@ abstract class PermissionHelper
 			return true;
 		}
 
-		foreach (Commerce::getInstance()->getProductTypes()->getAllProductTypes() as $productType) {
+		/** @var Commerce $commerce */
+		$commerce = Commerce::getInstance();
+
+		foreach ($commerce->getProductTypes()->getAllProductTypes() as $productType) {
 			if (self::canSaveProductType($productType, $user)) {
 				return true;
 			}

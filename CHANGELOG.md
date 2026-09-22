@@ -1,22 +1,37 @@
 # Release Notes for Variant Manager
 
-## Unreleased
+## 4.2.0 - 2026-09-22
 
 ### Added
 
-- Added field sets, each a name and a pair of field layouts that any number of variant attributes share.
-- Added `FieldSets` and `Plugin::getFieldSets()`.
-- Added a `fieldSetUid` param to `VariantAttribute` queries.
+- Added field sets, each a name, a unique handle, and a pair of field layouts that any number of variant attributes share. An attribute's field set can be changed where `allowAdminChanges` is off.
+- Added a Field Sets section to the Variant Manager settings screen, for creating and editing field sets.
+- Added a “Field Set” field to an attribute's sidebar, and a “Field Set” column to the Variant Attributes index.
+- Added a menu beside “New attribute” on the Variant Attributes index, for creating an option.
+- Added the ability to delete variant attributes and options from the control panel. Deleting is permanent, and a record any variant uses cannot be deleted.
+- Added the ability to move an option to another variant attribute, by dragging it or from a “Variant Attribute” field in its sidebar.
+- Added `fostercommerce\variantmanager\models\FieldSet`, `fostercommerce\variantmanager\services\FieldSets` and `Plugin::getFieldSets()`.
 
 ### Changed
 
-- An attribute's fields now come from the field set assigned to it, and its settings screen no longer has field layouts of its own.
+- An attribute's fields now come from the field set assigned to it. The migration gives every attribute a field set of its own, named after the attribute and holding the layouts it had.
+- Variant attributes and options are now labeled by their display name throughout the control panel, and the Variant Attributes index shows “System Name” as a column by default.
+- “Variant Attributes” now comes before “Variants” in the Variant Manager nav.
+- A blank `attributePrefix` now fails the import and the export, which previously read every column as an attribute.
+- A CSV the import rejects, a settings error, and a stopped variant generation now end their queue job instead of failing it. Every other failure still leaves a failed job to retry.
+- `Csv::import()` and `Csv::saveVariants()` now throw `fostercommerce\variantmanager\errors\ImportDataException` where they threw `RuntimeException`. Catch `ImportDataException`, or its base `yii\base\Exception`.
 - Pruning an orphaned attribute no longer removes field layouts from project config.
-- An attribute's field set can now be assigned where `allowAdminChanges` is off, because the assignment is stored in the database rather than project config.
+
+### Fixed
+
+- Fixed an error that could occur when an inventory column's SKU did not match a saved variant.
+- Fixed an error that could occur when a per-site column named an unknown site handle, after the product was saved.
+- Fixed an error that could occur when a product or variant failed to save without a validation error.
 
 ### Removed
 
-- Removed `AttributeConfigs` and `Plugin::getAttributeConfigs()`. Use `Plugin::getFieldSets()`.
+- Removed the per-attribute settings screen at `variant-manager/attributes/<id>/settings`. Choose an attribute's field set on the attribute itself.
+- Removed `fostercommerce\variantmanager\services\AttributeConfigs` and `Plugin::getAttributeConfigs()`. Use `Plugin::getFieldSets()`.
 
 ## 4.1.1 - 2026-09-21
 

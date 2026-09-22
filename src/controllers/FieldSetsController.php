@@ -3,6 +3,8 @@
 namespace fostercommerce\variantmanager\controllers;
 
 use Craft;
+use craft\helpers\Cp;
+use craft\helpers\Html;
 use craft\models\FieldLayout;
 use craft\web\Controller;
 use fostercommerce\variantmanager\elements\VariantAttribute;
@@ -32,14 +34,53 @@ class FieldSetsController extends Controller
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'fieldSets.notFound'));
 		}
 
-		return $this->renderTemplate('variant-manager/field-sets/_edit', [
-			'fieldSet' => $fieldSet,
-			'attributesUsing' => $fieldSet->uid === null ? [] : $fieldSets->getAttributesUsingFieldSet($fieldSet->uid),
-			'readOnly' => ! Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
-		]);
+		$readOnly = ! Craft::$app->getConfig()->getGeneral()->allowAdminChanges;
+
+		$response = $this->asCpScreen()
+			->title($fieldSet->uid === null ? Craft::t('variant-manager', 'fieldSets.newFieldSet') : (string) $fieldSet->name)
+			->addCrumb(Craft::t('app', 'Settings'), 'settings')
+			->addCrumb(Craft::t('app', 'Plugins'), 'settings/plugins')
+			->addCrumb(Craft::t('variant-manager', 'plugin.name'), 'variant-manager/settings')
+			->contentTemplate('variant-manager/field-sets/_edit', [
+				'fieldSet' => $fieldSet,
+				'readOnly' => $readOnly,
+			]);
+
+		if ($fieldSet->uid !== null) {
+			$response->metaSidebarHtml(Cp::metadataHtml([
+				Craft::t('variant-manager', 'fieldSets.usedBy') => fn (): string => $this->usedByHtml($fieldSet),
+			]));
+		}
+
+		if ($readOnly) {
+			$response->noticeHtml(Cp::readOnlyNoticeHtml());
+
+			return $response;
+		}
+
+		$response
+			->action('variant-manager/field-sets/save')
+			->redirectUrl('variant-manager/settings')
+			->addAltAction(Craft::t('app', 'Save and continue editing'), [
+				'redirect' => 'variant-manager/field-sets/{uid}',
+				'shortcut' => true,
+				'retainScroll' => true,
+			]);
+
+		if ($fieldSet->uid !== null) {
+			$response->addAltAction(Craft::t('variant-manager', 'fieldSets.delete'), [
+				'action' => 'variant-manager/field-sets/delete',
+				'redirect' => 'variant-manager/settings',
+				'confirm' => Craft::t('variant-manager', 'fieldSets.deleteConfirm'),
+				'destructive' => true,
+			]);
+		}
+
+		return $response;
 	}
 
 	/**
+	 * @throws BadRequestHttpException
 	 * @throws NotFoundHttpException
 	 */
 	public function actionSave(): ?Response
@@ -58,7 +99,13 @@ class FieldSetsController extends Controller
 			throw new NotFoundHttpException(Craft::t('variant-manager', 'fieldSets.notFound'));
 		}
 
-		$fieldSet->name = $this->request->getBodyParam('name');
+		/** @var string|null $name */
+		$name = $this->request->getBodyParam('name');
+		$fieldSet->name = (string) $name;
+
+		/** @var string|null $handle */
+		$handle = $this->request->getBodyParam('handle');
+		$fieldSet->handle = (string) $handle;
 
 		$fieldSet->setFieldLayout($this->layoutFromPost());
 		$fieldSet->setOptionFieldLayout($this->layoutFromPost('option-layout'));
@@ -75,16 +122,20 @@ class FieldSetsController extends Controller
 
 		$this->setSuccessFlash(Craft::t('variant-manager', 'fieldSets.saved'));
 
-		return $this->redirectToPostedUrl();
+		return $this->redirectToPostedUrl($fieldSet);
 	}
 
+	/**
+	 * @throws BadRequestHttpException
+	 */
 	public function actionDelete(): Response
 	{
 		$this->requirePostRequest();
 		$this->requireAdmin();
 
 		$fieldSets = Plugin::getInstance()->getFieldSets();
-		$fieldSetUid = (string) $this->request->getRequiredBodyParam('fieldSetUid');
+		/** @var string $fieldSetUid */
+		$fieldSetUid = $this->request->getRequiredBodyParam('fieldSetUid');
 
 		if ($fieldSets->getAttributesUsingFieldSet($fieldSetUid) !== []) {
 			$this->setFailFlash(Craft::t('variant-manager', 'fieldSets.deleteInUse'));
@@ -98,9 +149,22 @@ class FieldSetsController extends Controller
 		return $this->redirectToPostedUrl();
 	}
 
-	/**
-	 * @throws BadRequestHttpException
-	 */
+	private function usedByHtml(FieldSet $fieldSet): string
+	{
+		$attributes = Plugin::getInstance()->getFieldSets()->getAttributesUsingFieldSet((string) $fieldSet->uid);
+
+		if ($attributes === []) {
+			return Html::tag('i', Craft::t('variant-manager', 'fieldSets.noAttributes'));
+		}
+
+		return Html::ul(array_map(
+			static fn (VariantAttribute $attribute): string => Cp::elementChipHtml($attribute),
+			$attributes
+		), [
+			'encode' => false,
+		]);
+	}
+
 	/**
 	 * Set the type before the tabs. setTabs() memoizes the layout's native fields.
 	 */

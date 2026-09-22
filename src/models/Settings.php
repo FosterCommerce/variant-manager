@@ -71,37 +71,44 @@ class Settings extends Model
 
 	public string $defaultDisplayType = DisplayType::Dropdown->value;
 
+	/**
+	 * @var array<string, array<string, string>>
+	 */
 	public array $productFieldMap = [
 		'*' => self::DEFAULT_PRODUCT_FIELD_MAP,
 	];
 
+	/**
+	 * @var array<string, array<string, string>>
+	 */
 	public array $variantFieldMap = [
 		'*' => self::DEFAULT_VARIANT_FIELD_MAP,
 	];
 
+	/**
+	 * @param array<string, mixed> $values
+	 */
 	public function setAttributes($values, $safeOnly = true): void
 	{
 		// The “All” checkbox posts '*' on its own, and an unchecked group posts ''
 		if (isset($values['availableDisplayTypes'])) {
 			$values['availableDisplayTypes'] = array_values(array_filter(
 				(array) $values['availableDisplayTypes'],
-				static fn (string $displayType): bool => $displayType !== ''
+				static fn (mixed $displayType): bool => $displayType !== ''
 			));
 		}
 
 		if (isset($values['variantMakerProductTypes'])) {
 			$values['variantMakerProductTypes'] = array_values(array_filter(
 				(array) $values['variantMakerProductTypes'],
-				static fn (string $productTypeHandle): bool => $productTypeHandle !== ''
+				static fn (mixed $productTypeHandle): bool => $productTypeHandle !== ''
 			));
 		}
 
 		parent::setAttributes($values, $safeOnly);
 
-		if ($this->activityLogRetention !== false && $this->activityLogRetention !== null) {
-			if (is_int($this->activityLogRetention)) {
-				$this->activityLogRetention = "{$this->activityLogRetention} days";
-			}
+		if (is_int($this->activityLogRetention)) {
+			$this->activityLogRetention = "{$this->activityLogRetention} days";
 		}
 
 		// getProductTypeMapping() reads the catch-all key without a guard
@@ -143,6 +150,9 @@ class Settings extends Model
 		return in_array($productTypeHandle, $this->variantMakerProductTypes, true);
 	}
 
+	/**
+	 * @return array<array-key, mixed>
+	 */
 	public function getAvailableProductTypes(): array
 	{
 		$productTypes = [];
@@ -162,21 +172,23 @@ class Settings extends Model
 		return $productTypes;
 	}
 
-	public function getProductTypeMapping(?string $productTypeHandle): ?array
+	/**
+	 * @return array<string, string>
+	 */
+	public function getProductTypeMapping(?string $productTypeHandle): array
 	{
-		if ($productTypeHandle === null) {
-			return $this->variantFieldMap['*'];
-		}
-
-		return $this->variantFieldMap[$productTypeHandle] ?? $this->variantFieldMap['*'];
+		return $productTypeHandle === null
+			? $this->variantFieldMap['*']
+			: $this->variantFieldMap[$productTypeHandle] ?? $this->variantFieldMap['*'];
 	}
 
-	public function getProductFieldMapping(?string $productTypeHandle): ?array
+	/**
+	 * @return array<string, string>
+	 */
+	public function getProductFieldMapping(?string $productTypeHandle): array
 	{
-		if ($productTypeHandle === null) {
-			return $this->productFieldMap['*'];
-		}
-
-		return $this->productFieldMap[$productTypeHandle] ?? $this->productFieldMap['*'];
+		return $productTypeHandle === null
+			? $this->productFieldMap['*']
+			: $this->productFieldMap[$productTypeHandle] ?? $this->productFieldMap['*'];
 	}
 }

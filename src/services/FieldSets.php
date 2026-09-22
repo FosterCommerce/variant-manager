@@ -24,28 +24,14 @@ class FieldSets extends Component
 	private ?array $fieldSets = null;
 
 	/**
-	 * Register field handles these layouts override.
-	 *
 	 * These layouts are never saved to the fieldlayouts table, so no other code registers their handles.
 	 */
 	public function registerOverriddenFieldHandles(): void
 	{
-		$configs = Craft::$app->getProjectConfig()->get(self::CONFIG_PATH);
-
-		if (! is_array($configs)) {
-			return;
-		}
-
-		foreach ($configs as $config) {
-			foreach (['fieldLayouts', 'optionFieldLayouts'] as $layoutKey) {
-				foreach ($config[$layoutKey] ?? [] as $layout) {
-					foreach ($layout['tabs'] ?? [] as $tab) {
-						foreach ($tab['elements'] ?? [] as $element) {
-							if (isset($element['handle'])) {
-								CustomFieldBehavior::$fieldHandles[$element['handle']] = true;
-							}
-						}
-					}
+		foreach ($this->getAllLayouts() as $layout) {
+			foreach ($layout->getCustomFieldElements() as $layoutElement) {
+				if ($layoutElement->handle !== null) {
+					CustomFieldBehavior::$fieldHandles[$layoutElement->handle] = true;
 				}
 			}
 		}
@@ -116,8 +102,10 @@ class FieldSets extends Component
 
 		// Read the stored uids from config, because the caller may have replaced the memoized layouts
 		$stored = Craft::$app->getProjectConfig()->get(self::CONFIG_PATH . '.' . $fieldSet->uid);
-		$fieldSet->getFieldLayout()->uid = array_key_first($stored['fieldLayouts'] ?? []) ?? StringHelper::UUID();
-		$fieldSet->getOptionFieldLayout()->uid = array_key_first($stored['optionFieldLayouts'] ?? []) ?? StringHelper::UUID();
+		$stored = is_array($stored) ? $stored : [];
+
+		$fieldSet->getFieldLayout()->uid = $this->storedLayoutUid($stored, 'fieldLayouts');
+		$fieldSet->getOptionFieldLayout()->uid = $this->storedLayoutUid($stored, 'optionFieldLayouts');
 
 		Craft::$app->getProjectConfig()->set(
 			self::CONFIG_PATH . '.' . $fieldSet->uid,
@@ -141,6 +129,16 @@ class FieldSets extends Component
 	}
 
 	/**
+	 * @param array<string, mixed> $stored
+	 */
+	private function storedLayoutUid(array $stored, string $layoutKey): string
+	{
+		$layouts = $stored[$layoutKey] ?? [];
+
+		return (string) (is_array($layouts) ? array_key_first($layouts) ?? StringHelper::UUID() : StringHelper::UUID());
+	}
+
+	/**
 	 * @param array<string, mixed> $config
 	 */
 	private function fieldSetFromConfig(string $uid, array $config): FieldSet
@@ -148,10 +146,16 @@ class FieldSets extends Component
 		$fieldSet = new FieldSet([
 			'uid' => $uid,
 			'name' => $config['name'] ?? null,
+			'handle' => $config['handle'] ?? null,
 		]);
 
-		$fieldSet->setFieldLayout($this->layoutFromConfig($config['fieldLayouts'] ?? []));
-		$fieldSet->setOptionFieldLayout($this->layoutFromConfig($config['optionFieldLayouts'] ?? []));
+		/** @var array<string, mixed> $fieldLayouts */
+		$fieldLayouts = (array) ($config['fieldLayouts'] ?? []);
+		/** @var array<string, mixed> $optionFieldLayouts */
+		$optionFieldLayouts = (array) ($config['optionFieldLayouts'] ?? []);
+
+		$fieldSet->setFieldLayout($this->layoutFromConfig($fieldLayouts));
+		$fieldSet->setOptionFieldLayout($this->layoutFromConfig($optionFieldLayouts));
 
 		return $fieldSet;
 	}
@@ -163,19 +167,11 @@ class FieldSets extends Component
 	{
 		$layoutUid = array_key_first($layouts);
 
-		if ($layoutUid === null) {
-			return new FieldLayout([
-				'type' => VariantAttribute::class,
-			]);
-		}
-
-		$layout = FieldLayout::createFromConfig([
-			...$layouts[$layoutUid],
+		return FieldLayout::createFromConfig([
+			...(array) ($layouts[$layoutUid] ?? []),
 			'type' => VariantAttribute::class,
+			'uid' => (string) ($layoutUid ?? StringHelper::UUID()),
 		]);
-		$layout->uid = (string) $layoutUid;
-
-		return $layout;
 	}
 
 	/**
@@ -185,11 +181,12 @@ class FieldSets extends Component
 	{
 		return [
 			'name' => $fieldSet->name,
+			'handle' => $fieldSet->handle,
 			'fieldLayouts' => [
-				(string) $fieldSet->getFieldLayout()->uid => $fieldSet->getFieldLayout()->getConfig() ?? [],
+				$fieldSet->getFieldLayout()->uid => $fieldSet->getFieldLayout()->getConfig() ?? [],
 			],
 			'optionFieldLayouts' => [
-				(string) $fieldSet->getOptionFieldLayout()->uid => $fieldSet->getOptionFieldLayout()->getConfig() ?? [],
+				$fieldSet->getOptionFieldLayout()->uid => $fieldSet->getOptionFieldLayout()->getConfig() ?? [],
 			],
 		];
 	}

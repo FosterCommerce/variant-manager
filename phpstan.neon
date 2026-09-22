@@ -6,4 +6,4 @@ parameters:
         - src
     scanFiles:
         - stubs/CustomFieldBehavior.php
-    level: 5
+    level: 9

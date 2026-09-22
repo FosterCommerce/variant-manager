@@ -6,9 +6,9 @@ use Craft;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as Commerce;
 use craft\web\Controller;
-use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\enums\DisplayType;
 use fostercommerce\variantmanager\Plugin;
+use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
 class SettingsController extends Controller
@@ -21,8 +21,10 @@ class SettingsController extends Controller
 
 		$settings = Plugin::getInstance()->getSettings();
 
+		/** @var Commerce $commerce */
+		$commerce = Commerce::getInstance();
+
 		return $this->renderTemplate('variant-manager/settings/index', [
-			'attributes' => VariantAttribute::find()->attributeId(0)->all(),
 			'fieldSets' => Plugin::getInstance()->getFieldSets()->getAllFieldSets(),
 			'settings' => $settings,
 			'displayTypeOptions' => DisplayType::options(DisplayType::cases()),
@@ -32,7 +34,7 @@ class SettingsController extends Controller
 					'label' => $productType->name,
 					'value' => $productType->handle,
 				],
-				Commerce::getInstance()->getProductTypes()->getAllProductTypes(),
+				$commerce->getProductTypes()->getAllProductTypes(),
 			),
 			'readOnly' => ! Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
 		]);
@@ -43,7 +45,12 @@ class SettingsController extends Controller
 		$this->requirePostRequest();
 		$this->requireAdmin();
 
-		$settings = $this->request->getBodyParam('settings', []);
+		$settings = $this->request->getBodyParam('settings') ?: [];
+
+		if (! is_array($settings)) {
+			throw new BadRequestHttpException('settings must be an array.');
+		}
+
 		$plugin = Plugin::getInstance();
 
 		if (! Craft::$app->getPlugins()->savePluginSettings($plugin, $settings)) {

@@ -6,11 +6,13 @@ Work through every section newer than your current version, oldest first. Coming
 
 Run `./craft up` to apply the migration. Templates and the CSV format are unchanged.
 
-An attribute's field layouts move into a **field set**, a named pair of layouts that any number of attributes share. The migration gives every attribute with saved field layouts its own field set, named after the attribute, so every attribute keeps the fields it had.
+An attribute's field layouts move into a **field set**, a named pair of layouts that any number of attributes share. The migration gives every attribute with saved field layouts its own field set, named after the attribute, so every attribute keeps the fields it had. Each field set also gets a handle, derived from the attribute's name. Change it at **Variant Manager -> Settings**.
 
-Where several attributes should share one set, open each attribute, assign it the set you are keeping, then delete the field sets you no longer need. A field set cannot be deleted while an attribute uses it.
+Where several attributes should share one set, open each attribute at **Variant Manager -> Variant Attributes** and choose the set you are keeping under **Field Set** in its sidebar, then delete the field sets you no longer need. A field set cannot be deleted while an attribute uses it.
 
 Run the migration in development, where it writes the field sets to project config. Run `./craft project-config/write` afterwards, then commit `config/project/`. Where `allowAdminChanges` is off, the migration assigns each attribute its field set but does not write to project config, so the deployed `config/project/` files supply the field sets.
+
+The per-attribute settings screen at `variant-manager/attributes/<id>/settings` is removed. Choose an attribute's field set on the attribute itself.
 
 `AttributeConfigs` is removed. It was marked internal in 4.1.1; field sets are read and written through `FieldSets`.
 

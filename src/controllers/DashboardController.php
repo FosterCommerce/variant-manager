@@ -41,9 +41,9 @@ class DashboardController extends Controller
 			]);
 		}
 
-		$pageNum = Craft::$app->request->getPageNum();
+		$pageNum = $this->request->getPageNum();
 		$offset = (self::ACTIVITIES_PER_PAGE * ($pageNum - 1));
-		$total = $activityQuery->count();
+		$total = (int) $activityQuery->count();
 
 		return $this->renderTemplate('variant-manager/dashboard', [
 			'activities' => $activityQuery->limit(self::ACTIVITIES_PER_PAGE)->offset($offset)->all(),
