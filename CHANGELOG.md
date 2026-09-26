@@ -1,5 +1,22 @@
 # Release Notes for Variant Manager
 
+## 4.2.3 - 2026-09-25
+
+### Changed
+
+- `availableDisplayTypes` now defaults to `['*']`, and an empty list now offers only Dropdown.
+- `defaultDisplayType` now falls back to the first offered type when `availableDisplayTypes` doesn't offer it.
+- The Variant Attributes field on a variant now says where to manage its values, including when the variant has no attributes.
+- Variant and per-site CSV column headers now match regardless of letter case, so a `Title` column now sets variant titles.
+
+### Fixed
+
+- Fixed an issue where the Variant Maker's SKU summary didn't mention SKUs another product already uses. ([#53](https://github.com/FosterCommerce/variant-manager/issues/53))
+
+### Removed
+
+- Removed the ability to move an option to another variant attribute. ([#51](https://github.com/FosterCommerce/variant-manager/issues/51))
+
 ## 4.2.2 - 2026-09-22
 
 ### Fixed

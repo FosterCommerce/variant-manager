@@ -48,6 +48,8 @@ return [
 	'field.valueHeading' => 'Value',
 	'field.multipleFieldsWarning' => 'This field layout has more than one Variant Attributes field.',
 	'field.multipleFieldsIgnored' => 'This field is ignored.',
+	'field.noAttributes' => 'This variant has no attributes. Manage them with the product’s Variant Maker{variantMaker, select, disabled{ (currently disabled)} other{}} or a CSV import.',
+	'field.editElsewhere' => 'Manage these values with the product’s Variant Maker{variantMaker, select, disabled{ (currently disabled)} other{}} or a CSV import.',
 
 	// Variant attributes
 	'attributes.attribute' => 'Variant Attribute',
@@ -69,7 +71,7 @@ return [
 	'attributes.nameTaken' => '“{name}” is already a variant attribute.',
 	'options.activityCreated' => 'Created option {name} under {attribute}',
 	'options.deleteInUse' => 'Variants still use this value. Remove it from every variant first.',
-	'options.cannotUnnest' => 'An option can’t be moved out of its variant attribute.',
+	'options.cannotMove' => 'An option can’t be moved to another variant attribute.',
 	'options.nameTaken' => '“{name}” is already an option under {attribute}.',
 	'attributes.displayName' => 'Display Name',
 	'attributes.displayType' => 'Display Type',
@@ -201,9 +203,9 @@ return [
 	'variantMaker.skuDuplicate' => 'Another row builds this same SKU.',
 	'variantMaker.skuTaken' => 'A variant on another product already uses this SKU.',
 	'variantMaker.skuTooLong' => 'Longer than {max} characters.',
-	'variantMaker.skuIssues' => 'Fix the SKU format. {count, plural, =1{One row builds} other{# rows build}} a duplicate SKU, or a SKU longer than {max} characters.',
+	'variantMaker.skuIssues' => '{count, plural, =1{One row has} other{# rows have}} a SKU problem. Each row names its problem.',
 	'variantMaker.stockNote' => 'Quantity set by the Variant Maker',
-	'variantMaker.skuIssuesBlockGenerating' => 'Fix the SKU format before generating.',
+	'variantMaker.skuIssuesBlockGenerating' => 'Fix the SKU problems in the preview before generating.',
 
 	// Display types
 	'displayTypes.dropdown' => 'Dropdown',

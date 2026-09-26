@@ -5,50 +5,55 @@
 	</div>
 {% endif %}
 
-<div class="variant-attributes-container">
-	<table class="table data variant-attributes-table">
-		<thead>
-		<tr>
-			<th class="singleline-cell textual text-right">{{ 'field.nameHeading'|t('variant-manager') }}</th>
-			<th class="singleline-cell textual">{{ 'field.valueHeading'|t('variant-manager') }}</th>
-		</tr>
-		</thead>
-
-		<tbody>
-		{% for row in rows %}
+{% if rows is empty %}
+	<div class="pane no-border zilch small">{{ 'field.noAttributes'|t('variant-manager', { variantMaker }) }}</div>
+{% else %}
+	<div class="variant-attributes-container">
+		<table class="table data variant-attributes-table">
+			<thead>
 			<tr>
-				<td class="singleline-cell textual text-right">
-					{%- if row.attribute -%}
-						{{ elementChip(row.attribute) }}
-					{%- else -%}
-						{{ row.attributeName }}
-					{%- endif -%}
-				</td>
-				<td class="singleline-cell textual">
-					{%- if row.option -%}
-						{{ elementChip(row.option) }}
-					{%- else -%}
-						{{ row.attributeValue }}
-					{%- endif -%}
-				</td>
+				<th class="singleline-cell textual text-right">{{ 'field.nameHeading'|t('variant-manager') }}</th>
+				<th class="singleline-cell textual">{{ 'field.valueHeading'|t('variant-manager') }}</th>
 			</tr>
-		{% endfor %}
-		</tbody>
-	</table>
-</div>
+			</thead>
 
-{% js %}
-	(function() {
-		const container = document.getElementById('{{ namespacedId }}-field');
+			<tbody>
+			{% for row in rows %}
+				<tr>
+					<td class="singleline-cell textual text-right">
+						{%- if row.attribute -%}
+							{{ elementChip(row.attribute) }}
+						{%- else -%}
+							{{ row.attributeName }}
+						{%- endif -%}
+					</td>
+					<td class="singleline-cell textual">
+						{%- if row.option -%}
+							{{ elementChip(row.option) }}
+						{%- else -%}
+							{{ row.attributeValue }}
+						{%- endif -%}
+					</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+		</table>
+		<p class="light">{{ 'field.editElsewhere'|t('variant-manager', { variantMaker }) }}</p>
+	</div>
 
-		container.addEventListener('click', (clickEvent) => {
-			const chip = clickEvent.target.closest('.chip.element[data-editable]');
+	{% js %}
+		(function() {
+			const container = document.getElementById('{{ namespacedId }}-field');
 
-			if (chip) {
-				// Open a slideout instead of following the chip's edit link
-				clickEvent.preventDefault();
-				Craft.createElementEditor(chip.dataset.type, $(chip));
-			}
-		});
-	})();
-{% endjs %}
+			container.addEventListener('click', (clickEvent) => {
+				const chip = clickEvent.target.closest('.chip.element[data-editable]');
+
+				if (chip) {
+					// Open a slideout instead of following the chip's edit link
+					clickEvent.preventDefault();
+					Craft.createElementEditor(chip.dataset.type, $(chip));
+				}
+			});
+		})();
+	{% endjs %}
+{% endif %}

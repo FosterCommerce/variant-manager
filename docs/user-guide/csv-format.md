@@ -82,6 +82,8 @@ Map to per-variant properties via `variantFieldMap`. Defaults:
 
 The plugin maps the configured column name on the left side of `variantFieldMap` to the variant property on the right side. So `'price' => 'basePrice'` means a column header `price[default]` writes to the `basePrice` property. `basePrice` is per-site, so the header keeps its `[siteHandle]` suffix; a bare `price` header errors.
 
+Variant and per-site headers match regardless of letter case, so `SKU`, `sku`, and `Sku` all write to `sku`. The site handle in brackets must match exactly, as must product columns and the `Inventory` and attribute prefixes.
+
 ### Per-site Commerce columns
 
 Some Commerce variant fields are per-site. Suffix the column name with `[siteHandle]`. For a single-site store the site handle is usually `default`.
@@ -136,7 +138,7 @@ Include a custom field by adding its handle to `variantFieldMap` or `productFiel
 
 These are the imports that fail or behave strangely:
 
-- **Smart quotes in column headers**: a word processor replaces `"` with `“` in a pasted header, and header matching is exact. Stick to a spreadsheet editor or a plain-text editor.
+- **Smart quotes in column headers**: a word processor replaces `"` with `“` in a pasted header, which then matches no column. Stick to a spreadsheet editor or a plain-text editor.
 - **Semicolon as the separator**: spreadsheet apps in some regions default to `;`. Variant Manager only reads commas. Re-export with comma as the delimiter.
 - **Inventory column on an untracked variant**: the cell is ignored. Set `inventoryTracked[default]` to `1` first.
 - **Wrong attribute prefix**: `Option: Color` is ignored if `attributePrefix` is `Attribute: `. Match the config.

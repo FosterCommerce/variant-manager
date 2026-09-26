@@ -45,7 +45,7 @@ Create `config/variant-manager.php` to change any of these. The file is multi-en
 | `variantFieldMap` | title, sku, inventoryTracked, basePrice, height, width, length, weight | Which CSV columns map to which variant fields. |
 | `defaultVariantTableAttributes` | `[]` | Extra columns on the Variants index. |
 | `bulkEditableVariantFields` | `[]` | Which fields the Bulk edit action can set. Empty hides the action. |
-| `availableDisplayTypes` | `[]` | Which display types an attribute can use. Empty allows all six. |
+| `availableDisplayTypes` | `['*']` | Which display types an attribute can use. `'*'` allows all six, and an empty list allows only Dropdown. |
 | `defaultDisplayType` | `'dropdown'` | The display type a newly registered attribute gets. |
 | `variantMakerProductTypes` | `[]` | Which product types show the Variant Maker tab. Empty hides it everywhere. |
 

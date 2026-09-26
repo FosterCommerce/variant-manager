@@ -40,7 +40,6 @@ class VariantMakerController extends Controller
 			]),
 			'html' => $this->getView()->renderTemplate('variant-manager/variant-maker/_preview', [
 				'rows' => $rows,
-				'skuMaxLength' => VariantMaker::SKU_MAX_LENGTH,
 				'generatesTitles' => VariantMaker::generatesTitles($product),
 				'tracksInventory' => $settings->property(VariantMakerSettings::PROPERTY_INVENTORY_TRACKED)->include
 					&& $settings->property(VariantMakerSettings::PROPERTY_INVENTORY_TRACKED)->value === true,

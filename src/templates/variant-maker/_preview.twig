@@ -12,7 +12,7 @@
 
 	{% set skuIssueCount = rows|filter(row => row.skuIssue is not null)|length %}
 	{% if skuIssueCount %}
-		<p class="vm-sku-issues error">{{ 'variantMaker.skuIssues'|t('variant-manager', { count: skuIssueCount, max: skuMaxLength }) }}</p>
+		<p class="vm-sku-issues error">{{ 'variantMaker.skuIssues'|t('variant-manager', { count: skuIssueCount }) }}</p>
 	{% endif %}
 
 	<table class="data fullwidth">

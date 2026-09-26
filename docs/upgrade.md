@@ -1,6 +1,16 @@
 # Upgrading
 
-Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, 4.1.0, and 4.2.0 sections in that order. A store on 4.0.x needs the 4.1.0 and 4.2.0 sections.
+Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, 4.1.0, 4.2.0, and 4.2.3 sections in that order. A store on 4.0.x needs the 4.1.0, 4.2.0, and 4.2.3 sections.
+
+## Upgrading to 4.2.3
+
+An empty `availableDisplayTypes` list offers only Dropdown, where it offered every display type before. The default is `['*']`, which offers all six. If `config/variant-manager.php` sets `'availableDisplayTypes' => []`, change it to `['*']` to keep every type.
+
+If `defaultDisplayType` names a type that `availableDisplayTypes` doesn't offer, newly registered attributes get the first offered type. To keep another default, add its type to **Available Display Types** at **Variant Manager -> Settings** and save, then choose it under **Default Display Type**. If `config/variant-manager.php` sets either setting, change it there.
+
+CSV variant and per-site headers match regardless of letter case. A `Title` column that earlier versions ignored now sets variant titles.
+
+Options can no longer move to another attribute. To put an option under another attribute, delete it once no variant uses it, then create it again there.
 
 ## Upgrading to 4.2.0
 

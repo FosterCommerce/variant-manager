@@ -176,9 +176,9 @@ Variant field handles the **Bulk edit field** action can set. `inventoryTracked`
 ### `availableDisplayTypes`
 
 - Type: `list<string>`
-- Default: `[]`
+- Default: `['*']`
 
-Display types offered in the **Display Type** menu on an attribute. While this is empty, or while `'*'` is in it, every type is offered. Use it to hide the ones your templates do not render:
+Display types offered in the **Display Type** menu on an attribute. While `'*'` is in it, every type is offered. Use it to hide the ones your templates do not render:
 
 ```php
 return [
@@ -186,7 +186,7 @@ return [
 ];
 ```
 
-Valid values are `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `colorSwatches`, and `lightswitch`. An unrecognized value is skipped.
+Valid values are `dropdown`, `radioButtons`, `textButtons`, `imageSwatches`, `colorSwatches`, and `lightswitch`. An unrecognized value is skipped. If the list is empty, or has only unrecognized values, only `dropdown` is offered.
 
 An attribute already set to a type this list omits keeps it, and the menu still shows it, so no attribute is rewritten on the next save. Change that attribute and the omitted type is gone from its menu.
 
@@ -216,7 +216,7 @@ This setting is also editable at **Variant Manager -> Settings**. A value here o
 
 Display type given to an attribute the first time it is registered. The **New attribute** slideout sets its own type instead. Attributes that already exist keep the type they have.
 
-Takes the same values as `availableDisplayTypes`. An unrecognized value falls back to `dropdown`. This setting is also editable at **Variant Manager -> Settings**, where the menu offers only the types `availableDisplayTypes` allows.
+Takes the same values as `availableDisplayTypes`. An unrecognized value, or a type `availableDisplayTypes` doesn't offer, falls back to the first type `availableDisplayTypes` offers. This setting is also editable at **Variant Manager -> Settings**, where the menu offers only the types `availableDisplayTypes` allows. A value here overrides what that screen saves, and the control shows a warning saying so.
 
 ## Supported field types
 

@@ -4,8 +4,6 @@ namespace fostercommerce\variantmanager\elements;
 
 use Craft;
 use craft\base\Element;
-use craft\db\Query;
-use craft\db\Table as CraftTable;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Duplicate;
 use craft\elements\deletionblockers\DeletionBlockerInterface;
@@ -285,47 +283,16 @@ class VariantAttribute extends Element
 	}
 
 	/**
-	 * @throws InvalidConfigException
+	 * @param array<string, mixed> $values
 	 */
-	public function afterMoveInStructure(int $structureId): void
+	public function setAttributesFromRequest(array $values): void
 	{
-		// Read the parent from the structure table. m260914 moves options before the fieldSetUid column exists.
-		$attributeId = (int) (new Query())
-			->select(['elementId'])
-			->from(CraftTable::STRUCTUREELEMENTS)
-			->where([
-				'structureId' => $structureId,
-			])
-			->andWhere(['<', 'lft', $this->lft])
-			->andWhere(['>', 'rgt', $this->rgt])
-			->orderBy([
-				'lft' => SORT_DESC,
-			])
-			->scalar();
-
-		if ($attributeId !== $this->attributeId) {
-			$this->attributeId = $attributeId;
-
-			// Update the drafts and revisions too, because applying a draft writes its row back over the canonical record
-			Db::update(Table::ATTRIBUTES, [
-				'attributeId' => $attributeId,
-			], [
-				'id' => (new Query())
-					->select(['id'])
-					->from(CraftTable::ELEMENTS)
-					->where([
-						'or',
-						[
-							'id' => $this->id,
-						],
-						[
-							'canonicalId' => $this->id,
-						],
-					]),
-			]);
+		// Keep a saved option under its attribute, because variants store each option under its attribute's name
+		if ($this->id !== null && ! $this->getIsUnpublishedDraft()) {
+			unset($values['attributeId']);
 		}
 
-		parent::afterMoveInStructure($structureId);
+		parent::setAttributesFromRequest($values);
 	}
 
 	public function afterSave(bool $isNew): void
@@ -359,8 +326,8 @@ class VariantAttribute extends Element
 				$this->placeInStructure();
 			}
 
-			// Compare against the structure, because applying a draft clears the dirty attributes attributeId would be in
-			if (! $isNew && $this->getIsCanonical() && $this->isOption()) {
+			// Re-place a new option whose attribute was changed in the sidebar before it was created
+			if (! $isNew && $this->getIsUnpublishedDraft() && $this->isOption()) {
 				$placedUnder = self::find()->ancestorOf($this)->ancestorDist(1)->status(null)->one();
 
 				if (! $placedUnder instanceof self || (int) $placedUnder->id !== $this->attributeId) {
@@ -733,15 +700,18 @@ class VariantAttribute extends Element
 			'label' => Craft::t('variant-manager', 'options.usedBy'),
 		]);
 
-		$fields .= Cp::selectFieldHtml([
-			'label' => Craft::t('variant-manager', 'attributes.attribute'),
-			'id' => 'attributeId',
-			'name' => 'attributeId',
-			'options' => ArrayHelper::map(self::find()->attributeId(0)->all(), 'id', 'name'),
-			'value' => $this->attributeId,
-			'disabled' => $static,
-			'errors' => $this->getErrors('attributeId'),
-		]);
+		// Offer the attribute only before the option is created, because no variant stores it yet
+		if ($this->getIsUnpublishedDraft()) {
+			$fields .= Cp::selectFieldHtml([
+				'label' => Craft::t('variant-manager', 'attributes.attribute'),
+				'id' => 'attributeId',
+				'name' => 'attributeId',
+				'options' => ArrayHelper::map(self::find()->attributeId(0)->all(), 'id', 'name'),
+				'value' => $this->attributeId,
+				'disabled' => $static,
+				'errors' => $this->getErrors('attributeId'),
+			]);
+		}
 
 		$fields .= $this->systemNameFieldHtml();
 

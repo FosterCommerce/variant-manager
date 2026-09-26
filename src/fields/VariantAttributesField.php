@@ -6,6 +6,8 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\base\PreviewableFieldInterface;
+use craft\commerce\elements\Variant;
+use craft\commerce\models\ProductType;
 use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
@@ -72,6 +74,7 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 			'namespacedId' => $namespacedId,
 			'rows' => $this->registryRows($value),
 			'multipleFieldsExist' => ! FieldHelper::isFirstVariantAttributesField($this, $element),
+			'variantMaker' => $this->offersVariantMaker($element) ? 'enabled' : 'disabled',
 		]);
 	}
 
@@ -141,6 +144,13 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 		}
 
 		return $qb->buildCondition(implode(' OR ', $conditions), $params);
+	}
+
+	private function offersVariantMaker(?ElementInterface $element): bool
+	{
+		$productType = $element instanceof Variant ? $element->getFieldLayout()?->provider : null;
+
+		return $productType instanceof ProductType && Plugin::getInstance()->getSettings()->offersVariantMaker((string) $productType->handle);
 	}
 
 	/**

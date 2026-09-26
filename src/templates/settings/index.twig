@@ -28,7 +28,7 @@
 	{% endif %}
 
 	{% set availableDisplayTypes = settings.availableDisplayTypes %}
-	{% set displayTypeValues = (availableDisplayTypes is empty or '*' in availableDisplayTypes) ? '*' : availableDisplayTypes %}
+	{% set displayTypeValues = '*' in availableDisplayTypes ? '*' : settings.getAvailableDisplayTypes()|map(displayType => displayType.value) %}
 
 	{{ forms.checkboxSelectField({
 		label: 'settings.availableDisplayTypes'|t('variant-manager'),
@@ -58,7 +58,7 @@
 		instructions: 'settings.defaultDisplayTypeIntro'|t('variant-manager'),
 		name: 'settings[defaultDisplayType]',
 		options: defaultDisplayTypeOptions,
-		value: settings.defaultDisplayType,
+		value: defaultDisplayType,
 		disabled: readOnly,
 		errors: settings.getErrors('defaultDisplayType'),
 		warning: configWarning('defaultDisplayType'),

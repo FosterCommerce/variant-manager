@@ -62,7 +62,7 @@ class Settings extends Model
 	/**
 	 * @var list<string>
 	 */
-	public array $availableDisplayTypes = [];
+	public array $availableDisplayTypes = ['*'];
 
 	/**
 	 * @var list<string> handles of the product types whose products offer the Variant Maker
@@ -96,6 +96,11 @@ class Settings extends Model
 				(array) $values['availableDisplayTypes'],
 				static fn (mixed $displayType): bool => $displayType !== ''
 			));
+
+			// Store Dropdown for an empty list, because project config drops an empty array and the default offers every type
+			if ($values['availableDisplayTypes'] === []) {
+				$values['availableDisplayTypes'] = [DisplayType::Dropdown->value];
+			}
 		}
 
 		if (isset($values['variantMakerProductTypes'])) {
@@ -123,13 +128,18 @@ class Settings extends Model
 	}
 
 	/**
-	 * @return list<DisplayType>
+	 * @return non-empty-list<DisplayType>
 	 */
 	public function getAvailableDisplayTypes(?string $currentDisplayType = null): array
 	{
-		$displayTypes = $this->availableDisplayTypes === [] || in_array('*', $this->availableDisplayTypes, true)
+		$displayTypes = in_array('*', $this->availableDisplayTypes, true)
 			? DisplayType::cases()
 			: array_values(array_filter(array_map(DisplayType::tryFrom(...), $this->availableDisplayTypes)));
+
+		// Offer Dropdown when no listed value is a known type
+		if ($displayTypes === []) {
+			$displayTypes = [DisplayType::Dropdown];
+		}
 
 		// Keep a stored type the config no longer lists, or the select posts a different one on the next save
 		$currentDisplayType = $currentDisplayType === null ? null : DisplayType::tryFrom($currentDisplayType);
@@ -142,7 +152,10 @@ class Settings extends Model
 
 	public function getDefaultDisplayType(): DisplayType
 	{
-		return DisplayType::tryFrom($this->defaultDisplayType) ?? DisplayType::Dropdown;
+		$defaultDisplayType = DisplayType::tryFrom($this->defaultDisplayType);
+		$availableDisplayTypes = $this->getAvailableDisplayTypes();
+
+		return in_array($defaultDisplayType, $availableDisplayTypes, true) ? $defaultDisplayType : $availableDisplayTypes[0];
 	}
 
 	public function offersVariantMaker(string $productTypeHandle): bool

@@ -567,7 +567,8 @@ class Plugin extends BasePlugin
 			static function (MoveElementEvent $moveElementEvent): void {
 				$element = $moveElementEvent->element;
 
-				if (! $element instanceof VariantAttribute) {
+				// An unpublished draft has no variants yet, so its attribute can still change
+				if (! $element instanceof VariantAttribute || $element->getIsUnpublishedDraft()) {
 					return;
 				}
 
@@ -588,16 +589,8 @@ class Plugin extends BasePlugin
 					throw new BadRequestHttpException(Craft::t('variant-manager', 'attributes.cannotNest'));
 				}
 
-				if ($newAttributeId === 0) {
-					throw new BadRequestHttpException(Craft::t('variant-manager', 'options.cannotUnnest'));
-				}
-
-				if ($element->nameTakenUnder($newAttributeId)) {
-					throw new BadRequestHttpException(Craft::t('variant-manager', 'options.nameTaken', [
-						'name' => $element->name,
-						'attribute' => (string) Plugin::getInstance()->getVariantAttributes()->getAttributeById($newAttributeId)?->name,
-					]));
-				}
+				// Refuse the option move, because variants store each option under its attribute's name
+				throw new BadRequestHttpException(Craft::t('variant-manager', 'options.cannotMove'));
 			},
 		);
 

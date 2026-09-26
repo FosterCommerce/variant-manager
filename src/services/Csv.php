@@ -739,16 +739,15 @@ class Csv extends Component
 		$csvHeader = $tabularDataReader->getHeader();
 		foreach ($csvHeader as $i => $heading) {
 			$heading = trim($heading);
-			$matchedCrossSiteFieldMap = array_filter($crossSiteProductTypeMap, static fn ($mapping): bool => $heading === $mapping, ARRAY_FILTER_USE_KEY);
-			$matchedVariantFieldMap = array_filter($variantSiteMap, static fn ($mapping): bool => str_starts_with($heading, $mapping), ARRAY_FILTER_USE_KEY);
+			$matchedCrossSiteFieldMap = array_filter($crossSiteProductTypeMap, static fn ($mapping): bool => strcasecmp($heading, $mapping) === 0, ARRAY_FILTER_USE_KEY);
+			$matchedVariantFieldMap = array_filter($variantSiteMap, static fn ($mapping): bool => stripos($heading, $mapping) === 0, ARRAY_FILTER_USE_KEY);
 
 			if ($matchedCrossSiteFieldMap !== []) {
-				// A standard field the map omits matches on its own name, and has no entry to look up
-				$variantMap[$productTypeMap[$heading] ?? $heading] = $i;
+				$variantMap[current($matchedCrossSiteFieldMap)] = $i;
 			} elseif ($matchedVariantFieldMap !== []) {
 				$key = array_key_first($matchedVariantFieldMap);
 				$value = $matchedVariantFieldMap[$key];
-				$pattern = '/' . preg_quote($key, '/') . '\[(.*?)\]$/';
+				$pattern = '/' . preg_quote($key, '/') . '\[(.*?)\]$/i';
 				if (preg_match($pattern, $heading, $matches) !== 1) {
 					throw new ImportDataException(Craft::t('variant-manager', 'import.missingSiteHandle', [
 						'heading' => $heading,
