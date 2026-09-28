@@ -573,11 +573,6 @@ class Plugin extends BasePlugin
 					return;
 				}
 
-				// A new option has no variants yet, so its attribute can still change
-				if ($element->getIsUnpublishedDraft() && $element->isOption()) {
-					return;
-				}
-
 				$target = $moveElementEvent->getTargetElement();
 
 				$newAttributeId = match (true) {
@@ -586,7 +581,20 @@ class Plugin extends BasePlugin
 					default => $target->attributeId,
 				};
 
+				// A new option has no variants yet, so it can move under any attribute
+				if ($element->getIsUnpublishedDraft() && $element->isOption()
+					&& Plugin::getInstance()->getVariantAttributes()->getAttributeById($newAttributeId) instanceof VariantAttribute) {
+					return;
+				}
+
 				if ($newAttributeId === $element->attributeId) {
+					return;
+				}
+
+				$refusal = $element->moveIssue($newAttributeId);
+
+				// Allow the move to another attribute, which afterMoveInStructure() records
+				if ($refusal === null) {
 					return;
 				}
 
@@ -594,12 +602,7 @@ class Plugin extends BasePlugin
 				Craft::$app->getMutex()->release('structure:' . $moveElementEvent->structureId);
 
 				// Throw rather than invalidate the event, because Structures reports a refusal with no message
-				if (! $element->isOption()) {
-					throw new BadRequestHttpException(Craft::t('variant-manager', 'attributes.cannotNest'));
-				}
-
-				// Refuse the option move, because variants store each option under its attribute's name
-				throw new BadRequestHttpException(Craft::t('variant-manager', 'options.cannotMove'));
+				throw new BadRequestHttpException($refusal);
 			},
 		);
 

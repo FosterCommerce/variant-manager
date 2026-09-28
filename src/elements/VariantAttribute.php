@@ -241,6 +241,49 @@ class VariantAttribute extends Element
 		}
 	}
 
+	/**
+	 * Why the saved record can't move under the given attribute, or null where it can.
+	 */
+	public function moveIssue(int $targetAttributeId): ?string
+	{
+		// Check an unpublished draft against itself, because it has no saved record yet. A draft being applied has no stored record either.
+		$canonicalId = $this->getCanonicalId();
+		$stored = $this->getIsUnpublishedDraft() || $canonicalId === null ? $this : self::find()->id($canonicalId)->trashed(null)->one();
+
+		if (! $stored instanceof self || $stored->attributeId === $targetAttributeId) {
+			return null;
+		}
+
+		if (! $stored->isOption()) {
+			return Craft::t('variant-manager', 'attributes.cannotNest');
+		}
+
+		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
+		$target = $variantAttributes->getAttributeById($targetAttributeId);
+
+		if (! $target instanceof self) {
+			return Craft::t('variant-manager', 'options.cannotMove');
+		}
+
+		// Refuse a move across field sets, because the option's field values belong to its attribute's field set
+		if ($target->fieldSetUid !== $stored->getParentAttribute()?->fieldSetUid) {
+			return Craft::t('variant-manager', 'options.moveFieldSet', [
+				'attribute' => $target->name,
+			]);
+		}
+
+		// Check the name being saved, which a rename in the same save can change
+		if ($this->nameKeyTaken($targetAttributeId, $this->nameKey !== '' ? $this->nameKey : $stored->nameKey, (int) $stored->id)) {
+			return Craft::t('variant-manager', 'options.nameTaken', [
+				'name' => $this->name !== '' ? $this->name : $stored->name,
+				'attribute' => $target->name,
+			]);
+		}
+
+		// Refuse a move while variants use the option, because they match it by its current attribute's name
+		return $variantAttributes->isOptionInUse($stored) ? Craft::t('variant-manager', 'options.moveInUse') : null;
+	}
+
 	public function validateNameNotTaken(): void
 	{
 		if (! $this->nameTaken()) {
@@ -276,9 +319,17 @@ class VariantAttribute extends Element
 	{
 		$postedAttributeId = $values['attributeId'] ?? null;
 
-		// Let only a new option change its attribute, because variants store each option under its attribute's name
+		$loadedAttributeId = $values['loadedAttributeId'] ?? null;
+		unset($values['loadedAttributeId']);
+
+		// Let an option change to another attribute, but never become an attribute
 		$picksAttribute = $this->id === null
-			|| ($this->getIsUnpublishedDraft() && $this->isOption() && is_numeric($postedAttributeId) && (int) $postedAttributeId !== 0);
+			|| ($this->isOption() && is_numeric($postedAttributeId) && (int) $postedAttributeId !== 0);
+
+		// Ignore the attribute from a form opened before a saved option moved, so an older form can't move it back
+		if (! $this->getIsUnpublishedDraft() && is_numeric($loadedAttributeId) && (int) $loadedAttributeId !== $this->attributeId) {
+			$picksAttribute = false;
+		}
 
 		if (! $picksAttribute) {
 			unset($values['attributeId']);
@@ -327,13 +378,14 @@ class VariantAttribute extends Element
 				$this->placeInStructure();
 			}
 
-			// Re-place a new option whose attribute was changed in the sidebar before it was created
-			if (! $isNew && $this->getIsUnpublishedDraft() && $this->isOption()) {
+			// Re-place an option whose attribute changed in the sidebar
+			if (! $isNew && $this->isOption()) {
 				$placedUnder = self::find()->ancestorOf($this)->ancestorDist(1)->one();
 
 				if (! $placedUnder instanceof self || (int) $placedUnder->id !== $this->attributeId) {
 					$this->parentAttribute = null;
 					$this->placeInStructure();
+					Plugin::getInstance()->getVariantAttributes()->forgetOptionUsage($this);
 				}
 			}
 
@@ -344,6 +396,32 @@ class VariantAttribute extends Element
 		}
 
 		parent::afterSave($isNew);
+	}
+
+	/**
+	 * @throws InvalidConfigException
+	 */
+	public function afterMoveInStructure(int $structureId): void
+	{
+		// Record a dragged option's new attribute, because a structure move changes only its place in the tree
+		if ($this->isOption()) {
+			$parent = self::find()->ancestorOf($this)->ancestorDist(1)->one();
+
+			if ($parent instanceof self && ! $parent->isOption() && (int) $parent->id !== $this->attributeId) {
+				$record = VariantAttributeRecord::findOne($this->id);
+
+				if (! $record instanceof VariantAttributeRecord) {
+					throw new InvalidConfigException("Invalid variant attribute ID: {$this->id}");
+				}
+
+				$record->attributeId = (int) $parent->id;
+				$record->save(false);
+				$this->setParentAttribute($parent);
+				Plugin::getInstance()->getVariantAttributes()->forgetOptionUsage($this);
+			}
+		}
+
+		parent::afterMoveInStructure($structureId);
 	}
 
 	public function afterRestore(): void
@@ -413,6 +491,16 @@ class VariantAttribute extends Element
 		$this->structureId = Plugin::getInstance()->getVariantAttributes()->getStructureId();
 		$this->name = $this->resolvedName();
 		$this->nameKey = self::normalizeName($this->name);
+
+		// Refuse the move on every save, because saving from code can skip validation
+		if (! $isNew && $this->getIsCanonical()) {
+			$moveIssue = $this->moveIssue($this->attributeId);
+
+			if ($moveIssue !== null) {
+				$this->addError('attributeId', $moveIssue);
+				return false;
+			}
+		}
 
 		return parent::beforeSave($isNew);
 	}
@@ -656,16 +744,19 @@ class VariantAttribute extends Element
 			return false;
 		}
 
+		return $this->nameKeyTaken($this->attributeId, $nameKey, $this->getCanonicalId());
+	}
+
+	private function nameKeyTaken(int $attributeId, string $nameKey, ?int $exceptId): bool
+	{
 		$query = self::find()
-			->attributeId($this->attributeId)
+			->attributeId($attributeId)
 			->nameKey($nameKey)
 			// A trashed record keeps its nameKey, so the unique index still rejects a duplicate
 			->trashed(null);
 
-		$canonicalId = $this->getCanonicalId();
-
-		if ($canonicalId !== null) {
-			$query->id("not {$canonicalId}");
+		if ($exceptId !== null) {
+			$query->id("not {$exceptId}");
 		}
 
 		return $query->exists();
@@ -747,18 +838,15 @@ class VariantAttribute extends Element
 			'label' => Craft::t('variant-manager', 'options.usedBy'),
 		]);
 
-		// Offer the attribute only before the option is created, because no variant stores the option yet
-		if ($this->getIsUnpublishedDraft()) {
-			$fields .= Cp::selectFieldHtml([
-				'label' => Craft::t('variant-manager', 'attributes.attribute'),
-				'id' => 'attributeId',
-				'name' => 'attributeId',
-				'options' => ArrayHelper::map(self::find()->attributeId(0)->all(), 'id', 'name'),
-				'value' => $this->attributeId,
-				'disabled' => $static,
-				'errors' => $this->getErrors('attributeId'),
-			]);
-		}
+		$fields .= Cp::selectFieldHtml([
+			'label' => Craft::t('variant-manager', 'attributes.attribute'),
+			'id' => 'attributeId',
+			'name' => 'attributeId',
+			'options' => ArrayHelper::map(self::find()->attributeId(0)->all(), 'id', 'name'),
+			'value' => $this->attributeId,
+			'disabled' => $static,
+			'errors' => $this->getErrors('attributeId'),
+		]) . Html::hiddenInput('loadedAttributeId', (string) ($this->id === null ? $this->attributeId : VariantAttributeRecord::findOne($this->id)?->attributeId));
 
 		$fields .= $this->systemNameFieldHtml();
 

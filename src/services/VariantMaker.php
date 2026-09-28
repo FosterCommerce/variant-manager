@@ -278,12 +278,13 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * Settings from their stored JSON, without rows whose attribute or options were deleted since.
+	 * Settings from their stored JSON, without rows or options that were deleted or moved to another attribute since.
 	 */
 	public function settingsFromJson(?string $json): VariantMakerSettings
 	{
 		$settings = VariantMakerSettings::fromJson($json);
-		$settings->forgetMissing($this->registeredIds($settings));
+		$attributeIdsById = $this->registeredAttributeIds($settings);
+		$settings->forgetMissing(array_keys($attributeIdsById), $attributeIdsById);
 
 		return $settings;
 	}
@@ -332,8 +333,9 @@ class VariantMaker extends Component
 			if ($attribute instanceof VariantAttribute) {
 				$rows[] = [
 					'attribute' => $attribute,
+					// Leave out a posted option that moved to another attribute after the form loaded
 					'options' => array_values(array_filter(array_map(
-						static fn (int $optionId): ?VariantAttribute => $elementsById[$optionId] ?? null,
+						static fn (int $optionId): ?VariantAttribute => ($elementsById[$optionId] ?? null)?->attributeId === $attribute->id ? $elementsById[$optionId] : null,
 						$row['optionIds'],
 					))),
 				];
@@ -1164,9 +1166,11 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * @return list<int>
+	 * Each registered record's attributeId, keyed by the record's ID, for the IDs the settings name.
+	 *
+	 * @return array<int, int>
 	 */
-	private function registeredIds(VariantMakerSettings $settings): array
+	private function registeredAttributeIds(VariantMakerSettings $settings): array
 	{
 		$ids = $this->idsIn($settings);
 
@@ -1175,8 +1179,8 @@ class VariantMaker extends Component
 		}
 
 		return array_map(
-			static fn (VariantAttribute $attribute): int => (int) $attribute->id,
-			VariantAttribute::find()->id($ids)->all(),
+			static fn (VariantAttribute $variantAttribute): int => $variantAttribute->attributeId,
+			VariantAttribute::find()->id($ids)->indexBy('id')->all(),
 		);
 	}
 

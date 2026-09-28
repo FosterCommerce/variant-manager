@@ -148,4 +148,6 @@ An option is unique per attribute by its normalized name, so `Blue` and `blue` a
 
 A registered value that no variant uses stays until you delete it or the orphan prune removes it. For the prune, see [removing records](../user-guide/variant-attributes.md#removing-records).
 
+Saving an option with a different `attributeId` fails where the control panel blocks the move, with the reason as an error on `attributeId`. `VariantAttribute::moveIssue($attributeId)` returns that reason, or `null` where the move is allowed.
+
 The plugin does not delete an attribute or option a variant still stores. Deleting an unused one leaves every variant unchanged, because a variant stores the name and value as strings. See [variant attributes](../user-guide/variant-attributes.md).

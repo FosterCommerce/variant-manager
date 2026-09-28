@@ -5,7 +5,7 @@
 ### Added
 
 - Added current stock to the Variant Maker preview.
-- Added `Csv::productIdFromFilename()`, `Import::fromCsvData()`, `VariantAttribute::cleanName()`, `VariantAttributes::getVariantAttributesFields()`, `VariantAttributes::pairKey()`, `VariantAttributesField::pairConditionIgnoringCase()`, `VariantMaker::inventoryLocationIssue()`, `VariantMaker::planIssue()`, `VariantMaker::settingsFromJson()`, `VariantMaker::variantLimitIssue()`, and `VariantMakerSettings::isPlainDecimal()`.
+- Added `Csv::productIdFromFilename()`, `Import::fromCsvData()`, `VariantAttribute::cleanName()`, `VariantAttribute::moveIssue()`, `VariantAttributes::forgetOptionUsage()`, `VariantAttributes::getVariantAttributesFields()`, `VariantAttributes::pairKey()`, `VariantAttributesField::pairConditionIgnoringCase()`, `VariantMaker::inventoryLocationIssue()`, `VariantMaker::planIssue()`, `VariantMaker::settingsFromJson()`, `VariantMaker::variantLimitIssue()`, and `VariantMakerSettings::isPlainDecimal()`.
 
 ### Changed
 
@@ -22,6 +22,7 @@
 - “Generate variants” is now disabled while the builder has unsaved edits and on a named product draft, and a run now uses the settings saved when it was clicked.
 - The Variant Maker's Replace mode now also deletes extra variants that share a combination, and the Variant Maker now requires an inventory location for stock when the store has more than one.
 - `Csv::export()` now takes a `Product` and no longer returns `false`.
+- `VariantMakerSettings::forgetMissing()` now accepts each option's attribute ID, and drops options that moved to another attribute.
 
 ### Fixed
 
@@ -35,6 +36,8 @@
 - Fixed a bug where an import or Variant Maker error was replaced by a database error when its message was longer than 255 characters.
 - Fixed a bug where the `variantAttributes()` filter on MySQL missed matching variants, treated `%` and `_` as wildcards, and failed on MariaDB.
 - Fixed bugs where an attribute or option still in use could be deleted or pruned, and a Variant Attribute condition rule whose option was deleted matched every element.
+- Fixed a bug where an option that variants use could be moved to another attribute. ([#51](https://github.com/FosterCommerce/variant-manager/issues/51))
+- Fixed bugs where moving an option to an attribute with a different field set lost its field values, and a Variant Maker row kept an option that had moved to another attribute.
 - Fixed bugs where attribute and option names with commas, accents, numbers, or the words “And”, “Or”, and “Not” weren't found, were treated as one, or were renumbered.
 - Fixed errors that could occur when a variant stored a malformed attribute pair or a name longer than 255 characters, or an option price modifier was typed in the user's number format.
 - Fixed bugs on the Variant Attributes index where a restored record was missing, deleting an attribute could move an option to the top level, and “New option” reported no attribute while the listing was sorted.
@@ -47,7 +50,6 @@
 
 ### Removed
 
-- Removed the ability to move an option to another variant attribute. ([#51](https://github.com/FosterCommerce/variant-manager/issues/51))
 - Removed `Import::fromFilename()`. Use `Import::fromCsvData()` instead.
 - Removed `VariantAttributes::getAllAttributesWithOptions()`, `VariantAttribute::setOptions()`, and `VariantAttribute::nameTakenUnder()`.
 

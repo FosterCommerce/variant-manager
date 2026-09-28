@@ -158,11 +158,12 @@ class VariantMakerSettings extends Model
 	}
 
 	/**
-	 * Drops rows whose attribute or options are no longer registered, since the registry is what variants match on.
+	 * Drops rows and options that were deleted or moved to another attribute, since the registry is what variants match on.
 	 *
 	 * @param list<int> $knownIds
+	 * @param array<int, int> $attributeIdsByOptionId each known option's attribute, so an option moved away from a row's attribute is dropped
 	 */
-	public function forgetMissing(array $knownIds): void
+	public function forgetMissing(array $knownIds, array $attributeIdsByOptionId = []): void
 	{
 		$known = array_flip($knownIds);
 		$rows = [];
@@ -172,9 +173,11 @@ class VariantMakerSettings extends Model
 				continue;
 			}
 
-			$optionIds = array_values(array_filter($row['optionIds'], static fn (int $optionId): bool => isset($known[$optionId])));
+			// Drop an option that moved to another attribute, because the row builds pairs under its own attribute
+			$optionIds = array_values(array_filter($row['optionIds'], static fn (int $optionId): bool => isset($known[$optionId])
+				&& ($attributeIdsByOptionId[$optionId] ?? $row['attributeId']) === $row['attributeId']));
 
-			// Drop a row whose options were all deleted, because a row without options fails every product save
+			// Drop a row whose options were all deleted or moved, because a row without options fails every product save
 			if ($optionIds === [] && $row['optionIds'] !== []) {
 				continue;
 			}

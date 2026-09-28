@@ -185,7 +185,8 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 				? null
 				: VariantAttribute::find()->id((int) $this->value)->one();
 
-			$this->selectedOption = $option instanceof VariantAttribute ? $option : false;
+			// Treat an option that moved to another attribute like a deleted one, so the rule matches no element
+			$this->selectedOption = $option instanceof VariantAttribute && $option->attributeId === $this->attributeId ? $option : false;
 		}
 
 		return $this->selectedOption === false ? null : $this->selectedOption;

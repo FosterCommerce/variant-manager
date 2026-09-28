@@ -34,7 +34,7 @@ Every row needs both an attribute and at least one option. If either is empty, t
 
 Row order sets the order the Variant Maker assembles SKU partials in, for the default SKU format below.
 
-Two rows can't use the same attribute. The Variant Maker drops a row whose attribute, or every option, has been deleted.
+Two rows can't use the same attribute. The Variant Maker leaves out an option that was deleted or moved to another attribute, and removes a row whose attribute was deleted or whose options were all deleted or moved.
 
 ## What to do with existing variants
 

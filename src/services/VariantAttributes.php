@@ -312,6 +312,14 @@ class VariantAttributes extends Component
 		);
 	}
 
+	/**
+	 * Drop the option's cached Used by count, because the count follows the option's attribute name.
+	 */
+	public function forgetOptionUsage(VariantAttribute $option): void
+	{
+		Craft::$app->getCache()?->delete("variant-manager:option-usage:{$option->id}");
+	}
+
 	public function isOptionInUse(VariantAttribute $option): bool
 	{
 		$attribute = $option->getParentAttribute();

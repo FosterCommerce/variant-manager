@@ -50,7 +50,7 @@ The control panel labels a record by its display name, with the system name in i
 
 **Variant Manager -> Variant Attributes** has a **New attribute** button, and so does a Variant Maker row's **Attribute** picker. Once a row has an attribute, the row's **Options** picker has a **New option** button, which creates the option under that attribute.
 
-A menu beside **New attribute** on the index offers **New attribute** or **New option**. If no attribute exists, **New option** reports "Create an attribute before adding an option." A new option starts under the first attribute in the index's default order, even while the listing is sorted by a column. To put it under another, choose that attribute under **Variant Attribute** in its slideout before you create it. An option can't move to another attribute after it is created.
+A menu beside **New attribute** on the index offers **New attribute** or **New option**. If no attribute exists, **New option** reports "Create an attribute before adding an option." A new option starts under the first attribute in the index's default order, even while the listing is sorted by a column. To put it under another, choose that attribute under **Variant Attribute** in its slideout.
 
 **New attribute** and **New option** open a slideout. Fill in **Display Name**. The control panel copies it into **System Name** as you type. To store different text, such as a short code your other systems already use, change **System Name**.
 
@@ -62,7 +62,15 @@ A new option starts with no **SKU Partial** and no **Price Modifier**. For what 
 
 **Variant Manager -> Variant Attributes** lists every attribute with its options nested under it, the way entries in a Structure section are. Each record shows its **Display Name**, then **System Name**, **Display Type**, and **Field Set**, with **Date Created** available from the column menu. **Display Type** and **Field Set** are blank for an option. Both are set on the attribute and cover its options. Open an option to see its **Used by** count.
 
-An option belongs to the attribute it is nested under, so `Blue` under `Color` and `Blue` under `Trim` are separate records with their own fields. Drag a record to reorder it. The control panel blocks moving an option to another attribute or out to the top level, because variants store each value under its attribute's name. It also blocks nesting an attribute under another attribute. To put a saved option under another attribute, delete it and create it again under that attribute. See [removing records](#removing-records).
+An option belongs to the attribute it is nested under, so `Blue` under `Color` and `Blue` under `Trim` are separate records with their own fields. Drag a record to reorder it. To move an option to another attribute, drag it there or choose the attribute under **Variant Attribute** in its sidebar. The move keeps the option's field values, **SKU Partial**, and **Price Modifier**. The control panel blocks the move:
+
+- while any variant uses the option, because variants match each value by its attribute's name. Take the option off every variant first.
+- where the other attribute uses a different field set, because the option's field values belong to its attribute's field set.
+- where the other attribute already has an option with the same system name.
+
+The control panel also blocks moving an option to the top level or under another option, and nesting an attribute under another attribute.
+
+After a move, a Variant Attribute condition rule that selected the option under its old attribute matches no elements. For Variant Maker rows, see [attributes to combine](./variant-maker.md#attributes-to-combine).
 
 In the Variant Attributes field on a variant, each name and value is a chip. Click one to open its record in a slideout. Manage a variant's values with the [Variant Maker](./variant-maker.md) or a [CSV import](./importing.md). A name or value with no record yet shows as plain text until an import or the backfill registers it.
 
