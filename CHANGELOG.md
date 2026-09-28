@@ -1,5 +1,11 @@
 # Release Notes for Variant Manager
 
+## 4.3.2 - 2026-09-28
+
+### Fixed
+
+- Fixed the changelog, which was missing the 4.3.1 release notes and listed 4.3.1 changes under 4.3.0.
+
 ## 4.3.1 - 2026-09-28
 
 ### Added
