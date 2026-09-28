@@ -1,6 +1,14 @@
 # Upgrading
 
-Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, 4.1.0, 4.2.0, and 4.3.0 sections in that order. A store on 4.0.x needs the 4.1.0, 4.2.0, and 4.3.0 sections.
+Work through every section newer than your current version, oldest first. Coming from 2.x means the 3.x, 4.x, 4.1.0, 4.2.0, 4.3.0, and 4.3.1 sections in that order. A store on 4.0.x needs the 4.1.0, 4.2.0, 4.3.0, and 4.3.1 sections.
+
+## Upgrading to 4.3.1
+
+Options can move to another attribute again.
+
+- An option moves to another attribute only while no variant uses it, and only to an attribute with the same field set. See [where to find them](./user-guide/variant-attributes.md#where-to-find-them).
+- A Variant Attribute condition rule that selects an option moved to another attribute matches no elements, including options moved before updating. Check catalog pricing rules and other conditions that select a moved option.
+- A Variant Maker row leaves out an option moved to another attribute, and a row whose options all moved is removed. Check the **Variant Maker** tab on products that used a moved option, then save the product.
 
 ## Upgrading to 4.3.0
 
@@ -37,9 +45,7 @@ If `defaultDisplayType` names a type that `availableDisplayTypes` doesn't offer,
 
 ### Attributes and filters
 
-- An option moves to another attribute only while no variant uses it, and only to an attribute with the same field set. See [where to find them](./user-guide/variant-attributes.md#where-to-find-them).
-- A Variant Attribute condition rule that selects an option moved to another attribute matches no elements, including options moved before updating. Check catalog pricing rules and other conditions that select a moved option.
-- A Variant Maker row leaves out an option moved to another attribute, and a row whose options all moved is removed. Check the **Variant Maker** tab on products that used a moved option, then save the product.
+- Options can no longer move to another attribute. To put an option under another attribute, delete it once no variant uses it, then create it again there.
 - On MySQL, `variantAttributes()` filters now match names and values case-sensitively, as on Postgres, and `%` and `_` match literally. Check that storefront filters pass names and values in their stored case.
 - The Variant Attribute condition rule now ignores letter case, so a catalog pricing rule or other condition that selects `Red` also matches variants storing `red`. Deleting an option is blocked while a variant stores its value in any letter case, on any site, or in any Variant Attributes field.
 
