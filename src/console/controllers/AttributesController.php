@@ -37,17 +37,26 @@ class AttributesController extends Controller
 	public function actionBackfill(): int
 	{
 		$variantAttributes = Plugin::getInstance()->getVariantAttributes();
-		$variantCount = 0;
+		$variantIds = [];
 
-		foreach (Variant::find()->status(null)->batch($this->batchSize) as $variants) {
-			/** @var array<Variant> $variants */
-			$variantCount += count($variants);
-			$variantAttributes->ensureFromAttributePairs(array_values($variantAttributes->attributePairs($variants)));
+		$variantBatches = Variant::find()->status(null)->site('*')->orderBy([
+			'elements.id' => SORT_ASC,
+			'elements_sites.siteId' => SORT_ASC,
+		])->batch($this->batchSize);
+
+		foreach ($variantBatches as $variantBatch) {
+			/** @var array<Variant> $variantBatch */
+			foreach ($variantBatch as $variant) {
+				$variantIds[(int) $variant->id] = true;
+			}
+
+			$variantAttributes->ensureFromAttributePairs(array_values($variantAttributes->attributePairs($variantBatch)));
 
 			$this->stdout('.');
 		}
 
 		$this->stdout(PHP_EOL);
+		$variantCount = count($variantIds);
 		$this->stdout("Read {$variantCount} variants. New attributes and options are listed in the activity log." . PHP_EOL, Console::FG_GREEN);
 
 		return ExitCode::OK;

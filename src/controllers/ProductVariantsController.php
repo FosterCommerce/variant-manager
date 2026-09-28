@@ -6,7 +6,7 @@ use Craft;
 use craft\commerce\elements\Product;
 use craft\commerce\models\ProductType;
 use craft\commerce\Plugin as CommercePlugin;
-use craft\helpers\Db;
+use craft\elements\User;
 use craft\helpers\FileHelper;
 use craft\helpers\Queue;
 use craft\web\Controller;
@@ -15,6 +15,7 @@ use fostercommerce\variantmanager\errors\FieldMapException;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
 use fostercommerce\variantmanager\jobs\Import as ImportJob;
 use fostercommerce\variantmanager\Plugin;
+use fostercommerce\variantmanager\services\Csv;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -38,15 +39,12 @@ class ProductVariantsController extends Controller
 
 		/** @var string|null $uploadName */
 		$uploadName = $this->request->getQueryParam('name');
-		$productId = explode('__', (string) $uploadName)[0] ?? null;
-		if (! ctype_digit((string) $productId)) {
-			$productId = null;
-		}
+		$productId = Csv::productIdFromFilename((string) $uploadName);
 
 		$product = null;
 		if ($productId !== null) {
 			$product = Product::find()
-				->id(Db::escapeParam($productId))
+				->id($productId)
 				->status(null)
 				->one();
 
@@ -56,7 +54,7 @@ class ProductVariantsController extends Controller
 				]));
 			}
 
-			if (! PermissionHelper::canSaveProductType($product->getType())) {
+			if (! Craft::$app->getElements()->canSaveCanonical($product)) {
 				throw new ForbiddenHttpException('User not authorized to import into this product type.');
 			}
 		}
@@ -66,8 +64,11 @@ class ProductVariantsController extends Controller
 		/** @var CommercePlugin $commerce */
 		$commerce = CommercePlugin::getInstance();
 
+		// List only the product types the user can create a product in
 		foreach ($commerce->getProductTypes()->getAllProductTypes() as $productType) {
-			$productTypes[] = [$productType->handle, $productType->name];
+			if (Craft::$app->getElements()->canSaveCanonical($this->newProduct($productType))) {
+				$productTypes[] = [$productType->handle, $productType->name];
+			}
 		}
 
 		return $this->asJson([
@@ -98,7 +99,11 @@ class ProductVariantsController extends Controller
 				throw new BadRequestHttpException('No file was uploaded');
 			}
 
-			$fileType = pathinfo($uploadedFile->name, PATHINFO_EXTENSION);
+			if ($uploadedFile->getHasError()) {
+				throw new BadRequestHttpException(Craft::t('variant-manager', 'import.uploadFailed'));
+			}
+
+			$fileType = strtolower(pathinfo($uploadedFile->name, PATHINFO_EXTENSION));
 			if ($fileType === 'zip') {
 				$this->queueZipImports($uploadedFile, $productTypeHandle, $refreshVariants);
 			} elseif ($fileType === 'csv') {
@@ -113,8 +118,8 @@ class ProductVariantsController extends Controller
 			}
 		} catch (ForbiddenHttpException $forbiddenHttpException) {
 			throw $forbiddenHttpException;
-		} catch (\Exception $e) {
-			$this->setFailFlash($e->getMessage());
+		} catch (\Exception $exception) {
+			$this->setFailFlash($exception->getMessage());
 			return;
 		}
 
@@ -122,10 +127,10 @@ class ProductVariantsController extends Controller
 	}
 
 	/**
-	 * @throws \JsonException
 	 * @throws NotFoundHttpException
 	 * @throws ServerErrorHttpException
 	 * @throws BadRequestHttpException
+	 * @throws ForbiddenHttpException
 	 */
 	public function actionExport(): void
 	{
@@ -142,33 +147,35 @@ class ProductVariantsController extends Controller
 
 		$csvService = Plugin::getInstance()->getCsv();
 		$results = [];
+		/** @var User $currentUser */
+		$currentUser = static::currentUser();
 
 		foreach (explode('|', $ids) as $id) {
+			// Export disabled products and variants too
+			/** @var Product|null $product */
+			$product = Product::find()->id((int) $id)->status(null)->one();
+
+			if (! $product instanceof Product) {
+				throw new NotFoundHttpException("Product with ID {$id} not found");
+			}
+
+			// Export only products the user can view, because the file holds prices, inventory and custom fields
+			if (! Craft::$app->getElements()->canView($product, $currentUser)) {
+				throw new ForbiddenHttpException('User not authorized to export this product.');
+			}
+
 			try {
-				$result = $csvService->export($id);
+				$results[] = $csvService->export($product);
 			} catch (FieldMapException $fieldMapException) {
 				// Craft renders the message only for a UserException, and this one names the setting to fix
 				throw new ServerErrorHttpException($fieldMapException->getMessage(), 0, $fieldMapException);
 			}
-
-			if (! is_array($result)) {
-				throw new NotFoundHttpException("Product with ID {$id} not found");
-			}
-
-			/** @var array{filename: string, export: array<array-key, mixed>|string} $result */
-			$results[] = $result;
 		}
 
 		if ($download) {
 			if (count($results) === 1) {
 				$result = $results[0];
-				$filename = "{$result['filename']}.csv";
-				$result = $result['export'];
-				if (is_array($result)) {
-					$result = json_encode($result, JSON_THROW_ON_ERROR);
-				}
-
-				$this->response->sendContentAsFile($result, $filename, [
+				$this->response->sendContentAsFile($result['export'], "{$result['filename']}.csv", [
 					'mimeType' => 'text/csv',
 				]);
 			} else {
@@ -179,13 +186,7 @@ class ProductVariantsController extends Controller
 				}
 
 				foreach ($results as $result) {
-					$filename = "{$result['filename']}.csv";
-					$result = $result['export'];
-					if (is_array($result)) {
-						$result = json_encode($result, JSON_THROW_ON_ERROR);
-					}
-
-					$zipArchive->addFromString($filename, $result);
+					$zipArchive->addFromString("{$result['filename']}.csv", $result['export']);
 				}
 
 				$zipArchive->close();
@@ -218,8 +219,8 @@ class ProductVariantsController extends Controller
 			$filename = (string) $zip->getNameIndex($i);
 			$pathinfo = pathinfo($filename);
 
-			// Skip dotfiles and __MACOSX entries so only real CSVs are extracted
-			if (! str_starts_with($pathinfo['filename'], '.') && ($pathinfo['extension'] ?? null) === 'csv') {
+			// Skip dotfiles and __MACOSX entries so only real CSVs are queued
+			if (! str_starts_with($pathinfo['filename'], '.') && strtolower($pathinfo['extension'] ?? '') === 'csv') {
 				$filenames[] = $filename;
 			}
 		}
@@ -229,48 +230,69 @@ class ProductVariantsController extends Controller
 			$this->requireImportPermission($filename, $productTypeHandle);
 		}
 
-		$extractToDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'variant-manager';
-		$zip->extractTo($extractToDir, $filenames);
+		// Read entries rather than extract them, because an entry name can contain `../`
+		$csvDataByFilename = [];
 
 		foreach ($filenames as $filename) {
-			$file = $extractToDir . DIRECTORY_SEPARATOR . $filename;
+			$csvData = $zip->getFromName($filename);
+
+			if ($csvData === false) {
+				throw new BadRequestHttpException(Craft::t('variant-manager', 'import.unreadableZip'));
+			}
+
+			$csvDataByFilename[$filename] = $csvData;
+		}
+
+		foreach ($csvDataByFilename as $filename => $csvData) {
 			Queue::push(
-				ImportJob::fromFilename($file, $productTypeHandle, $refreshVariants),
+				ImportJob::fromCsvData($filename, $csvData, $productTypeHandle, $refreshVariants),
 				queue: Plugin::getInstance()->getQueue(),
 			);
-			unlink($file);
 		}
 	}
 
 	/**
-	 * A file writes to the product its id prefix names, or to the product type the post names on a create.
+	 * Ask Craft whether the user can save the product a file writes to, the way the product's edit page does.
 	 *
-	 * Falls back to the store-wide check where neither identifies a product type.
-	 *
+	 * @throws BadRequestHttpException
 	 * @throws ForbiddenHttpException
 	 */
 	private function requireImportPermission(string $filename, ?string $productTypeHandle): void
 	{
-		$productId = explode('__', basename($filename))[0];
+		$productId = Csv::productIdFromFilename($filename);
 
-		if (ctype_digit($productId)) {
-			/** @var Product|null $product */
-			$product = Product::find()->id((int) $productId)->status(null)->one();
-			$productType = $product?->getType();
+		if ($productId !== null) {
+			$product = Product::find()->id($productId)->status(null)->one();
+
+			if (! $product instanceof Product) {
+				throw new BadRequestHttpException(Craft::t('variant-manager', 'import.unknownProductId', [
+					'id' => $productId,
+				]));
+			}
 		} else {
 			/** @var CommercePlugin $commerce */
 			$commerce = CommercePlugin::getInstance();
 			$productType = $productTypeHandle === null
 				? null
 				: $commerce->getProductTypes()->getProductTypeByHandle($productTypeHandle);
+
+			if (! $productType instanceof ProductType) {
+				throw new BadRequestHttpException(Craft::t('variant-manager', 'import.invalidProductTypeHandle'));
+			}
+
+			$product = $this->newProduct($productType);
 		}
 
-		$allowed = $productType instanceof ProductType
-			? PermissionHelper::canSaveProductType($productType)
-			: PermissionHelper::canSaveAnyProductType();
-
-		if (! $allowed) {
+		if (! Craft::$app->getElements()->canSaveCanonical($product)) {
 			throw new ForbiddenHttpException('User not authorized to import into this product type.');
 		}
+	}
+
+	private function newProduct(ProductType $productType): Product
+	{
+		return new Product([
+			'typeId' => $productType->id,
+			'siteId' => Craft::$app->getSites()->getPrimarySite()->id,
+		]);
 	}
 }

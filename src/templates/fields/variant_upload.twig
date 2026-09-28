@@ -17,6 +17,7 @@
 		<div id="modal" class="modal fitted" style="">
 			<div class="body">
 				<div class="message" id="{{ id }}-message"></div>
+				<p class="light">{{ 'import.blankCellsNote'|t('variant-manager') }}</p>
 				<div class="actions {{ id }}-primary-actions" style="display: flex; flex-direction: column; align-items: flex-end; grid-gap: 1rem;">
 						<div id="{{ id }}-productTypeContainer" class="hidden"
 								style="display: flex; flex: 1; justify-content: flex-start; grid-gap: 1rem;">
@@ -98,7 +99,7 @@
 				btn.classList.add('disabled');
 
 				productName = file.name.split('.').slice(0, -1).join('.');
-				const fileType = file.name.split('.').slice(1, 2)[0];
+				const fileType = file.name.split('.').pop().toLowerCase();
 
 				async function checkExists() {
 					return fetch(Craft.getCpUrl('variant-manager/product-exists', { name: productName }), {
@@ -130,7 +131,7 @@
 						productTypeContainer.classList.remove("hidden");
 
 						productTypeSelection.innerHTML = result.productTypes.map((productType) => {
-							return `<option value="${productType[0]}">${productType[1]}</option>`;
+							return `<option value="${Craft.escapeHtml(productType[0])}">${Craft.escapeHtml(productType[1])}</option>`;
 						}).join("");
 
 						confirmBtn.innerHTML = "Process Zip";
@@ -146,7 +147,7 @@
 						productTypeContainer.classList.remove("hidden");
 
 						productTypeSelection.innerHTML = result.productTypes.map((productType) => {
-							return `<option value="${productType[0]}">${productType[1]}</option>`;
+							return `<option value="${Craft.escapeHtml(productType[0])}">${Craft.escapeHtml(productType[1])}</option>`;
 						}).join("");
 
 						confirmBtn.innerHTML = "Create Product";
@@ -168,7 +169,7 @@
 						confirmBtn.classList.add("edit");
 						refreshVariantsContainer.classList.remove("hidden");
 						message.innerHTML =
-							`Are you sure you want to edit an existing product named <strong>"${result.name}"</strong>?`;
+							`Are you sure you want to edit an existing product named <strong>"${Craft.escapeHtml(result.name)}"</strong>?`;
 					}
 
 					modal.show();

@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager\models;
 use Craft;
 use craft\base\Model;
 use craft\helpers\Json;
+use craft\helpers\Localization;
 use fostercommerce\variantmanager\services\VariantMaker;
 
 class VariantMakerSettings extends Model
@@ -74,6 +75,15 @@ class VariantMakerSettings extends Model
 			$settings->properties,
 		));
 
+		// Parse a price 4.2.2 stored as typed, such as "12,50"
+		$price = $settings->properties[self::PROPERTY_PRICE];
+
+		if (is_string($price->value) && ! self::isPlainDecimal($price->value)) {
+			/** @var string $normalizedPrice */
+			$normalizedPrice = Localization::normalizeNumber($price->value);
+			$price->value = $normalizedPrice;
+		}
+
 		return $settings;
 	}
 
@@ -83,7 +93,7 @@ class VariantMakerSettings extends Model
 	}
 
 	/**
-	 * Stock and out of stock purchases mean nothing on a variant the maker is not tracking inventory for.
+	 * Stock and out of stock purchases apply only while the maker tracks inventory, and a blank stock count doesn't write stock.
 	 */
 	public function manages(string $propertyName): bool
 	{
@@ -93,6 +103,10 @@ class VariantMakerSettings extends Model
 
 		if (! in_array($propertyName, [self::PROPERTY_STOCK, self::PROPERTY_ALLOW_OUT_OF_STOCK_PURCHASES], true)) {
 			return true;
+		}
+
+		if ($propertyName === self::PROPERTY_STOCK && $this->property($propertyName)->value === null) {
+			return false;
 		}
 
 		$tracked = $this->property(self::PROPERTY_INVENTORY_TRACKED);
@@ -125,10 +139,20 @@ class VariantMakerSettings extends Model
 			];
 		}
 
+		$properties = self::propertiesFromPost((array) ($postedSettings['properties'] ?? []));
+		$price = $properties[self::PROPERTY_PRICE];
+
+		// Parse the price in the merchant's locale, because the queue job runs in another
+		if (is_string($price->value)) {
+			/** @var string $normalizedPrice */
+			$normalizedPrice = Localization::normalizeNumber(trim($price->value));
+			$price->value = $normalizedPrice;
+		}
+
 		return new self([
 			'rows' => $rows,
 			'mode' => (string) ($postedSettings['mode'] ?? VariantMaker::MODE_ADD),
-			'properties' => self::propertiesFromPost((array) ($postedSettings['properties'] ?? [])),
+			'properties' => $properties,
 			'inventoryLocationId' => ($postedSettings['inventoryLocationId'] ?? '') === '' ? null : (int) $postedSettings['inventoryLocationId'],
 		]);
 	}
@@ -148,9 +172,16 @@ class VariantMakerSettings extends Model
 				continue;
 			}
 
+			$optionIds = array_values(array_filter($row['optionIds'], static fn (int $optionId): bool => isset($known[$optionId])));
+
+			// Drop a row whose options were all deleted, because a row without options fails every product save
+			if ($optionIds === [] && $row['optionIds'] !== []) {
+				continue;
+			}
+
 			$rows[] = [
 				'attributeId' => $row['attributeId'],
-				'optionIds' => array_values(array_filter($row['optionIds'], static fn (int $optionId): bool => isset($known[$optionId]))),
+				'optionIds' => $optionIds,
 			];
 		}
 
@@ -175,6 +206,8 @@ class VariantMakerSettings extends Model
 
 	public function validateRows(): void
 	{
+		$positionsByAttributeId = [];
+
 		foreach ($this->rows as $rowIndex => $row) {
 			$position = $rowIndex + 1;
 
@@ -185,12 +218,42 @@ class VariantMakerSettings extends Model
 				continue;
 			}
 
+			// Refuse a repeated attribute, because the selection keeps one row per attribute and drops the other's options
+			if (isset($positionsByAttributeId[$row['attributeId']])) {
+				$this->addError('rows', Craft::t('variant-manager', 'variantMaker.rowNumberRepeatsAttribute', [
+					'row' => $position,
+					'first' => $positionsByAttributeId[$row['attributeId']],
+				]));
+				continue;
+			}
+
+			$positionsByAttributeId[$row['attributeId']] = $position;
+
 			if ($row['optionIds'] === []) {
 				$this->addError('rows', Craft::t('variant-manager', 'variantMaker.rowNumberNeedsOptions', [
 					'row' => $position,
 				]));
 			}
 		}
+	}
+
+	public function validatePrice(): void
+	{
+		$price = $this->property(self::PROPERTY_PRICE)->value;
+
+		if ($price !== null && ! self::isPlainDecimal((string) $price)) {
+			$this->addError('properties', Craft::t('variant-manager', 'variantMaker.priceNotNumber', [
+				'price' => $price,
+			]));
+		}
+	}
+
+	/**
+	 * Whether a price is the plain decimal Money's parser reads, which is stricter than is_numeric().
+	 */
+	public static function isPlainDecimal(string $price): bool
+	{
+		return preg_match('/^-?\d+(\.\d+)?$/', $price) === 1;
 	}
 
 	public static function isRequired(string $propertyName): bool
@@ -205,6 +268,7 @@ class VariantMakerSettings extends Model
 	{
 		$rules = parent::defineRules();
 		$rules[] = [['rows'], 'validateRows'];
+		$rules[] = [['properties'], 'validatePrice'];
 		$rules[] = [['mode'],
 			'in',
 			'range' => [VariantMaker::MODE_ADD, VariantMaker::MODE_UPDATE, VariantMaker::MODE_REPLACE]];

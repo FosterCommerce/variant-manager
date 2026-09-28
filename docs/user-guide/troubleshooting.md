@@ -49,7 +49,7 @@ Fix: change the colliding SKU in your CSV. SKUs are not shareable between produc
 
 ## "No product has ID ..." on upload
 
-The filename starts with digits and `__`, but no product has that ID. The upload fails instead of creating a product, because Variant Manager always reads a `{digits}__` prefix as an update. For a single CSV the check runs before upload, no job is queued, and the control panel shows the message as an error toast. Inside a zip, only the zip's own name is checked, so the file fails in its queue job and the activity log records it as "Invalid product id", with a lower-case `id`.
+The filename starts with digits and `__`, but no product has that ID. The upload fails instead of creating a product, because Variant Manager always reads a `{digits}__` prefix as an update. The check runs before any job is queued, for a single CSV and for every file in a zip, and the control panel shows the message as an error. In a zip, one unmatched ID stops the whole upload.
 
 Two causes:
 
@@ -62,9 +62,9 @@ Fix: export the product from this environment and upload the file under the name
 
 A per-site column needs the site handle in brackets, as in `basePrice[default]`. The header matched a per-site field in `variantFieldMap` but had no suffix, so the import has no site to write the column to.
 
-This also fires for a header that merely starts with a per-site key: with `'price' => 'basePrice'` in the map, a `priceNote` column matches `price` and then fails.
+It fires for a header that is exactly a per-site key, such as `basePrice` or, with `'price' => 'basePrice'` in the map, `price`.
 
-Fix: add the `[siteHandle]` suffix, or rename the column so it does not start with a mapped key.
+Fix: add the `[siteHandle]` suffix.
 
 ## "Column ... is not in the form prefix[location]: total"
 
@@ -76,7 +76,7 @@ The upload was a zip Variant Manager could not open. No job is queued and the da
 
 ## "Invalid product title"
 
-The CSV has no data row after the header at all. The plugin reads the product title from the first cell of that row. An empty first cell is a different error, and fails later with "Title cannot be blank".
+The first cell of row 2 is empty, or the CSV has no row after the header. The plugin reads the product title from that cell.
 
 Fix: put the product title in the first cell of row 2.
 
@@ -150,15 +150,19 @@ The field handle is not listed in `bulkEditableVariantFields`. See [configuratio
 
 ## An import failed
 
-A problem with the CSV or with `config/variant-manager.php` ends the job, so the queue holds no failed job to clear. The dashboard activity log holds the reason: a bad filename, a duplicate SKU, a missing `sku` column, or a blank `attributePrefix`. Fix the file and upload it again from **Variant Manager -> Dashboard**.
+A problem with the CSV or with `config/variant-manager.php` ends the job, so the queue holds no failed job to clear. The dashboard activity log names the reason, such as a duplicate SKU, an empty price, or a blank `attributePrefix`. Fix the file and upload it again from **Variant Manager -> Dashboard**.
 
 Any other failure, such as the database being unreachable during a deploy, leaves a failed job you can retry.
 
 A single CSV shows in Queue Manager as `Importing your-file`, with the extension dropped. A file from a zip keeps its extension.
 
+## The "Product Type" menu is empty
+
+The upload modal lists only the product types you can create products in. Ask an admin for Commerce's `commerce-createProductType` on the product type you need and, on a multi-site install, permission to edit the primary site.
+
 ## A zip import processed some files but not others
 
-Each CSV in the zip becomes its own queue job. A bad CSV fails on its own without stopping the others. Check the dashboard activity log for one row per CSV; failed files show the error from that CSV alone, and the rest imported normally.
+Each CSV in the zip becomes its own queue job. A bad CSV fails on its own without stopping the others. A file naming a product ID that doesn't exist, or a product you can't save, stops the whole zip before any file is queued. Check the dashboard activity log for one row per CSV; failed files show the error from that CSV alone, and the rest imported normally.
 
 Fix only the failed CSVs and re-upload them individually, or zip a corrected subset.
 

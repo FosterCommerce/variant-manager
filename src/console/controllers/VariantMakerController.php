@@ -63,13 +63,19 @@ class VariantMakerController extends Controller
 				]),
 				VariantMakerSettings::PROPERTY_PRICE => new VariantMakerProperty([
 					'include' => true,
-					'value' => $this->basePrice,
+					// Treat an empty option like a blank field, which prices from the default variant
+					'value' => $this->basePrice === '' ? null : $this->basePrice,
 				]),
 				VariantMakerSettings::PROPERTY_TITLE => new VariantMakerProperty([
 					'include' => true,
 				]),
 			],
 		]);
+
+		if (! $settings->validate(['properties', 'mode'])) {
+			$this->stderr(($settings->getFirstError('properties') ?? $settings->getFirstError('mode')) . PHP_EOL, Console::FG_RED);
+			return ExitCode::USAGE;
+		}
 
 		$rows = Plugin::getInstance()->getVariantMaker()->plan($product, $this->parseSelection(), $settings);
 
@@ -135,7 +141,7 @@ class VariantMakerController extends Controller
 			}
 
 			[$attributeName, $values] = explode('=', $group, 2);
-			$valuesByName[trim($attributeName)] = array_values(array_filter(array_map('trim', explode(',', $values))));
+			$valuesByName[trim($attributeName)] = array_values(array_filter(array_map('trim', explode(',', $values)), static fn (string $value): bool => $value !== ''));
 		}
 
 		return $valuesByName;

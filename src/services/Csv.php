@@ -26,7 +26,9 @@ use craft\fields\Date as DateField;
 use craft\fields\Entries;
 use craft\fields\Lightswitch;
 use craft\fields\Money as MoneyField;
+use craft\helpers\App;
 use craft\helpers\DateTimeHelper;
+use craft\helpers\Db;
 use craft\helpers\ElementHelper;
 use craft\helpers\Typecast;
 use craft\models\FieldLayout;
@@ -34,10 +36,12 @@ use craft\models\Section;
 use craft\models\Site;
 use craft\models\Volume;
 use DateTimeInterface;
+use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\errors\FieldMapException;
 use fostercommerce\variantmanager\errors\ImportDataException;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\Plugin;
+use Generator;
 use Illuminate\Support\Collection;
 use League\Csv\CannotInsertRecord;
 use League\Csv\Exception as CsvException;
@@ -48,15 +52,24 @@ use League\Csv\UnableToProcessCsv;
 use League\Csv\Writer;
 use Money\Currencies\ISOCurrencies;
 use Money\Currency;
+use Money\Exception\ParserException;
 use Money\Formatter\DecimalMoneyFormatter;
 use Money\Money;
 use Money\Parser\DecimalMoneyParser;
 use Throwable;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
+use yii\db\Expression;
 
 class Csv extends Component
 {
+	public const WRITE_MUTEX = 'variant-manager:write';
+
+	/**
+	 * Seconds to wait for the write lock, kept well under a queue job's default time limit.
+	 */
+	public const WRITE_MUTEX_WAIT = 60;
+
 	private const STANDARD_VARIANT_FIELDS = [
 		'title',
 		'enabled',
@@ -66,6 +79,18 @@ class Csv extends Component
 		'height',
 		'length',
 		'weight',
+	];
+
+	/**
+	 * The per-site values an empty cell resets to, and the promotable value a new variant starts with
+	 */
+	private const PER_SITE_DEFAULTS = [
+		'availableForPurchase' => true,
+		'promotable' => true,
+		'freeShipping' => false,
+		'inventoryTracked' => false,
+		'minQty' => null,
+		'maxQty' => null,
 	];
 
 	private const STANDARD_PER_SITE_VARIANT_FIELDS = [
@@ -84,6 +109,11 @@ class Csv extends Component
 	private const NATIVE_PRODUCT_COLUMNS = ['title', 'slug', 'status'];
 
 	/**
+	 * The inventory totals an export writes and an import sets.
+	 */
+	private const INVENTORY_TOTALS = ['available', 'reserved', 'damaged', 'safety', 'qualityControl', 'committed'];
+
+	/**
 	 * @throws CsvException
 	 * @throws ImportDataException
 	 * @throws FieldMapException
@@ -97,66 +127,48 @@ class Csv extends Component
 	{
 		$tabularDataReader = $this->read($csvData);
 		$titleRecord = array_filter($tabularDataReader->nth(0), static fn ($value): bool => $value !== null);
-		if ($titleRecord === []) {
+		$productTitle = reset($titleRecord);
+
+		// Refuse an empty product title, because the title row's first cell names the product
+		if ($this->isBlankCell($productTitle)) {
 			throw new ImportDataException(Craft::t('variant-manager', 'import.invalidProductTitle'));
 		}
 
-		$productId = explode('__', $filename)[0] ?? null;
-		if (! ctype_digit((string) $productId)) {
-			$productId = null;
+		$product = $this->resolveProductModel((string) $productTitle, self::productIdFromFilename($filename), $productTypeHandle);
+
+		// Map by the product's own type, because a zip names one type for files that update products of several
+		$mapping = $this->resolveVariantImportMapping($tabularDataReader, (string) $product->type->handle);
+
+		if (($mapping['variant']['sku'] ?? null) === null) {
+			throw new ImportDataException(Craft::t('variant-manager', 'import.missingSkuColumn'));
 		}
 
-		$product = $this->resolveProductModel($titleRecord[array_key_first($titleRecord)], $productId, $productTypeHandle);
+		$this->validateSharedStoreValues($mapping, $tabularDataReader);
+		$this->validateInventoryQuantities($mapping, $tabularDataReader);
 
-		if ($productTypeHandle === null) {
-			/** @var string $productTypeHandle */
-			$productTypeHandle = $product->type->handle;
+		// Write one import or Variant Maker run at a time, because two can each pass the SKU checks for the same new SKU
+		$mutex = Craft::$app->getMutex();
+
+		if (! $mutex->acquire(self::WRITE_MUTEX, self::WRITE_MUTEX_WAIT)) {
+			throw new ImportDataException(Craft::t('variant-manager', 'import.busy'));
 		}
-
-		$mapping = $this->resolveVariantImportMapping($tabularDataReader, $productTypeHandle);
-
-		$this->validateSkus($product, $mapping, $tabularDataReader);
-
-		$this->applyProductFields($product, $titleRecord);
-
-		$replacedVariants = [];
 
 		try {
-			if ($product->isNewForSite) {
-				$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
-			} else {
-				// $refreshVariants and normalizeExistingProductImport() both delete variants
-				$replacedVariants = Variant::find()->product($product)->status(null)->all();
-
-				if ($refreshVariants) {
-					foreach ($replacedVariants as $replacedVariant) {
-						Craft::$app->elements->deleteElement($replacedVariant);
-					}
-				}
-
-				$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
-			}
-
-			$this->saveVariants($product, $variants);
-
-			// The import fails validation when the mapping has no SKU column
-			/** @var int $skuColumn */
-			$skuColumn = $mapping['variant']['sku'];
-			$this->importSiteSpecificData($tabularDataReader, $skuColumn, $mapping['sites']);
-			$this->importInventoryLevels($tabularDataReader, $skuColumn, $mapping['inventory']);
-		} catch (Throwable $throwable) {
-			if ($product->isNewForSite) {
-				if ($product->id !== null) {
-					Craft::$app->elements->deleteElement($product);
-				}
-			} else {
-				$this->restoreReplacedVariants($product, $replacedVariants);
-			}
-
-			throw $throwable;
+			$this->validateSkus($product, $mapping, $tabularDataReader, $refreshVariants);
+			$this->writeImport($product, $titleRecord, $tabularDataReader, $mapping, $refreshVariants);
+		} finally {
+			$mutex->release(self::WRITE_MUTEX);
 		}
 
 		return $product;
+	}
+
+	/**
+	 * The product ID an `ID__name.csv` filename names, or null for a file that creates a product.
+	 */
+	public static function productIdFromFilename(string $filename): ?int
+	{
+		return preg_match('/^(\d+)__/', basename($filename), $matches) === 1 ? (int) $matches[1] : null;
 	}
 
 	/**
@@ -193,21 +205,13 @@ class Csv extends Component
 	}
 
 	/**
-	 * @return array{filename: string, export: string}|false
+	 * @return array{filename: string, export: string}
 	 * @throws CannotInsertRecord
 	 * @throws CsvException
 	 * @throws FieldMapException
 	 */
-	public function export(string $productId): array|bool
+	public function export(Product $product): array
 	{
-		// Export disabled products and variants too
-		/** @var Product|null $product */
-		$product = Product::find()->id($productId)->status(null)->one();
-
-		if (! isset($product)) {
-			return false;
-		}
-
 		return [
 			'filename' => "{$product->id}__{$product->slug}",
 			'export' => $this->exportProduct($product, Variant::find()->product($product)->status(null)->all()),
@@ -295,29 +299,48 @@ class Csv extends Component
 	 */
 	protected function findProductVariantSkus(array $items): Collection
 	{
-		return collect(Variant::find()->sku($items)->status(null)->all())
+		// Compare SKUs ignoring letter case, as Commerce does
+		return collect(Variant::find()->andWhere([
+			'in',
+			new Expression('LOWER([[commerce_purchasables.sku]])'),
+			array_map(mb_strtolower(...), $items),
+		])->status(null)->all())
 			->groupBy(fn ($variant) => $variant->getOwner()->id)
 			->map(static fn ($variants) => $variants->map(static fn ($variant) => $variant->sku)->all());
 	}
 
 	/**
-	 * Restores a product's variants after an import fails partway.
-	 *
-	 * @param list<Variant> $replacedVariants
+	 * @param TabularDataReader<array<string, string|null>> $tabularDataReader
+	 * @param array<string, string|null> $titleRecord
+	 * @param array{variant: array<string, int|null>, attribute: array<int, array{int, string}>, sites: array<int, array{string, string}>, inventory: array<int, array{string, string}>, fieldHandle: string|null, variantFieldLayout: FieldLayout} $mapping
+	 * @throws Throwable
 	 */
-	private function restoreReplacedVariants(Product $product, array $replacedVariants): void
+	private function writeImport(Product $product, array $titleRecord, TabularDataReader $tabularDataReader, array $mapping, bool $refreshVariants): void
 	{
-		$elementsService = Craft::$app->elements;
-		$replacedIds = array_map(static fn (Variant $replacedVariant): int => (int) $replacedVariant->id, $replacedVariants);
+		// Write in one transaction, because a deleted variant's purchasable row can't be restored
+		Craft::$app->getDb()->transaction(function () use ($product, $titleRecord, $tabularDataReader, $mapping, $refreshVariants): void {
+			$this->applyProductFields($product, $titleRecord);
 
-		// An imported variant may share a SKU with a replaced one
-		foreach (Variant::find()->product($product)->status(null)->all() as $importedVariant) {
-			if (! in_array((int) $importedVariant->id, $replacedIds, true)) {
-				$elementsService->deleteElement($importedVariant, true);
+			if ($product->isNewForSite) {
+				$variants = $this->normalizeNewProductImport($tabularDataReader, $mapping);
+			} else {
+				if ($refreshVariants) {
+					foreach (Variant::find()->product($product)->status(null)->all() as $replacedVariant) {
+						Craft::$app->elements->deleteElement($replacedVariant);
+					}
+				}
+
+				$variants = $this->normalizeExistingProductImport($product, $tabularDataReader, $mapping);
 			}
-		}
 
-		$elementsService->restoreElements(Variant::find()->id($replacedIds)->status(null)->trashed(true)->all());
+			$this->saveVariants($product, $variants);
+
+			// The import fails validation when the mapping has no SKU column
+			/** @var int $skuColumn */
+			$skuColumn = $mapping['variant']['sku'];
+			$this->importSiteSpecificData($tabularDataReader, $skuColumn, $mapping['sites']);
+			$this->importInventoryLevels($tabularDataReader, $skuColumn, $mapping['inventory']);
+		});
 	}
 
 	/**
@@ -359,62 +382,42 @@ class Csv extends Component
 
 		$sites = Collection::make($sites)->groupBy('siteHandle');
 
-		$iterator = $reader->getIterator();
-		foreach ($iterator as $record) {
-			if ($iterator->key() === 1) {
-				// Skip the title record
-				continue;
-			}
-
-			$record = array_values($record);
-
-			if ($record === []) {
-				continue;
-			}
-
+		foreach ($this->variantRecords($reader) as $record) {
 			foreach ($sites as $siteHandle => $data) {
 				/** @var Variant|null $variant */
-				$variant = Variant::find()->sku($record[$skuColumn])->site($siteHandle)->status(null)->one();
+				$variant = Variant::find()->andWhere([
+					'commerce_purchasables.sku' => $record[$skuColumn],
+				])->site($siteHandle)->status(null)->one();
 				if ($variant === null) {
 					// The product is not propagated to this site, so the column has nowhere to write
 					Craft::warning("Skipped per-site values for SKU {$record[$skuColumn]} on site {$siteHandle}", __METHOD__);
 					continue;
 				}
 
-				if ($data->firstWhere('field', 'availableForPurchase') === null) {
-					// If the availableForPurchase field does not exist, then we will default it to true
-					$variant->availableForPurchase = true;
-				}
-
-				if ($data->firstWhere('field', 'promotable') === null) {
-					// If the promotable field does not exist, then we will default it to true
-					$variant->promotable = true;
-				}
-
 				foreach ($data as $fieldData) {
 					$field = $fieldData['field'];
-					$properties = [
-						$field => $record[$fieldData['index']],
-					];
-
-					if ($field === 'availableForPurchase' || $field === 'promotable') {
-						$value = $properties[$field];
-						if ($value === null || $value === '') {
-							// Default it to true if it's set but null or empty
-							$properties[$field] = true;
-						}
-					}
-
-					Typecast::properties(Variant::class, $properties);
 
 					if ($field === 'basePrice') {
-						$properties[$field] = (float) $properties[$field];
+						$variant->basePrice = $this->parsePrice($record[$fieldData['index']]);
+						continue;
 					}
+
+					$cell = $record[$fieldData['index']];
+
+					$properties = [
+						$field => $this->isBlankCell($cell) ? (self::PER_SITE_DEFAULTS[$field] ?? null) : $cell,
+					];
+
+					Typecast::properties(Variant::class, $properties);
 
 					$variant->{$field} = reset($properties);
 				}
 
-				Craft::$app->elements->saveElement($variant);
+				// Fail the import on a variant that won't save, so the transaction rolls back every site
+				if (! Craft::$app->elements->saveElement($variant)) {
+					$errors = $variant->getErrorSummary(false);
+					throw new ImportDataException($errors[0] ?? Craft::t('variant-manager', 'import.variantSaveFailed'));
+				}
 			}
 		}
 	}
@@ -427,21 +430,11 @@ class Csv extends Component
 	 */
 	private function importInventoryLevels(TabularDataReader $reader, $skuColumn, array $inventoryMap): void
 	{
-		$iterator = $reader->getIterator();
-		foreach ($iterator as $record) {
-			if ($iterator->key() === 1) {
-				// Skip the title record
-				continue;
-			}
-
-			$record = array_values($record);
-
-			if ($record === []) {
-				continue;
-			}
-
+		foreach ($this->variantRecords($reader) as $record) {
 			/** @var Variant|null $variant */
-			$variant = Variant::find()->sku($record[$skuColumn])->status(null)->one();
+			$variant = Variant::find()->andWhere([
+				'commerce_purchasables.sku' => $record[$skuColumn],
+			])->status(null)->one();
 
 			if ($variant === null) {
 				// The row named a SKU the import did not save, so no variant holds the inventory
@@ -458,7 +451,7 @@ class Csv extends Component
 				$locationHandle = $value[0];
 				$location = $inventories[$locationHandle] ?? [];
 				$location[] = [
-					$value[1] => $record[$index],
+					$value[1] => $this->isBlankCell($record[$index]) ? 0 : (int) trim((string) $record[$index]),
 				];
 
 				$inventories[$locationHandle] = $location;
@@ -495,26 +488,189 @@ class Csv extends Component
 	}
 
 	/**
-	 * @param array{variant: array<string, int|null>} $mapping
+	 * Refuse different values for two sites sharing a store, since the later site's value would replace the first.
+	 *
+	 * Skip empty cells, because an export leaves them empty for a site the product doesn't exist on.
+	 *
+	 * @param array{variant: array<string, int|null>, sites: array<int, array{0: string, 1: string}>} $mapping
 	 * @param TabularDataReader<array<string, string|null>> $tabularDataReader
-	 * @throws UnableToProcessCsv
+	 * @throws ImportDataException
 	 */
-	private function validateSkus(Product $product, array $mapping, TabularDataReader $tabularDataReader): void
+	private function validateSharedStoreValues(array $mapping, TabularDataReader $tabularDataReader): void
 	{
-		$skuColumn = $mapping['variant']['sku'] ?? null;
-		if ($skuColumn === null) {
-			throw new ImportDataException(Craft::t('variant-manager', 'import.missingSkuColumn'));
+		/** @var CommercePlugin $commerce */
+		$commerce = CommercePlugin::getInstance();
+		$indexesByFieldAndStore = [];
+
+		foreach ($mapping['sites'] as $index => [$field, $siteHandle]) {
+			$siteId = Craft::$app->getSites()->getSiteByHandle($siteHandle)?->id;
+			$storeId = $commerce->getStores()->getStoreBySiteId((int) $siteId)?->id;
+			$indexesByFieldAndStore["{$field}\0{$storeId}"][] = $index;
 		}
 
-		// Exit early if there are duplicate SKUs
-		/** @var list<string> $skus */
-		$skus = iterator_to_array($tabularDataReader->fetchColumn($skuColumn));
+		/** @var int $skuColumn */
+		$skuColumn = $mapping['variant']['sku'];
 
-		$countedSkus = array_count_values($skus);
-		$duplicateSkus = array_filter($countedSkus, static fn ($count): bool => $count > 1);
+		foreach ($this->variantRecords($tabularDataReader) as $record) {
+			foreach ($indexesByFieldAndStore as $fieldAndStore => $indexes) {
+				$isPrice = str_starts_with($fieldAndStore, "basePrice\0");
+				$filledIndexes = array_filter($indexes, fn (int $index): bool => ! $this->isBlankCell($record[$index]));
+				// Compare prices by value, so 10 and 10.00 agree
+				$values = array_unique(array_map(fn (int $index): string => $isPrice
+					? (string) $this->parsePrice($record[$index])
+					: strtolower(trim((string) $record[$index])), $filledIndexes));
+
+				if (count($values) > 1) {
+					throw new ImportDataException(Craft::t('variant-manager', 'import.storeConflict', [
+						'sku' => $record[$skuColumn],
+					]));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Refuse a quantity that isn't a whole number, since the inventory update takes an integer.
+	 *
+	 * @param array{inventory: array<int, array{string, string}>} $mapping
+	 * @param TabularDataReader<array<string, string|null>> $tabularDataReader
+	 * @throws ImportDataException
+	 */
+	private function validateInventoryQuantities(array $mapping, TabularDataReader $tabularDataReader): void
+	{
+		foreach ($this->variantRecords($tabularDataReader) as $record) {
+			foreach (array_keys($mapping['inventory']) as $index) {
+				if (! $this->isBlankCell($record[$index]) && preg_match('/^-?\d+$/', trim((string) $record[$index])) !== 1) {
+					throw new ImportDataException(Craft::t('variant-manager', 'import.invalidQuantity', [
+						'quantity' => $record[$index],
+					]));
+				}
+			}
+		}
+	}
+
+	/**
+	 * The variant's attribute pairs after this row, keeping the attributes the CSV has no column for.
+	 *
+	 * @param array{attribute: array<int, array{int, string}>, fieldHandle: string|null} $mapping
+	 * @param array<int, string|null> $record
+	 * @return list<array{attributeName: string, attributeValue: string}>
+	 */
+	private function importedPairs(Variant $variantElement, array $mapping, array $record): array
+	{
+		$pairs = [];
+		$storedPairs = $variantElement->id === null ? [] : $variantElement->getFieldValue((string) $mapping['fieldHandle']);
+
+		foreach (is_array($storedPairs) ? $storedPairs : [] as $storedPair) {
+			$pairs[VariantAttribute::normalizeName((string) ($storedPair['attributeName'] ?? ''))] = $storedPair;
+		}
+
+		foreach ($mapping['attribute'] as [$index, $attributeName]) {
+			$value = trim((string) $record[$index]);
+
+			$pairs[VariantAttribute::normalizeName($attributeName)] = [
+				'attributeName' => $attributeName,
+				'attributeValue' => $value === '' ? Plugin::getInstance()->getSettings()->emptyAttributeValue : $value,
+			];
+		}
+
+		return array_values($pairs);
+	}
+
+	/**
+	 * The rows after the product's title row, as lists aligned with the header.
+	 *
+	 * @param TabularDataReader<array<string, string|null>> $reader
+	 * @return Generator<list<string|null>>
+	 */
+	private function variantRecords(TabularDataReader $reader): Generator
+	{
+		$isTitleRow = true;
+
+		foreach ($reader->getRecords() as $record) {
+			// Skip the first record by position, because a blank line before it shifts its offset
+			if ($isTitleRow) {
+				$isTitleRow = false;
+				continue;
+			}
+
+			/** @var list<string|null> $record */
+			$record = array_values($record);
+
+			// Skip a row of empty cells, which spreadsheet apps write as a line of commas
+			if (array_filter($record, fn (mixed $cell): bool => ! $this->isBlankCell($cell)) === []) {
+				continue;
+			}
+
+			yield $record;
+		}
+	}
+
+	/**
+	 * The value an empty cell clears a variant field to: on for enabled, off for isDefault, and empty otherwise.
+	 */
+	private function emptyVariantValue(string $fieldHandle): mixed
+	{
+		return match ($fieldHandle) {
+			'enabled' => true,
+			'isDefault' => false,
+			default => null,
+		};
+	}
+
+	private function isBlankCell(mixed $cell): bool
+	{
+		return ! is_string($cell) || trim($cell) === '';
+	}
+
+	/**
+	 * @throws ImportDataException if the cell is empty or isn't a number, because Commerce requires a price
+	 */
+	private function parsePrice(?string $price): float
+	{
+		$price = trim((string) $price);
+
+		if ($price === '') {
+			throw new ImportDataException(Craft::t('variant-manager', 'import.missingPrice'));
+		}
+
+		// Read the documented format without a locale, because the queue runs in the locale of whoever triggered it
+		if (preg_match('/^-?(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$/', $price) !== 1) {
+			throw new ImportDataException(Craft::t('variant-manager', 'import.invalidPrice', [
+				'price' => $price,
+			]));
+		}
+
+		return (float) str_replace(',', '', $price);
+	}
+
+	/**
+	 * @param array{variant: array<string, int|null>, sites: array<int, array{string, string}>} $mapping
+	 * @param TabularDataReader<array<string, string|null>> $tabularDataReader
+	 * @throws ImportDataException
+	 */
+	private function validateSkus(Product $product, array $mapping, TabularDataReader $tabularDataReader, bool $refreshVariants): void
+	{
+		/** @var int $skuColumn */
+		$skuColumn = $mapping['variant']['sku'];
+
+		$skus = [];
+
+		foreach ($this->variantRecords($tabularDataReader) as $record) {
+			// Refuse an empty SKU on a variant row, because Commerce requires one on every variant
+			if ($this->isBlankCell($record[$skuColumn])) {
+				throw new ImportDataException(Craft::t('variant-manager', 'import.missingSku'));
+			}
+
+			$skus[] = (string) $record[$skuColumn];
+		}
+
+		// Compare SKUs ignoring letter case, as Commerce does
+		$countedSkus = array_count_values(array_map(mb_strtolower(...), $skus));
+		$duplicateSkus = array_filter($skus, static fn (string $sku): bool => $countedSkus[mb_strtolower($sku)] > 1);
 		if ($duplicateSkus !== []) {
 			throw new ImportDataException(Craft::t('variant-manager', 'import.duplicateSkus', [
-				'skus' => implode(', ', array_keys($duplicateSkus)),
+				'skus' => implode(', ', array_unique($duplicateSkus)),
 			]));
 		}
 
@@ -527,20 +683,35 @@ class Csv extends Component
 			]));
 		}
 
+		// Count every row as new under Replace all variants, because the import deletes the existing variants first
+		$ownSkus = $refreshVariants || $product->id === null ? [] : array_map(mb_strtolower(...), $foundSkus->get($product->id) ?? []);
 		$foundSkus = $foundSkus->filter(static fn ($_value, $key): bool => $key !== $product->id);
 		if (! $foundSkus->isEmpty()) {
 			throw new ImportDataException(Craft::t('variant-manager', 'import.skusExistElsewhere', [
 				'skus' => implode(', ', $foundSkus->flatten()->values()->all()),
 			]));
 		}
+
+		// Refuse new variants without a price column, because variants save without validation
+		$createsVariants = array_diff(array_map(mb_strtolower(...), $skus), $ownSkus) !== [];
+
+		if ($createsVariants && ! in_array('basePrice', array_column($mapping['sites'], 0), true)) {
+			throw new ImportDataException(Craft::t('variant-manager', 'import.missingPriceColumn'));
+		}
 	}
 
 	/**
 	 * @return TabularDataReader<array<string, string|null>>
 	 * @throws CsvException
+	 * @throws ImportDataException
 	 */
 	private function read(string $csvData): TabularDataReader
 	{
+		// Refuse other encodings, such as a Windows-1252 export from Excel, because names are stored as UTF-8
+		if (! mb_check_encoding($csvData, 'UTF-8')) {
+			throw new ImportDataException(Craft::t('variant-manager', 'import.notUtf8'));
+		}
+
 		$reader = Reader::fromString($csvData);
 		$reader->setHeaderOffset(0);
 		return (new Statement())->process($reader);
@@ -555,19 +726,7 @@ class Csv extends Component
 	private function normalizeNewProductImport(TabularDataReader $tabularDataReader, array $mapping): array
 	{
 		$variants = [];
-		$iterator = $tabularDataReader->getIterator();
-		foreach ($iterator as $record) {
-			if ($iterator->key() === 1) {
-				// Skip the title record
-				continue;
-			}
-
-			$record = array_values($record);
-
-			if ($record === []) {
-				continue;
-			}
-
+		foreach ($this->variantRecords($tabularDataReader) as $record) {
 			$variants[] = $this->normalizeVariantImport($record, $mapping, 0);
 		}
 
@@ -582,82 +741,62 @@ class Csv extends Component
 	 */
 	private function normalizeExistingProductImport(Product $product, TabularDataReader $tabularDataReader, array $mapping): array
 	{
-		$iterator = $tabularDataReader->getIterator();
 		$existingVariants = collect(Variant::find()->product($product)->status(null)->all());
 		$newVariants = [];
-		foreach ($iterator as $record) {
-			if ($iterator->key() === 1) {
-				// Skip the title record
-				continue;
-			}
-
-			$record = array_values($record);
-
-			if ($record === []) {
-				continue;
-			}
-
-			// Cast both, because PHP compares two numeric strings numerically
-			$sku = (string) $record[$mapping['variant']['sku']];
-			$variant = $existingVariants->first(static fn (Variant $existingVariant): bool => (string) $existingVariant->sku === $sku)->id ?? 0;
-			$newVariants[] = $this->normalizeVariantImport($record, $mapping, $variant);
+		foreach ($this->variantRecords($tabularDataReader) as $record) {
+			// Compare as lowercased strings, because Commerce ignores letter case and PHP compares numeric strings as numbers
+			$sku = mb_strtolower((string) $record[$mapping['variant']['sku']]);
+			$variantId = $existingVariants->first(static fn (Variant $existingVariant): bool => mb_strtolower((string) $existingVariant->sku) === $sku)->id ?? 0;
+			$newVariants[] = $this->normalizeVariantImport($record, $mapping, $variantId);
 		}
 
 		// Match on id. Two variants can share a title.
 		$importedVariantIds = collect($newVariants)->pluck('id')->filter()->all();
 		$removedVariants = $existingVariants->reject(static fn (Variant $existingVariant): bool => in_array($existingVariant->id, $importedVariantIds, true));
-		foreach ($removedVariants as $variant) {
-			Craft::$app->elements->deleteElement($variant);
+		foreach ($removedVariants as $removedVariant) {
+			Craft::$app->elements->deleteElement($removedVariant);
 		}
 
 		return $newVariants;
 	}
 
 	/**
-	 * @param list<string|null> $variant
+	 * @param list<string|null> $record
 	 * @param array{variant: array<string, int|null>, attribute: array<int, array{int, string}>, fieldHandle: string|null, variantFieldLayout: FieldLayout} $mapping
 	 * @throws InvalidConfigException
 	 * @throws Throwable
 	 */
-	private function normalizeVariantImport(array $variant, array $mapping, int $variantId): Variant
+	private function normalizeVariantImport(array $record, array $mapping, int $variantId): Variant
 	{
-		$emptyAttributeValue = Plugin::getInstance()->getSettings()->emptyAttributeValue;
-		// Generate attributes for variant attributes field
-		$attributes = [];
-		foreach ($mapping['attribute'] as $field) {
-			$value = trim((string) $variant[$field[0]]);
-			if ($value === '') {
-				$value = $emptyAttributeValue;
-			}
-
-			$attributes[] = [
-				'attributeName' => $field[1],
-				'attributeValue' => $value,
-			];
-		}
-
-		$mapped = [];
-		$fields = [];
-
-		if (! empty($mapping['fieldHandle'])) {
-			$fields[$mapping['fieldHandle']] = $attributes;
-		}
-
-		foreach ($mapping['variant'] as $fieldHandle => $index) {
-			if ($index !== null) {
-				if (in_array($fieldHandle, self::STANDARD_VARIANT_FIELDS, true)) {
-					$mapped[$fieldHandle] = $variant[$index];
-				} else {
-					$fields[$fieldHandle] = $variant[$index];
-				}
-			}
-		}
-
 		if ($variantId !== 0) {
 			/** @var Variant $variantElement */
 			$variantElement = Variant::find()->id($variantId)->status(null)->one();
 		} else {
 			$variantElement = new Variant();
+			// Start a new variant promotable, where Commerce would leave it not promotable
+			$variantElement->promotable = self::PER_SITE_DEFAULTS['promotable'];
+		}
+
+		$mapped = [];
+		$fields = [];
+
+		// Leave the field alone when the CSV has no attribute columns, the same as any other missing column
+		if (! empty($mapping['fieldHandle']) && $mapping['attribute'] !== []) {
+			$fields[$mapping['fieldHandle']] = $this->importedPairs($variantElement, $mapping, $record);
+		}
+
+		foreach ($mapping['variant'] as $fieldHandle => $index) {
+			if ($index === null) {
+				continue;
+			}
+
+			$value = $this->isBlankCell($record[$index]) ? $this->emptyVariantValue($fieldHandle) : $record[$index];
+
+			if (in_array($fieldHandle, self::STANDARD_VARIANT_FIELDS, true)) {
+				$mapped[$fieldHandle] = $value;
+			} else {
+				$fields[$fieldHandle] = $value;
+			}
 		}
 
 		Typecast::properties(Variant::class, $mapped);
@@ -683,6 +822,7 @@ class Csv extends Component
 	 *     variantFieldLayout: FieldLayout,
 	 * }
 	 * @throws FieldMapException
+	 * @throws ImportDataException
 	 */
 	private function resolveVariantImportMapping(TabularDataReader $tabularDataReader, string $productTypeHandle): array
 	{
@@ -740,10 +880,28 @@ class Csv extends Component
 		foreach ($csvHeader as $i => $heading) {
 			$heading = trim($heading);
 			$matchedCrossSiteFieldMap = array_filter($crossSiteProductTypeMap, static fn ($mapping): bool => strcasecmp($heading, $mapping) === 0, ARRAY_FILTER_USE_KEY);
-			$matchedVariantFieldMap = array_filter($variantSiteMap, static fn ($mapping): bool => stripos($heading, $mapping) === 0, ARRAY_FILTER_USE_KEY);
+			$matchedVariantFieldMap = array_filter($variantSiteMap, static fn ($mapping): bool => strcasecmp($heading, $mapping) === 0 || stripos($heading, $mapping . '[') === 0, ARRAY_FILTER_USE_KEY);
+
+			// Refuse a header two map keys share, because case-insensitive matching can't choose between them
+			if (count($matchedCrossSiteFieldMap) + count($matchedVariantFieldMap) > 1) {
+				throw new ImportDataException(Craft::t('variant-manager', 'import.ambiguousColumn', [
+					'heading' => $heading,
+					'columns' => implode(', ', [...array_keys($matchedCrossSiteFieldMap), ...array_keys($matchedVariantFieldMap)]),
+				]));
+			}
 
 			if ($matchedCrossSiteFieldMap !== []) {
-				$variantMap[current($matchedCrossSiteFieldMap)] = $i;
+				$variantFieldHandle = current($matchedCrossSiteFieldMap);
+
+				// Refuse a second column for the same field, because the later one would replace the first
+				if (isset($variantMap[$variantFieldHandle])) {
+					throw new ImportDataException(Craft::t('variant-manager', 'import.repeatedColumn', [
+						'heading' => $heading,
+						'field' => $variantFieldHandle,
+					]));
+				}
+
+				$variantMap[$variantFieldHandle] = $i;
 			} elseif ($matchedVariantFieldMap !== []) {
 				$key = array_key_first($matchedVariantFieldMap);
 				$value = $matchedVariantFieldMap[$key];
@@ -761,6 +919,13 @@ class Csv extends Component
 					]));
 				}
 
+				if (in_array([$value, $matches[1]], $sitesMap, true)) {
+					throw new ImportDataException(Craft::t('variant-manager', 'import.repeatedColumn', [
+						'heading' => $heading,
+						'field' => "{$value}[{$matches[1]}]",
+					]));
+				}
+
 				$sitesMap[$i] = [$value, $matches[1]];
 			} elseif (str_starts_with($heading, $inventoryPrefix)) {
 				$pattern = '/' . preg_quote($inventoryPrefix, '/') . '\[(.*?)\]:\s(.*?)$/';
@@ -772,6 +937,14 @@ class Csv extends Component
 
 				$locationHandle = $matches[1];
 				$totalHandle = $matches[2];
+
+				if (! in_array($totalHandle, self::INVENTORY_TOTALS, true)) {
+					throw new ImportDataException(Craft::t('variant-manager', 'import.unknownInventoryTotal', [
+						'heading' => $heading,
+						'totals' => implode(', ', self::INVENTORY_TOTALS),
+					]));
+				}
+
 				$inventoryMap[$i] = [$locationHandle, $totalHandle];
 			} elseif (str_starts_with($heading, $attributePrefix)) {
 				$attributeMap[] = [$i, explode($attributePrefix, $heading)[1]];
@@ -790,8 +963,9 @@ class Csv extends Component
 
 	/**
 	 * @throws InvalidConfigException
+	 * @throws ImportDataException
 	 */
-	private function resolveProductModel(string $title, ?string $productId, ?string $productTypeHandle): Product
+	private function resolveProductModel(string $title, ?int $productId, ?string $productTypeHandle): Product
 	{
 		if ($productId !== null) {
 			/** @var Product|null $product */
@@ -806,11 +980,12 @@ class Csv extends Component
 
 			/** @var CommercePlugin $plugin */
 			$plugin = Craft::$app->plugins->getPlugin('commerce');
-			/**
-			 * @var string $productTypeHandle
-			 * @var ProductType $productType
-			 */
-			$productType = $plugin->getProductTypes()->getProductTypeByHandle($productTypeHandle);
+			$productType = $productTypeHandle === null ? null : $plugin->getProductTypes()->getProductTypeByHandle($productTypeHandle);
+
+			if (! $productType instanceof ProductType) {
+				throw new ImportDataException(Craft::t('variant-manager', 'import.invalidProductTypeHandle'));
+			}
+
 			$product->typeId = $productType->id;
 		}
 
@@ -899,8 +1074,12 @@ class Csv extends Component
 		foreach ($sites as $site) {
 			$siteVariant = Variant::find()->id($variant->id)->site($site)->status(null)->one();
 			$siteMapping = $mappedSiteValues[$site->handle] ?? [];
-			foreach ($siteMapping as $key => $value) {
-				$siteMapping[$key] = $this->normalizeValue($siteVariant->{$key});
+
+			// Leave the site's cells empty where the product isn't propagated, because no variant exists there to read
+			if ($siteVariant instanceof Variant) {
+				foreach ($siteMapping as $key => $value) {
+					$siteMapping[$key] = $this->normalizeValue($siteVariant->{$key});
+				}
 			}
 
 			$row = [
@@ -1001,8 +1180,8 @@ class Csv extends Component
 			$fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
 			if ($fieldHandle !== null) {
 				// Collect every name the product uses, because its variants can store different attributes
-				foreach ($variants as $exportedVariant) {
-					foreach ($exportedVariant->{$fieldHandle} ?? [] as $attribute) {
+				foreach ($variants as $variant) {
+					foreach ($variant->{$fieldHandle} ?? [] as $attribute) {
 						$attributeMap[$attribute['attributeName']] ??= $attributePrefix . $attribute['attributeName'];
 					}
 				}
@@ -1054,18 +1233,36 @@ class Csv extends Component
 	 */
 	private function applyProductFields(Product $product, array $titleRecord): void
 	{
-		if ($titleRecord === []) {
-			return;
-		}
-
 		$settings = Plugin::getInstance()->getSettings();
 		$productFieldMapping = $settings->getProductFieldMapping($product->type->handle);
 
-		collect($titleRecord)
-			->only(array_keys($productFieldMapping))
-			->mapWithKeys(static fn (mixed $value, string $heading) => [
-				$productFieldMapping[$heading] => $value,
-			])
+		// Match product headers regardless of letter case, the same as variant headers
+		$fieldHandlesByHeading = array_change_key_case($productFieldMapping);
+		$valuesByFieldHandle = [];
+
+		foreach ($titleRecord as $heading => $value) {
+			$fieldHandle = $fieldHandlesByHeading[strtolower(trim((string) $heading))] ?? null;
+
+			if ($fieldHandle === null) {
+				continue;
+			}
+
+			if ($this->isBlankCell($value)) {
+				$value = null;
+			}
+
+			// Refuse a second column for the same field, because the later one would replace the first
+			if (array_key_exists($fieldHandle, $valuesByFieldHandle)) {
+				throw new ImportDataException(Craft::t('variant-manager', 'import.repeatedColumn', [
+					'heading' => $heading,
+					'field' => $fieldHandle,
+				]));
+			}
+
+			$valuesByFieldHandle[$fieldHandle] = $value;
+		}
+
+		collect($valuesByFieldHandle)
 			->filter(static fn ($value, $fieldHandle): bool => $fieldHandle !== 'title')
 			->each(function (mixed $value, string $fieldHandle) use ($product): void {
 				if ($fieldHandle === 'slug') {
@@ -1117,7 +1314,7 @@ class Csv extends Component
 				}
 
 				/** @var Entry|null $entry */
-				$entry = Entry::find()->slug($slug)->section($sectionHandle)->one();
+				$entry = Entry::find()->slug(Db::escapeParam($slug))->section($sectionHandle)->one();
 				if ($entry === null) {
 					continue;
 				}
@@ -1132,21 +1329,29 @@ class Csv extends Component
 				$value = trim($value);
 			}
 
-			if ($value === '' || $value === null) {
+			if ($value === null) {
 				$element->setFieldValue($fieldHandle, null);
 				return;
 			}
 
 			// Parse the decimal string: a float multiply loses cents and assumes two subunits
 			$moneyParser = new DecimalMoneyParser(new ISOCurrencies());
-			$element->setFieldValue($fieldHandle, $moneyParser->parse((string) $value, new Currency($field->currency)));
+
+			try {
+				$element->setFieldValue($fieldHandle, $moneyParser->parse((string) $value, new Currency($field->currency)));
+			} catch (ParserException) {
+				throw new ImportDataException(Craft::t('variant-manager', 'import.invalidMoney', [
+					'value' => $value,
+					'field' => $fieldHandle,
+				]));
+			}
 		} elseif ($field instanceof DateField) {
 			/** @var string|null $value */
 			if (is_string($value)) {
 				$value = trim($value);
 			}
 
-			if ($value === '' || $value === null) {
+			if ($value === null) {
 				$element->setFieldValue($fieldHandle, null);
 				return;
 			}
@@ -1157,6 +1362,7 @@ class Csv extends Component
 			}
 		} elseif ($field instanceof AssetsField) {
 			if (! is_string($value)) {
+				$element->setFieldValue($fieldHandle, []);
 				return;
 			}
 
@@ -1197,7 +1403,7 @@ class Csv extends Component
 					}
 
 					/** @var Asset|null $asset */
-					$asset = Asset::find()->folderId($folder->id)->filename($filename)->one();
+					$asset = Asset::find()->folderId($folder->id)->filename(Db::escapeParam($filename))->one();
 
 					return $asset?->id;
 				})
@@ -1213,14 +1419,15 @@ class Csv extends Component
 			/** @var string|null $value */
 			$slugs = explode(',', (string) $value);
 			/** @var list<Element> $relatedElements */
-			$relatedElements = $elementType::find()->slug($slugs)->all();
+			$relatedElements = $elementType::find()->slug(array_map(Db::escapeParam(...), $slugs))->all();
 			$elementIds = collect($relatedElements)
 				->map(static fn ($e): ?int => $e->id)
 				->toArray();
 
 			$element->setFieldValue($fieldHandle, $elementIds);
 		} elseif ($field instanceof Lightswitch) {
-			$element->setFieldValue($fieldHandle, $value === '1');
+			// Accept the same on and off words as the built-in on/off columns
+			$element->setFieldValue($fieldHandle, $value === null ? $field->default : App::normalizeBooleanValue($value) === true);
 		} else {
 			$element->setFieldValue($fieldHandle, $value);
 		}
@@ -1273,11 +1480,10 @@ class Csv extends Component
 			$productMap[] = [$fieldHandle, $heading];
 		}
 
-		$titleMap = collect($productMap)->filter(static fn ($mapping): bool => $mapping[0] === 'title')->first();
-		if ($titleMap === null) {
-			return array_merge([['title', 'title']], $productMap);
-		}
+		// Write the title column first, because an import reads the product title from row 2's first cell
+		$titleMaps = array_filter($productMap, static fn (array $mapping): bool => $mapping[0] === 'title');
+		$otherMaps = array_filter($productMap, static fn (array $mapping): bool => $mapping[0] !== 'title');
 
-		return $productMap;
+		return [...($titleMaps === [] ? [['title', 'title']] : array_values($titleMaps)), ...array_values($otherMaps)];
 	}
 }

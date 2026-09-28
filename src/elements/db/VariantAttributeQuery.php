@@ -18,9 +18,9 @@ use fostercommerce\variantmanager\Plugin;
 class VariantAttributeQuery extends ElementQuery
 {
 	/**
-	 * @var int|string|list<int|string>|null
+	 * @var string|list<string>|null
 	 */
-	public int|string|array|null $nameKey = null;
+	public string|array|null $nameKey = null;
 
 	/**
 	 * @var int|string|list<int|string>|null
@@ -51,9 +51,9 @@ class VariantAttributeQuery extends ElementQuery
 	/**
 	 * Narrows the query results to records with the given normalized name.
 	 *
-	 * @param int|string|list<int|string>|null $value
+	 * @param string|list<string>|null $value
 	 */
-	public function nameKey(int|string|array|null $value): static
+	public function nameKey(string|array|null $value): static
 	{
 		$this->nameKey = $value;
 		return $this;
@@ -120,10 +120,11 @@ class VariantAttributeQuery extends ElementQuery
 			$subQuery->andWhere($condition);
 		}
 
-		$condition = $this->nameKey === null ? null : Db::parseParam('variant_manager_attributes.nameKey', $this->stringParam($this->nameKey));
-
-		if ($condition !== null) {
-			$subQuery->andWhere($condition);
+		// Compare name keys exactly, because Craft's param syntax splits commas and reads "and", "or" and "not" as operators
+		if ($this->nameKey !== null) {
+			$subQuery->andWhere([
+				'variant_manager_attributes.nameKey' => $this->nameKey,
+			]);
 		}
 
 		$condition = $this->fieldSetUid === null ? null : Db::parseParam('variant_manager_attributes.fieldSetUid', $this->stringParam($this->fieldSetUid));

@@ -1,12 +1,15 @@
 {% if multipleFieldsExist == true %}
 	<div class="variant-attributes-warning">
 		<p>{{ 'field.multipleFieldsWarning'|t('variant-manager') }}</p>
-		<p>{{ 'field.multipleFieldsIgnored'|t('variant-manager') }}</p>
+		<p>{{ 'field.multipleFieldsFirstWritten'|t('variant-manager') }}</p>
 	</div>
 {% endif %}
 
 {% if rows is empty %}
-	<div class="pane no-border zilch small">{{ 'field.noAttributes'|t('variant-manager', { variantMaker }) }}</div>
+	<div class="pane no-border zilch small">
+		{{- 'field.noAttributes'|t('variant-manager', { type: elementType }) -}}
+		{%- if showManageNote %} {{ 'field.manageAttributes'|t('variant-manager', { variantMaker }) }}{% endif -%}
+	</div>
 {% else %}
 	<div class="variant-attributes-container">
 		<table class="table data variant-attributes-table">
@@ -38,7 +41,9 @@
 			{% endfor %}
 			</tbody>
 		</table>
-		<p class="light">{{ 'field.editElsewhere'|t('variant-manager', { variantMaker }) }}</p>
+		{% if showManageNote %}
+			<p class="light">{{ 'field.editElsewhere'|t('variant-manager', { variantMaker }) }}</p>
+		{% endif %}
 	</div>
 
 	{% js %}

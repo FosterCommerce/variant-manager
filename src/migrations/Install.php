@@ -26,7 +26,8 @@ class Install extends Migration
 			'id' => $this->integer()->notNull(),
 			'attributeId' => $this->integer()->notNull()->defaultValue(0),
 			'name' => $this->string()->notNull(),
-			'nameKey' => $this->string()->notNull(),
+			// Compare name keys by bytes on MySQL, because its default collation treats "crème" and "creme" as one key
+			'nameKey' => $this->db->getIsMysql() ? $this->string()->notNull() . " COLLATE {$this->db->charset}_bin" : $this->string()->notNull(),
 			'displayType' => $this->string()->notNull()->defaultValue('dropdown'),
 			'skuPartial' => $this->string(),
 			'priceModifier' => $this->decimal(14, 2),

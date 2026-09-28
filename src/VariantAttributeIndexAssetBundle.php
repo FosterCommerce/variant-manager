@@ -5,6 +5,7 @@ namespace fostercommerce\variantmanager;
 use craft\web\AssetBundle;
 use craft\web\assets\cp\CpAsset;
 use craft\web\View;
+use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\helpers\PermissionHelper;
 
 class VariantAttributeIndexAssetBundle extends AssetBundle
@@ -37,12 +38,14 @@ class VariantAttributeIndexAssetBundle extends AssetBundle
 			]);
 
 			// JS draws the create buttons, and needs the permission the server enforces on create
+			// Pass the first attribute too, because the listing only shows structure levels while sorted by structure
 			$view->registerJsWithVars(
-				static fn (string $canManageAttributes): string => <<<JS
+				static fn (string $canManageAttributes, string $firstAttributeId): string => <<<JS
 					Craft.VariantManager = Craft.VariantManager || {};
 					Craft.VariantManager.canManageAttributes = {$canManageAttributes};
+					Craft.VariantManager.firstAttributeId = {$firstAttributeId};
 				JS,
-				[PermissionHelper::canSaveAnyProductType()],
+				[PermissionHelper::canSaveAnyProductType(), VariantAttribute::find()->attributeId(0)->limit(1)->ids()[0] ?? null],
 				View::POS_BEGIN
 			);
 		}

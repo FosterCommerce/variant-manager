@@ -22,10 +22,12 @@ class BackfillAttributes extends BaseBatchedElementJob
 	{
 		$query = Variant::find()
 			->status(null)
+			->site('*')
 			->offset(null)
 			->limit(null)
 			->orderBy([
 				'elements.id' => SORT_ASC,
+				'elements_sites.siteId' => SORT_ASC,
 			]);
 
 		return new QueryBatcher($query);

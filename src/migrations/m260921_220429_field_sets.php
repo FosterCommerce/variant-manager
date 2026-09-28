@@ -27,8 +27,11 @@ class m260921_220429_field_sets extends Migration
 
 	public function safeUp(): bool
 	{
-		$this->addColumn(Table::ATTRIBUTES, 'fieldSetUid', $this->char(36)->null()->after('priceModifier'));
-		$this->createIndex(null, Table::ATTRIBUTES, ['fieldSetUid'], false);
+		// Skip the column on a rerun, because MySQL keeps it after a run that failed later in this migration
+		if (! $this->db->columnExists(Table::ATTRIBUTES, 'fieldSetUid')) {
+			$this->addColumn(Table::ATTRIBUTES, 'fieldSetUid', $this->char(36)->null()->after('priceModifier'));
+			$this->createIndex(null, Table::ATTRIBUTES, ['fieldSetUid'], false);
+		}
 
 		$projectConfig = Craft::$app->getProjectConfig();
 		$configs = $projectConfig->get(self::OLD_CONFIG_PATH);

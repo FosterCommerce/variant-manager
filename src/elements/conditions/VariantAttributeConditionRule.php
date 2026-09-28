@@ -12,10 +12,11 @@ use craft\commerce\elements\Variant;
 use craft\commerce\helpers\ProductQuery as ProductQueryHelper;
 use craft\elements\conditions\ElementConditionRuleInterface;
 use craft\elements\db\ElementQueryInterface;
+use craft\helpers\ArrayHelper;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
 use fostercommerce\variantmanager\Plugin;
-use yii\db\ExpressionInterface;
+use fostercommerce\variantmanager\services\VariantAttributes;
 
 /**
  * Filters variants, or products through their variants, by one attribute's registered values.
@@ -25,11 +26,6 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 	public ?int $attributeId = null;
 
 	private VariantAttribute|false|null $selectedOption = null;
-
-	/**
-	 * @var list<VariantAttributesField>|null
-	 */
-	private ?array $fieldInstances = null;
 
 	public function getLabel(): string
 	{
@@ -89,7 +85,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 			return false;
 		}
 
-		return $this->matchVariant($element);
+		return $element instanceof Variant && $this->matchVariant($element);
 	}
 
 	/**
@@ -106,7 +102,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 	}
 
 	/**
-	 * @return list<array<string, string>>
+	 * @return array<int, string>
 	 */
 	protected function options(): array
 	{
@@ -114,16 +110,7 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 			return [];
 		}
 
-		$options = [];
-
-		foreach (VariantAttribute::find()->attributeId($this->attributeId)->all() as $option) {
-			$options[] = [
-				'label' => $option->name,
-				'value' => (string) $option->id,
-			];
-		}
-
-		return $options;
+		return ArrayHelper::map(VariantAttribute::find()->attributeId($this->attributeId)->all(), 'id', 'name');
 	}
 
 	/**
@@ -150,26 +137,27 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 
 	/**
 	 * @param array<string, mixed> $params
-	 * @return array<array-key, mixed>|string|ExpressionInterface|null
 	 */
-	private function fieldCondition(array &$params): array|string|ExpressionInterface|null
+	private function fieldCondition(array &$params): ?string
 	{
-		$attribute = $this->attribute();
-		$option = $this->selectedOption();
-		$instances = $this->fieldInstances();
-
-		if (! $attribute instanceof VariantAttribute || ! $option instanceof VariantAttribute || $instances === []) {
+		// Leave an incomplete rule out of the query, because it names no attribute or option
+		if ($this->attributeId === null || $this->value === '') {
 			return null;
 		}
 
-		$condition = VariantAttributesField::queryCondition($instances, [
-			$attribute->name => $option->name,
-		], $params);
+		$attribute = $this->attribute();
+		$option = $this->selectedOption();
+		$instances = Plugin::getInstance()->getVariantAttributes()->getVariantAttributesFields();
 
-		return $condition === false ? '0=1' : $condition;
+		// Match no element for a deleted attribute or option, or where no layout has the field, rather than stop filtering
+		if (! $attribute instanceof VariantAttribute || ! $option instanceof VariantAttribute || $instances === []) {
+			return '0=1';
+		}
+
+		return VariantAttributesField::pairConditionIgnoringCase($instances, $attribute->name, $option->name, $params);
 	}
 
-	private function matchVariant(ElementInterface $variant): bool
+	private function matchVariant(Variant $variant): bool
 	{
 		$attribute = $this->attribute();
 		$option = $this->selectedOption();
@@ -178,22 +166,9 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 			return false;
 		}
 
-		foreach ($this->fieldInstances() as $field) {
-			$value = $variant->getFieldValue((string) $field->handle);
+		$pairs = Plugin::getInstance()->getVariantAttributes()->attributePairs([$variant]);
 
-			// An unparseable JSON field value is the raw string
-			if (! is_array($value)) {
-				continue;
-			}
-
-			foreach ($value as $pair) {
-				if (($pair['attributeName'] ?? null) === $attribute->name && ($pair['attributeValue'] ?? null) === $option->name) {
-					return true;
-				}
-			}
-		}
-
-		return false;
+		return isset($pairs[VariantAttributes::pairKey($attribute->name, $option->name)]);
 	}
 
 	private function attribute(): ?VariantAttribute
@@ -214,27 +189,5 @@ class VariantAttributeConditionRule extends BaseSelectConditionRule implements E
 		}
 
 		return $this->selectedOption === false ? null : $this->selectedOption;
-	}
-
-	/**
-	 * Collect the field instances from variant layouts.
-	 *
-	 * @return list<VariantAttributesField>
-	 */
-	private function fieldInstances(): array
-	{
-		if ($this->fieldInstances === null) {
-			$this->fieldInstances = [];
-
-			foreach (Craft::$app->getFields()->getLayoutsByType(Variant::class) as $fieldLayout) {
-				foreach ($fieldLayout->getCustomFields() as $field) {
-					if ($field instanceof VariantAttributesField) {
-						$this->fieldInstances[] = $field;
-					}
-				}
-			}
-		}
-
-		return $this->fieldInstances;
 	}
 }

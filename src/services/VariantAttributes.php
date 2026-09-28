@@ -3,17 +3,13 @@
 namespace fostercommerce\variantmanager\services;
 
 use Craft;
-use craft\base\ElementInterface;
 use craft\commerce\elements\db\VariantQuery;
 use craft\commerce\elements\Variant;
 use craft\db\Query;
-use craft\helpers\Db;
 use fostercommerce\variantmanager\db\Table;
 use fostercommerce\variantmanager\elements\VariantAttribute;
 use fostercommerce\variantmanager\elements\VariantManagerVariant;
 use fostercommerce\variantmanager\fields\VariantAttributesField;
-use fostercommerce\variantmanager\helpers\FieldHelper;
-use fostercommerce\variantmanager\Plugin;
 use Throwable;
 use yii\base\Component;
 use yii\caching\TagDependency;
@@ -36,7 +32,10 @@ class VariantAttributes extends Component
 	 */
 	private array $ensuredPairKeys = [];
 
-	private string|false|null $fieldHandle = null;
+	/**
+	 * @var list<VariantAttributesField>|null
+	 */
+	private ?array $fields = null;
 
 	public function getStructureId(): int
 	{
@@ -64,7 +63,7 @@ class VariantAttributes extends Component
 			$nameKey = VariantAttribute::normalizeName($name);
 
 			if ($nameKey !== '') {
-				$nameKeys[$nameKey] = Db::escapeParam($nameKey);
+				$nameKeys[$nameKey] = $nameKey;
 			}
 		}
 
@@ -72,18 +71,13 @@ class VariantAttributes extends Component
 			return [];
 		}
 
-		$attributes = [];
-
-		$attributeQuery = VariantAttribute::find()
+		/** @var array<string, VariantAttribute> */
+		return VariantAttribute::find()
 			->attributeId(0)
 			->nameKey(array_values($nameKeys))
-			->trashed($includeTrashed ? null : false);
-
-		foreach ($attributeQuery->all() as $attribute) {
-			$attributes[$attribute->nameKey] = $attribute;
-		}
-
-		return $attributes;
+			->trashed($includeTrashed ? null : false)
+			->indexBy('nameKey')
+			->all();
 	}
 
 	/**
@@ -94,11 +88,9 @@ class VariantAttributes extends Component
 	public function getAllAttributes(): array
 	{
 		if ($this->attributesById === null) {
-			$this->attributesById = [];
-
-			foreach (VariantAttribute::find()->attributeId(0)->all() as $attribute) {
-				$this->attributesById[(int) $attribute->id] = $attribute;
-			}
+			/** @var array<int, VariantAttribute> $attributesById */
+			$attributesById = VariantAttribute::find()->attributeId(0)->indexBy('id')->all();
+			$this->attributesById = $attributesById;
 		}
 
 		return $this->attributesById;
@@ -120,30 +112,30 @@ class VariantAttributes extends Component
 		$pairs = [];
 
 		foreach ($variants as $variant) {
-			$fieldHandle = FieldHelper::getFirstVariantAttributesField($variant->getFieldLayout())?->handle;
-
-			if ($fieldHandle === null) {
-				continue;
-			}
-
-			$storedAttributes = $variant->{$fieldHandle};
-
-			// An unparseable JSON field value is the raw string
-			if (! is_array($storedAttributes)) {
-				continue;
-			}
-
-			foreach ($storedAttributes as $pair) {
-				// One malformed row would otherwise fail the whole import or backfill batch
-				if (! is_string($pair['attributeName'] ?? null)) {
+			foreach ($variant->getFieldLayout()?->getCustomFields() ?? [] as $field) {
+				if (! $field instanceof VariantAttributesField) {
 					continue;
 				}
 
-				if (! is_string($pair['attributeValue'] ?? null)) {
+				$storedPairs = $variant->getFieldValue((string) $field->handle);
+
+				// An unparseable JSON field value is the raw string
+				if (! is_array($storedPairs)) {
 					continue;
 				}
 
-				$pairs[$this->pairKey($pair['attributeName'], $pair['attributeValue'])] = $pair;
+				foreach ($storedPairs as $storedPair) {
+					// One malformed row would otherwise fail the whole import or backfill batch
+					if (! is_string($storedPair['attributeName'] ?? null)) {
+						continue;
+					}
+
+					if (! is_string($storedPair['attributeValue'] ?? null)) {
+						continue;
+					}
+
+					$pairs[self::pairKey($storedPair['attributeName'], $storedPair['attributeValue'])] = $storedPair;
+				}
 			}
 		}
 
@@ -159,14 +151,14 @@ class VariantAttributes extends Component
 	{
 		// Read the registry first: a record created during the scan is not an orphan
 		$attributes = VariantAttribute::find()->attributeId(0)->all();
-		$allOptions = VariantAttribute::find()->attributeId('not 0')->all();
+		$options = VariantAttribute::find()->attributeId('not 0')->all();
 
 		$storedPairs = $this->storedPairs($batchSize);
 
 		$nameKeys = [];
 
-		foreach ($storedPairs as $pair) {
-			$nameKeys[VariantAttribute::normalizeName($pair['attributeName'])] = true;
+		foreach ($storedPairs as $storedPair) {
+			$nameKeys[VariantAttribute::normalizeName($storedPair['attributeName'])] = true;
 		}
 
 		$attributesById = [];
@@ -182,7 +174,7 @@ class VariantAttributes extends Component
 
 		$orphanedOptions = [];
 
-		foreach ($allOptions as $option) {
+		foreach ($options as $option) {
 			$attribute = $attributesById[$option->attributeId] ?? null;
 			$pairKey = ($attribute?->nameKey ?? '') . "\0" . $option->nameKey;
 
@@ -195,28 +187,6 @@ class VariantAttributes extends Component
 			'attributes' => $orphanedAttributes,
 			'options' => $orphanedOptions,
 		];
-	}
-
-	/**
-	 * Every attribute with its options already loaded, so a caller rendering all of them queries twice.
-	 *
-	 * @return array<int, VariantAttribute>
-	 */
-	public function getAllAttributesWithOptions(): array
-	{
-		$attributes = $this->getAllAttributes();
-
-		$optionsByAttributeId = [];
-
-		foreach (VariantAttribute::find()->attributeId('not 0')->all() as $option) {
-			$optionsByAttributeId[$option->attributeId][] = $option;
-		}
-
-		foreach ($attributes as $attribute) {
-			$attribute->setOptions($optionsByAttributeId[$attribute->id] ?? []);
-		}
-
-		return $attributes;
 	}
 
 	/**
@@ -246,12 +216,13 @@ class VariantAttributes extends Component
 			}
 		}
 
-		$optionQuery = VariantAttribute::find()
+		$matchedOptions = VariantAttribute::find()
 			->attributeId(array_values($attributeIds))
-			->nameKey(array_map(static fn (int|string $nameKey): string => Db::escapeParam($nameKey), array_keys($nameKeys)));
+			->nameKey(array_map('strval', array_keys($nameKeys)))
+			->all();
 
-		foreach ($optionQuery->all() as $option) {
-			$optionsByAttributeId[$option->attributeId][$option->nameKey] = $option;
+		foreach ($matchedOptions as $matchedOption) {
+			$optionsByAttributeId[$matchedOption->attributeId][$matchedOption->nameKey] = $matchedOption;
 		}
 
 		$registry = [];
@@ -297,17 +268,22 @@ class VariantAttributes extends Component
 			return null;
 		}
 
-		$fieldHandle = $this->getVariantAttributesFieldHandle();
+		$fields = $this->getVariantAttributesFields();
 
-		if ($fieldHandle === null) {
+		if ($fields === []) {
 			return null;
 		}
 
+		$params = [];
+		// Ignore letter case, because the registry keys records by their lowercased name
+		$condition = VariantAttributesField::pairConditionIgnoringCase($fields, $attribute->name, $option->name, $params);
+
+		// Read every site, because a product type can be enabled only on another store's site
 		return VariantManagerVariant::find()
 			->status(null)
-			->{$fieldHandle}([
-				$attribute->name => $option->name,
-			]);
+			->site('*')
+			->unique()
+			->andWhere($condition, $params);
 	}
 
 	/**
@@ -319,7 +295,13 @@ class VariantAttributes extends Component
 	{
 		return (int) Craft::$app->getCache()?->getOrSet(
 			"variant-manager:option-usage:{$option->id}",
-			fn (): int => (int) ($this->variantQueryForOption($option)?->count() ?? 0),
+			function () use ($option): int {
+				$attribute = $option->getParentAttribute();
+
+				return $attribute instanceof VariantAttribute && $this->needsVariantScan($attribute, $option)
+					? count($this->scanVariantIdsForOption($attribute, $option))
+					: (int) ($this->variantQueryForOption($option)?->count() ?? 0);
+			},
 			null,
 			new TagDependency([
 				'tags' => [
@@ -332,12 +314,21 @@ class VariantAttributes extends Component
 
 	public function isOptionInUse(VariantAttribute $option): bool
 	{
+		$attribute = $option->getParentAttribute();
+
+		// Decide from the scan alone for names outside ASCII, so a delete agrees with the Used by count
+		if ($attribute instanceof VariantAttribute && $this->needsVariantScan($attribute, $option)) {
+			return $this->scanVariantIdsForOption($attribute, $option, true) !== [];
+		}
+
 		return $this->variantQueryForOption($option)?->exists() ?? false;
 	}
 
 	public function isAttributeInUse(VariantAttribute $attribute): bool
 	{
-		foreach (VariantAttribute::find()->attributeId($attribute->id)->all() as $option) {
+		$options = VariantAttribute::find()->attributeId($attribute->id)->all();
+
+		foreach ($options as $option) {
 			if ($this->isOptionInUse($option)) {
 				return true;
 			}
@@ -346,22 +337,31 @@ class VariantAttributes extends Component
 		return false;
 	}
 
-	public function getVariantAttributesFieldHandle(): ?string
+	/**
+	 * Every Variant Attributes field on a variant field layout.
+	 *
+	 * @return list<VariantAttributesField>
+	 */
+	public function getVariantAttributesFields(): array
 	{
-		if ($this->fieldHandle === null) {
-			$this->fieldHandle = false;
+		if ($this->fields === null) {
+			$this->fields = [];
 
 			foreach (Craft::$app->getFields()->getLayoutsByType(Variant::class) as $fieldLayout) {
-				$field = FieldHelper::getFirstVariantAttributesField($fieldLayout);
-
-				if ($field instanceof VariantAttributesField) {
-					$this->fieldHandle = $field->handle;
-					break;
+				foreach ($fieldLayout->getCustomFields() as $field) {
+					if ($field instanceof VariantAttributesField) {
+						$this->fields[] = $field;
+					}
 				}
 			}
 		}
 
-		return $this->fieldHandle === false ? null : $this->fieldHandle;
+		return $this->fields;
+	}
+
+	public function getVariantAttributesFieldHandle(): ?string
+	{
+		return ($this->getVariantAttributesFields()[0] ?? null)?->handle;
 	}
 
 	/**
@@ -380,7 +380,7 @@ class VariantAttributes extends Component
 			$name = trim($name);
 			$nameKey = VariantAttribute::normalizeName($name);
 
-			if ($nameKey === '') {
+			if (! $this->canRegister($nameKey)) {
 				continue;
 			}
 
@@ -392,7 +392,6 @@ class VariantAttributes extends Component
 			$attribute = new VariantAttribute();
 			$attribute->name = $name;
 			$attribute->title = $name;
-			$attribute->displayType = Plugin::getInstance()->getSettings()->getDefaultDisplayType()->value;
 
 			try {
 				Craft::$app->getElements()->saveElement($attribute, false);
@@ -430,8 +429,8 @@ class VariantAttributes extends Component
 		foreach ($values as $value) {
 			$nameKey = VariantAttribute::normalizeName($value);
 
-			if ($nameKey !== '') {
-				$nameKeys[$nameKey] = Db::escapeParam($nameKey);
+			if ($this->canRegister($nameKey)) {
+				$nameKeys[$nameKey] = $nameKey;
 			}
 		}
 
@@ -448,18 +447,19 @@ class VariantAttributes extends Component
 			->nameKey(array_values($nameKeys))
 			->trashed(null);
 
-		foreach ($optionQuery->all() as $option) {
-			$options[$option->nameKey] = $option;
-		}
+		/** @var array<string, VariantAttribute> $options */
+		$options = $optionQuery->indexBy('nameKey')->all();
 
 		foreach ($values as $value) {
 			$nameKey = VariantAttribute::normalizeName($value);
 
-			if ($nameKey === '') {
+			if (! isset($nameKeys[$nameKey])) {
 				continue;
 			}
 
+			// Give a restored option its parent directly, since the attributes cache can predate the attribute's restore
 			if (isset($options[$nameKey])) {
+				$options[$nameKey]->setParentAttribute($attribute);
 				$this->restoreIfTrashed($options[$nameKey]);
 				continue;
 			}
@@ -475,7 +475,7 @@ class VariantAttributes extends Component
 				// Another process registered this name key first, so use its record
 				$option = VariantAttribute::find()
 					->attributeId($attribute->id)
-					->nameKey(Db::escapeParam($nameKey))
+					->nameKey($nameKey)
 					->trashed(null)
 					->one();
 
@@ -483,6 +483,7 @@ class VariantAttributes extends Component
 					continue;
 				}
 
+				$option->setParentAttribute($attribute);
 				$this->restoreIfTrashed($option);
 			}
 
@@ -502,7 +503,7 @@ class VariantAttributes extends Component
 
 		// Skip pairs already registered by this process, so a large sync only queries for new pairs
 		foreach ($pairs as $pair) {
-			if (! isset($this->ensuredPairKeys[$this->pairKey($pair['attributeName'], $pair['attributeValue'])])) {
+			if (! isset($this->ensuredPairKeys[self::pairKey($pair['attributeName'], $pair['attributeValue'])])) {
 				$valuesByName[$pair['attributeName']][] = $pair['attributeValue'];
 			}
 		}
@@ -519,7 +520,7 @@ class VariantAttributes extends Component
 			$this->ensureOptions($attribute, $values);
 
 			foreach ($values as $value) {
-				$this->ensuredPairKeys[$this->pairKey($name, $value)] = true;
+				$this->ensuredPairKeys[self::pairKey($name, $value)] = true;
 			}
 		}
 	}
@@ -536,21 +537,73 @@ class VariantAttributes extends Component
 		$orphans ??= $this->findOrphans($batchSize);
 		$elementsService = Craft::$app->getElements();
 
+		$deleted = [
+			'attributes' => 0,
+			'options' => 0,
+		];
+
 		// Options first. Deleting an attribute deletes the options under it.
 		// Hard delete the record, because a trashed one keeps its unique key and blocks re-registering the value
 		foreach ($orphans['options'] as $option) {
-			$elementsService->deleteElement($option, true);
+			if ($elementsService->deleteElement($option, true)) {
+				$deleted['options']++;
+			}
 		}
 
 		// Deleting an attribute keeps its field set, which other attributes may use
 		foreach ($orphans['attributes'] as $attribute) {
-			$elementsService->deleteElement($attribute, true);
+			if ($elementsService->deleteElement($attribute, true)) {
+				$deleted['attributes']++;
+			}
 		}
 
-		return [
-			'attributes' => count($orphans['attributes']),
-			'options' => count($orphans['options']),
-		];
+		return $deleted;
+	}
+
+	public static function pairKey(string $name, string $value): string
+	{
+		return VariantAttribute::normalizeName($name) . "\0" . VariantAttribute::normalizeName($value);
+	}
+
+	/**
+	 * Scan names outside ASCII, because the SQL lowercasing can differ from the registry's for those characters.
+	 */
+	private function needsVariantScan(VariantAttribute $attribute, VariantAttribute $option): bool
+	{
+		return preg_match('/[^\x00-\x7F]/', $attribute->name . $option->name) === 1;
+	}
+
+	/**
+	 * The IDs of the variants storing the option's pair, compared as the registry compares names.
+	 *
+	 * @return list<int>
+	 */
+	private function scanVariantIdsForOption(VariantAttribute $attribute, VariantAttribute $option, bool $stopAtFirst = false): array
+	{
+		$pairKey = self::pairKey($attribute->name, $option->name);
+		$variantIds = [];
+
+		$variantQuery = Variant::find()->status(null)->site('*')->orderBy([
+			'elements.id' => SORT_ASC,
+			'elements_sites.siteId' => SORT_ASC,
+		]);
+
+		$variantBatches = $variantQuery->batch();
+
+		foreach ($variantBatches as $variantBatch) {
+			/** @var array<Variant> $variantBatch */
+			foreach ($variantBatch as $variant) {
+				if (isset($this->attributePairs([$variant])[$pairKey])) {
+					$variantIds[(int) $variant->id] = (int) $variant->id;
+
+					if ($stopAtFirst) {
+						return array_values($variantIds);
+					}
+				}
+			}
+		}
+
+		return array_values($variantIds);
 	}
 
 	/**
@@ -562,23 +615,48 @@ class VariantAttributes extends Component
 	{
 		$pairs = [];
 
-		foreach (Variant::find()->status(null)->batch($batchSize) as $variants) {
-			/** @var array<Variant> $variants */
-			$pairs = [...$pairs, ...$this->attributePairs($variants)];
+		$variantBatches = Variant::find()->status(null)->site('*')->orderBy([
+			'elements.id' => SORT_ASC,
+			'elements_sites.siteId' => SORT_ASC,
+		])->batch($batchSize);
+
+		foreach ($variantBatches as $variantBatch) {
+			/** @var array<Variant> $variantBatch */
+			$pairs = [...$pairs, ...$this->attributePairs($variantBatch)];
 		}
 
 		return $pairs;
 	}
 
-	private function pairKey(string $name, string $value): string
+	/**
+	 * Skip a name longer than the registry's name columns, rather than fail the whole import or backfill.
+	 */
+	private function canRegister(string $nameKey): bool
 	{
-		return VariantAttribute::normalizeName($name) . "\0" . VariantAttribute::normalizeName($value);
+		if ($nameKey === '') {
+			return false;
+		}
+
+		if (mb_strlen($nameKey) > 255) {
+			Craft::warning("Skipped registering “{$nameKey}”, which is longer than 255 characters.", __METHOD__);
+
+			return false;
+		}
+
+		return true;
 	}
 
-	private function restoreIfTrashed(ElementInterface $element): void
+	private function restoreIfTrashed(VariantAttribute $variantAttribute): void
 	{
-		if ($element->dateDeleted instanceof \DateTime) {
-			Craft::$app->getElements()->restoreElement($element);
+		if (! $variantAttribute->dateDeleted instanceof \DateTime) {
+			return;
+		}
+
+		Craft::$app->getElements()->restoreElement($variantAttribute);
+
+		// Cache the restored attribute, because its options read their parent from the cache
+		if (! $variantAttribute->isOption() && $this->attributesById !== null) {
+			$this->attributesById[(int) $variantAttribute->id] = $variantAttribute;
 		}
 	}
 }

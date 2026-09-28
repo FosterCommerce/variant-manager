@@ -42,7 +42,7 @@ return [
 - Type: `string`
 - Default: `''`
 
-The placeholder written into the Variant Attributes field when a row's attribute cell is empty. Set to a value such as `None` or `N/A` if a literal empty string might confuse storefront filters.
+The value stored for an attribute whose cell is empty. Set it to a value such as `None` or `N/A` if a literal empty string might confuse storefront filters.
 
 ### `attributePrefix`
 
@@ -130,7 +130,7 @@ Per-site variant properties (use the column suffix `[siteHandle]`):
 
 - `basePrice`, `inventoryTracked`, `availableForPurchase`, `freeShipping`, `promotable`, `minQty`, `maxQty`.
 
-If the CSV has at least one per-site column but no `availableForPurchase` or `promotable` column, the import defaults those to `true` for each site. With no per-site columns at all, neither is written and Commerce's own defaults apply. This matches the standard Commerce variant behavior.
+For what a missing column or an empty cell writes, see [per-site Commerce columns](../user-guide/csv-format.md#per-site-commerce-columns).
 
 The Variant Attributes field handle does not need to be in this map. The plugin discovers it from the product type's variant field layout.
 
@@ -216,7 +216,7 @@ This setting is also editable at **Variant Manager -> Settings**. A value here o
 
 Display type given to an attribute the first time it is registered. The **New attribute** slideout sets its own type instead. Attributes that already exist keep the type they have.
 
-Takes the same values as `availableDisplayTypes`. An unrecognized value, or a type `availableDisplayTypes` doesn't offer, falls back to the first type `availableDisplayTypes` offers. This setting is also editable at **Variant Manager -> Settings**, where the menu offers only the types `availableDisplayTypes` allows. A value here overrides what that screen saves, and the control shows a warning saying so.
+Takes the same values as `availableDisplayTypes`. An unrecognized value, or a type `availableDisplayTypes` doesn't offer, falls back to the first type `availableDisplayTypes` offers. This setting is also editable at **Variant Manager -> Settings**, where the menu offers the types `availableDisplayTypes` allows. A known type it doesn't offer stays selected, with a warning naming the type new attributes get. A value here overrides what that screen saves, and the screen says so.
 
 ## Supported field types
 
@@ -227,7 +227,7 @@ When `productFieldMap` or `variantFieldMap` maps a column to a custom field, the
 | Plain Text | Raw text. |
 | Number | Raw number. |
 | Date | Any date string PHP can parse (`2026-03-15`, `2026-03-15 14:30`). Exported in ATOM format. |
-| Lightswitch | `1` for on, any other value for off. |
+| Lightswitch | `1`, `true`, `yes`, or `on` for on, and any other value for off. An empty cell sets the field's default. |
 | Money | Decimal value (`15.00`), parsed in the field's currency. Thousands separators fail the import. |
 | Entries | Comma-separated `sectionHandle:slug` (`articles:summer-launch,faqs:returns`). |
 | Assets | Comma-separated `volumeHandle:path/to/file.jpg`. Numeric asset IDs are also accepted. |

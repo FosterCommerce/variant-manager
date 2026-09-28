@@ -79,7 +79,7 @@ class Plugin extends BasePlugin
 {
 	private const VARIANT_MAKER_TAB_UID = 'f05d5b7a-9a3e-4a2f-9f4e-6b1c2d3e4f50';
 
-	public string $schemaVersion = '1.10.0';
+	public string $schemaVersion = '1.13.0';
 
 	public bool $hasCpSettings = true;
 
@@ -356,7 +356,9 @@ class Plugin extends BasePlugin
 					return;
 				}
 
-				foreach (Plugin::getInstance()->getVariantAttributes()->getAllAttributes() as $attribute) {
+				$attributes = Plugin::getInstance()->getVariantAttributes()->getAllAttributes();
+
+				foreach ($attributes as $attribute) {
 					$registerConditionRulesEvent->conditionRules[] = [
 						'class' => VariantAttributeConditionRule::class,
 						'attributeId' => $attribute->id,
@@ -567,8 +569,12 @@ class Plugin extends BasePlugin
 			static function (MoveElementEvent $moveElementEvent): void {
 				$element = $moveElementEvent->element;
 
-				// An unpublished draft has no variants yet, so its attribute can still change
-				if (! $element instanceof VariantAttribute || $element->getIsUnpublishedDraft()) {
+				if (! $element instanceof VariantAttribute) {
+					return;
+				}
+
+				// A new option has no variants yet, so its attribute can still change
+				if ($element->getIsUnpublishedDraft() && $element->isOption()) {
 					return;
 				}
 
@@ -583,6 +589,9 @@ class Plugin extends BasePlugin
 				if ($newAttributeId === $element->attributeId) {
 					return;
 				}
+
+				// Release the structure lock before throwing, because the throw skips the release after this event
+				Craft::$app->getMutex()->release('structure:' . $moveElementEvent->structureId);
 
 				// Throw rather than invalidate the event, because Structures reports a refusal with no message
 				if (! $element->isOption()) {

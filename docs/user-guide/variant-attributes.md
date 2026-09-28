@@ -25,6 +25,8 @@ Every attribute name and value your variants use also gets its own record, separ
 | **Utilities -> Variant Attributes** | Reads every variant in one pass. |
 | `./craft variant-manager/attributes/backfill` | The same work from the command line. |
 
+Registration skips a name or value longer than 255 characters. The variant still stores it, and the skip is written to the Craft log.
+
 Each new attribute and option is recorded in the [activity log](./activity-log.md). A save with no signed-in user, such as a console command or a queue job, is logged against `Unknown`.
 
 ### Names
@@ -38,6 +40,8 @@ Each attribute and option has two names.
 
 Two attributes cannot share a system name, and neither can two options under one attribute. A display name can be repeated.
 
+A system name has no tabs, line breaks, or special spaces, and no space at either end. The plugin turns each of those characters into a plain space and trims the ends, in the registry, and in the names and values a variant stores when it is saved. System names match regardless of letter case, and a dotted capital `İ` matches `i`.
+
 Rename an option's display name to change what shoppers read. Every product using that value shows the new name, with no import and no change to any variant. Templates read it as `option.title`.
 
 The control panel labels a record by its display name, with the system name in its own column. Search matches either one.
@@ -46,7 +50,7 @@ The control panel labels a record by its display name, with the system name in i
 
 **Variant Manager -> Variant Attributes** has a **New attribute** button, and so does a Variant Maker row's **Attribute** picker. Once a row has an attribute, the row's **Options** picker has a **New option** button, which creates the option under that attribute.
 
-A menu beside **New attribute** on the index offers **New attribute** or **New option**. If no attribute exists, or the listing is sorted by a column rather than by structure, **New option** reports "Create an attribute before adding an option." A new option starts under the first attribute in the listing. To put it under another, choose that attribute under **Variant Attribute** in its slideout before you create it. An option can't move to another attribute after it is created.
+A menu beside **New attribute** on the index offers **New attribute** or **New option**. If no attribute exists, **New option** reports "Create an attribute before adding an option." A new option starts under the first attribute in the index's default order, even while the listing is sorted by a column. To put it under another, choose that attribute under **Variant Attribute** in its slideout before you create it. An option can't move to another attribute after it is created.
 
 **New attribute** and **New option** open a slideout. Fill in **Display Name**. The control panel copies it into **System Name** as you type. To store different text, such as a short code your other systems already use, change **System Name**.
 
@@ -95,7 +99,9 @@ Build a field set in development and deploy it, because it is project config. Th
 
 Open a record and choose **Delete record** from the action menu beside **Save**. On the index, select records and choose **Delete** from the actions menu. Deleting an attribute deletes its options too. To discard a record you are still creating, choose **Delete draft** from its slideout's action menu.
 
-The control panel does not delete an option while a variant stores its value, or an attribute while a variant stores one of its options. Take the value off every variant first.
+The control panel does not delete an option while a variant stores its value, or an attribute while a variant stores one of its options. The check ignores letter case and spaces around the value, and covers every site and every Variant Attributes field. Take the value off every variant first.
+
+For an option whose name or attribute name has any character outside plain ASCII, such as `é` or `½`, the check reads each variant in turn. On a large catalog, deleting such an option or its attribute, or opening its **Used by** count, takes longer.
 
 A deleted system name can be reused. There is no trash to restore from.
 

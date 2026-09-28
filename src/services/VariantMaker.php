@@ -12,9 +12,9 @@ use craft\commerce\models\inventory\UpdateInventoryLevel;
 use craft\commerce\Plugin as Commerce;
 use craft\db\Query;
 use craft\db\Table as CraftTable;
-use craft\helpers\Localization;
 use craft\web\Request as WebRequest;
 use fostercommerce\variantmanager\elements\VariantAttribute;
+use fostercommerce\variantmanager\errors\ImportDataException;
 use fostercommerce\variantmanager\helpers\FieldHelper;
 use fostercommerce\variantmanager\models\VariantMakerPlanRow;
 use fostercommerce\variantmanager\models\VariantMakerSettings;
@@ -76,9 +76,9 @@ class VariantMaker extends Component
 			return [];
 		}
 
-		$existingVariants = $this->existingVariantsByCombination($product);
+		[$existingVariants, $duplicateVariants] = $this->existingVariantsByCombination($product);
 		$stockByVariantId = $settings->manages(VariantMakerSettings::PROPERTY_STOCK)
-			? $this->stockByVariantId($existingVariants)
+			? $this->stockByVariantId($product, $existingVariants, $settings->inventoryLocationId)
 			: [];
 		$baseSku = $this->baseSku($product);
 		$teller = $this->teller($product);
@@ -87,9 +87,11 @@ class VariantMaker extends Component
 		$title = $settings->property(VariantMakerSettings::PROPERTY_TITLE);
 		$sku = $settings->property(VariantMakerSettings::PROPERTY_SKU);
 		$price = $settings->property(VariantMakerSettings::PROPERTY_PRICE);
-		/** @var float|int|string $priceValue */
-		$priceValue = $price->value ?? $product->getDefaultVariant()?->basePrice ?? 0;
-		$basePrice = $this->amount($priceValue);
+		$basePrice = match (true) {
+			! $price->include => '0',
+			$price->value === null => $this->defaultVariantBasePrice($product, $teller),
+			default => (string) $price->value,
+		};
 
 		// Skip the title where the product type formats it, because the save overwrites our value
 		$commerceOwnsTitles = self::generatesTitles($product);
@@ -129,15 +131,21 @@ class VariantMaker extends Component
 
 		// Replace removes every existing variant the generated combinations did not cover
 		if ($mode === self::MODE_REPLACE) {
-			foreach ($existingVariants as $combinationKey => $variant) {
+			// Delete the extra variants that share a combination too, because a row updates only the first of them
+			foreach ($duplicateVariants as $duplicateVariant) {
+				$existingVariants[] = $duplicateVariant;
+			}
+
+			foreach ($existingVariants as $existingVariant) {
+				$pairs = $this->variantPairs($existingVariant);
 				$rows[] = new VariantMakerPlanRow([
-					'pairs' => $this->variantPairs($variant),
-					'combinationKey' => $combinationKey,
+					'pairs' => $pairs,
+					'combinationKey' => self::combinationKey($pairs),
 					'status' => VariantMakerPlanRow::STATUS_DELETE,
-					'variantId' => $variant->id,
-					'currentSku' => $variant->sku,
-					'currentTitle' => $variant->title,
-					'currentPrice' => (string) $variant->basePrice,
+					'variantId' => $existingVariant->id,
+					'currentSku' => $existingVariant->sku,
+					'currentTitle' => $existingVariant->title,
+					'currentPrice' => (string) $existingVariant->basePrice,
 				]);
 			}
 		}
@@ -156,76 +164,90 @@ class VariantMaker extends Component
 	 */
 	public function generate(Product $product, VariantMakerSettings $settings): array
 	{
-		$rows = $this->plan($product, $this->selectionFromRows($settings->rows), $settings);
-		$counts = [
-			'created' => 0,
-			'updated' => 0,
-			'deleted' => 0,
-		];
+		// Share the import's write lock, because a run and an import can each pass the SKU checks for the same new SKU
+		$mutex = Craft::$app->getMutex();
 
-		// Read the field handle from the product type because a new variant has no owner
-		$fieldHandle = FieldHelper::getFirstVariantAttributesField($product->getType()->getVariantFieldLayout())?->handle;
-
-		// Refuse the run rather than write variants that no filter or storefront picker can match
-		if ($fieldHandle === null) {
-			throw new InvalidConfigException("Product type “{$product->getType()->name}” has no Variant Attributes field.");
+		if (! $mutex->acquire(Csv::WRITE_MUTEX, Csv::WRITE_MUTEX_WAIT)) {
+			throw new ImportDataException(Craft::t('variant-manager', 'variantMaker.busy'));
 		}
-
-		$elementsService = Craft::$app->getElements();
-		$transaction = Craft::$app->getDb()->beginTransaction();
 
 		try {
-			$written = [];
-			$removedIds = [];
-			$pendingStock = [];
+			return $this->generateUnlocked($product, $settings);
+		} finally {
+			$mutex->release(Csv::WRITE_MUTEX);
+		}
+	}
 
-			foreach ($rows as $row) {
-				$variant = $this->variantForRow($row);
-
-				// Another save may have removed the variant between the plan and this run
-				if (! $variant instanceof Variant) {
-					continue;
-				}
-
-				if ($row->status === VariantMakerPlanRow::STATUS_DELETE) {
-					$elementsService->deleteElement($variant);
-					$removedIds[] = (int) $variant->id;
-					$counts['deleted']++;
-					continue;
-				}
-
-				if ($row->status === VariantMakerPlanRow::STATUS_UNCHANGED) {
-					continue;
-				}
-
-				$this->applyRow($variant, $row, $fieldHandle);
-				$written[] = $variant;
-
-				if (isset($row->properties[VariantMakerSettings::PROPERTY_STOCK])) {
-					$pendingStock[] = [$variant, (int) $row->properties[VariantMakerSettings::PROPERTY_STOCK]];
-				}
-
-				$counts[$row->status === VariantMakerPlanRow::STATUS_CREATE ? 'created' : 'updated']++;
-			}
-
-			if ($written !== [] || $removedIds !== []) {
-				// Pass every variant, because Commerce rebuilds the default from the set it is given
-				Plugin::getInstance()->getCsv()->saveVariants($product, $this->wholeVariantSet($product, $written, $removedIds));
-			}
-
-			// Inventory items only exist once the variant is saved
-			// Keep these writes inside the transaction. Yii nests Commerce's own transaction as a savepoint, so a rollback reverses the inventory rows too.
-			foreach ($pendingStock as [$variant, $quantity]) {
-				$this->setStock($variant, $quantity, $settings->inventoryLocationId);
-			}
-
-			$transaction->commit();
-		} catch (\Throwable $throwable) {
-			$transaction->rollBack();
-			throw $throwable;
+	/**
+	 * Why stock can't be written to the settings' inventory location, since setStock() writes only the store's locations.
+	 */
+	public function inventoryLocationIssue(Product $product, VariantMakerSettings $settings): ?string
+	{
+		if (! $settings->manages(VariantMakerSettings::PROPERTY_STOCK)) {
+			return null;
 		}
 
-		return $counts;
+		$storeLocationIds = $product->getStore()->getInventoryLocations()->pluck('id')->all();
+
+		// Require a location where the store has several, because setStock() would otherwise set the count at each one
+		if ($settings->inventoryLocationId === null) {
+			return count($storeLocationIds) > 1 ? Craft::t('variant-manager', 'variantMaker.inventoryLocationRequired') : null;
+		}
+
+		if (in_array($settings->inventoryLocationId, $storeLocationIds, true)) {
+			return null;
+		}
+
+		return Craft::t('variant-manager', 'variantMaker.inventoryLocationMissing');
+	}
+
+	/**
+	 * Why a plan can't run, since a duplicate SKU or too many variants fails the whole run.
+	 *
+	 * @param list<VariantMakerPlanRow> $rows
+	 */
+	public function planIssue(Product $product, array $rows): ?string
+	{
+		foreach ($rows as $row) {
+			if ($row->skuIssue !== null) {
+				return Craft::t('variant-manager', 'variantMaker.skuIssuesBlockGenerating');
+			}
+		}
+
+		return $this->variantLimitIssue($product, $rows);
+	}
+
+	/**
+	 * Why the plan would leave more variants than the product type allows, since the product save would then fail.
+	 *
+	 * @param list<VariantMakerPlanRow> $rows
+	 */
+	public function variantLimitIssue(Product $product, array $rows): ?string
+	{
+		$maxVariants = $product->getType()->maxVariants;
+
+		if ($maxVariants === null) {
+			return null;
+		}
+
+		$variantCount = (int) Variant::find()->product($product)->status(null)->count();
+
+		foreach ($rows as $row) {
+			if ($row->status === VariantMakerPlanRow::STATUS_CREATE) {
+				$variantCount++;
+			} elseif ($row->status === VariantMakerPlanRow::STATUS_DELETE) {
+				$variantCount--;
+			}
+		}
+
+		if ($variantCount <= $maxVariants) {
+			return null;
+		}
+
+		return Craft::t('variant-manager', 'variantMaker.tooManyVariants', [
+			'count' => $variantCount,
+			'max' => $maxVariants,
+		]);
 	}
 
 	/**
@@ -252,7 +274,15 @@ class VariantMaker extends Component
 			'productId' => $product->getCanonicalId(),
 		]);
 
-		$settings = VariantMakerSettings::fromJson($record->settings ?? null);
+		return $this->settingsFromJson($record->settings ?? null);
+	}
+
+	/**
+	 * Settings from their stored JSON, without rows whose attribute or options were deleted since.
+	 */
+	public function settingsFromJson(?string $json): VariantMakerSettings
+	{
+		$settings = VariantMakerSettings::fromJson($json);
 		$settings->forgetMissing($this->registeredIds($settings));
 
 		return $settings;
@@ -291,11 +321,8 @@ class VariantMaker extends Component
 	 */
 	public function settingsRows(VariantMakerSettings $settings): array
 	{
-		$elementsById = [];
-
-		foreach (VariantAttribute::find()->id($this->idsIn($settings))->all() as $element) {
-			$elementsById[$element->id] = $element;
-		}
+		/** @var array<int, VariantAttribute> $elementsById */
+		$elementsById = VariantAttribute::find()->id($this->idsIn($settings))->indexBy('id')->all();
 
 		$rows = [];
 
@@ -375,24 +402,18 @@ class VariantMaker extends Component
 			return [];
 		}
 
-		$rowsById = [];
-
-		foreach (VariantAttribute::find()->id($attributeIds)->all() as $attribute) {
-			$rowsById[$attribute->id] = $attribute;
-		}
+		/** @var array<int, VariantAttribute> $attributesById */
+		$attributesById = VariantAttribute::find()->id($attributeIds)->indexBy('id')->all();
 
 		$optionIds = array_merge(...array_values($optionIdsByAttributeId));
 
-		$optionsById = [];
-
-		foreach ($optionIds === [] ? [] : VariantAttribute::find()->id($optionIds)->all() as $option) {
-			$optionsById[$option->id] = $option;
-		}
+		/** @var array<int, VariantAttribute> $optionsById */
+		$optionsById = VariantAttribute::find()->id($optionIds)->indexBy('id')->all();
 
 		$valuesByName = [];
 
 		foreach ($attributeIds as $attributeId) {
-			$attribute = $rowsById[$attributeId] ?? null;
+			$attribute = $attributesById[$attributeId] ?? null;
 
 			if ($attribute === null) {
 				continue;
@@ -442,6 +463,98 @@ class VariantMaker extends Component
 		$productType = $product->getType();
 
 		return ! $productType->hasVariantTitleField && $productType->variantTitleFormat !== '';
+	}
+
+	/**
+	 * @return array{created: int, updated: int, deleted: int}
+	 * @throws \Throwable
+	 */
+	private function generateUnlocked(Product $product, VariantMakerSettings $settings): array
+	{
+		$inventoryLocationIssue = $this->inventoryLocationIssue($product, $settings);
+
+		if ($inventoryLocationIssue !== null) {
+			throw new ImportDataException($inventoryLocationIssue);
+		}
+
+		$rows = $this->plan($product, $this->selectionFromRows($settings->rows), $settings);
+
+		// Check the plan again, because a SKU can become taken after queueing and saveVariants() skips validation
+		$planIssue = $this->planIssue($product, $rows);
+
+		if ($planIssue !== null) {
+			throw new ImportDataException($planIssue);
+		}
+
+		$counts = [
+			'created' => 0,
+			'updated' => 0,
+			'deleted' => 0,
+		];
+
+		// Read the field handle from the product type because a new variant has no owner
+		$fieldHandle = FieldHelper::getFirstVariantAttributesField($product->getType()->getVariantFieldLayout())?->handle;
+
+		// Refuse the run rather than write variants that no filter or storefront picker can match
+		if ($fieldHandle === null) {
+			throw new InvalidConfigException("Product type “{$product->getType()->name}” has no Variant Attributes field.");
+		}
+
+		$elementsService = Craft::$app->getElements();
+		$transaction = Craft::$app->getDb()->beginTransaction();
+
+		try {
+			$written = [];
+			$removedIds = [];
+			$pendingStock = [];
+
+			foreach ($rows as $row) {
+				$variant = $this->variantForRow($row);
+
+				// Another save may have removed the variant between the plan and this run
+				if (! $variant instanceof Variant) {
+					continue;
+				}
+
+				if ($row->status === VariantMakerPlanRow::STATUS_DELETE) {
+					$elementsService->deleteElement($variant);
+					$removedIds[] = (int) $variant->id;
+					$counts['deleted']++;
+					continue;
+				}
+
+				if ($row->status === VariantMakerPlanRow::STATUS_UNCHANGED) {
+					continue;
+				}
+
+				$this->applyRow($variant, $row, $fieldHandle);
+				$written[] = $variant;
+
+				if (isset($row->properties[VariantMakerSettings::PROPERTY_STOCK])) {
+					$pendingStock[] = [$variant, (int) $row->properties[VariantMakerSettings::PROPERTY_STOCK]];
+				}
+
+				$counts[$row->status === VariantMakerPlanRow::STATUS_CREATE ? 'created' : 'updated']++;
+			}
+
+			if ($written !== [] || $removedIds !== []) {
+				// Pass every variant, because Commerce rebuilds the default from the set it is given
+				Plugin::getInstance()->getCsv()->saveVariants($product, $this->wholeVariantSet($product, $written, $removedIds));
+			}
+
+			// Inventory items only exist once the variant is saved
+			// Keep these writes inside the transaction. Yii nests Commerce's own transaction as a savepoint, so a rollback reverses the inventory rows too.
+			foreach ($pendingStock as [$variant, $quantity]) {
+				$this->setStock($variant, $quantity, $settings->inventoryLocationId);
+			}
+
+			$transaction->commit();
+		} catch (\Throwable $throwable) {
+			$transaction->rollBack();
+			throw $throwable;
+		}
+
+		return $counts;
 	}
 
 	/**
@@ -573,7 +686,7 @@ class VariantMaker extends Component
 	/**
 	 * A row is an update only where a property the maker owns for existing variants would actually change one.
 	 *
-	 * @param array<int, int> $stockByVariantId
+	 * @param array<int, int|null> $stockByVariantId
 	 *
 	 * @phpstan-return VariantMakerPlanRow::STATUS_CREATE|VariantMakerPlanRow::STATUS_UPDATE|VariantMakerPlanRow::STATUS_UNCHANGED
 	 */
@@ -587,6 +700,7 @@ class VariantMaker extends Component
 		$row->currentSku = $variant->sku;
 		$row->currentTitle = $variant->title;
 		$row->currentPrice = (string) $variant->basePrice;
+		$row->currentStock = $stockByVariantId[$variant->id] ?? null;
 
 		if (! $settings->updatesExisting()) {
 			return VariantMakerPlanRow::STATUS_UNCHANGED;
@@ -598,11 +712,11 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * @param array<int, int> $stockByVariantId
+	 * @param array<int, int|null> $stockByVariantId
 	 */
 	private function changesVariant(VariantMakerPlanRow $row, Variant $variant, VariantMakerSettings $settings, Teller $teller, array $stockByVariantId): bool
 	{
-		if ($settings->manages(VariantMakerSettings::PROPERTY_TITLE) && $row->title !== $row->currentTitle) {
+		if ($settings->manages(VariantMakerSettings::PROPERTY_TITLE) && $row->title !== null && $row->title !== $row->currentTitle) {
 			return true;
 		}
 
@@ -626,7 +740,7 @@ class VariantMaker extends Component
 			$value = $settings->property($propertyName)->value;
 
 			$current = $propertyName === VariantMakerSettings::PROPERTY_STOCK
-				? ($stockByVariantId[$variant->id] ?? 0)
+				? $stockByVariantId[$variant->id] ?? null
 				: $variant->{$propertyName};
 
 			if ($current !== $value) {
@@ -638,12 +752,12 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * Reads every variant's stock in one query, since Commerce derives it per purchasable from inventory levels.
+	 * Reads every variant's on hand quantity at the locations the run writes, in one query.
 	 *
 	 * @param array<string, Variant> $existingVariants
-	 * @return array<int, int>
+	 * @return array<int, int|null> null where those locations hold different quantities
 	 */
-	private function stockByVariantId(array $existingVariants): array
+	private function stockByVariantId(Product $product, array $existingVariants, ?int $inventoryLocationId): array
 	{
 		$variantIds = array_values(array_filter(array_map(
 			static fn (Variant $variant): ?int => $variant->id,
@@ -654,25 +768,34 @@ class VariantMaker extends Component
 			return [];
 		}
 
-		$stockByVariantId = array_fill_keys($variantIds, 0);
+		$stockByVariantId = [];
 
 		/** @var Commerce $commerce */
 		$commerce = Commerce::getInstance();
 
-		$levels = $commerce->getInventory()->getInventoryLevelQuery()
+		// Compare on hand, because the run sets on hand rather than available
+		$levelQuery = $commerce->getInventory()->getInventoryLevelQuery(inventoryLocationId: $inventoryLocationId)
 			->andWhere([
 				'ii.purchasableId' => $variantIds,
-			])
-			->all();
+			]);
+
+		// Read the store's locations when no location is chosen, because setStock() writes only the store's locations
+		if ($inventoryLocationId === null) {
+			$levelQuery->andWhere([
+				'it.inventoryLocationId' => $product->getStore()->getInventoryLocations()->pluck('id')->all(),
+			]);
+		}
+
+		$levels = $levelQuery->all();
 
 		foreach ($levels as $level) {
 			/** @var array<string, scalar|null> $level */
-			// Commerce counts only positive availability toward stock, and sums it across locations
-			$available = (int) ($level['availableTotal'] ?? 0);
+			$variantId = (int) ($level['purchasableId'] ?? 0);
+			$onHand = (int) ($level['onHandTotal'] ?? 0);
 
-			if ($available > 0) {
-				$stockByVariantId[(int) ($level['purchasableId'] ?? 0)] += $available;
-			}
+			$stockByVariantId[$variantId] = array_key_exists($variantId, $stockByVariantId) && $stockByVariantId[$variantId] !== $onHand
+				? null
+				: $onHand;
 		}
 
 		return $stockByVariantId;
@@ -755,15 +878,35 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * A price typed into the control panel uses the locale's separators, which Money's parser rejects.
+	 * The default variant's price less its own options' modifiers, so a run without a price doesn't add them twice.
 	 */
-	private function amount(float|int|string $value): string
+	private function defaultVariantBasePrice(Product $product, Teller $teller): string
 	{
-		// Narrow the mixed return. Only a string argument comes back changed, and $value is already float|int|string
-		/** @var float|int|string $normalized */
-		$normalized = Localization::normalizeNumber($value);
+		$defaultVariant = $product->getDefaultVariant();
 
-		return (string) $normalized === '' ? '0' : (string) $normalized;
+		if (! $defaultVariant instanceof Variant) {
+			return '0';
+		}
+
+		$pairs = $this->variantPairs($defaultVariant);
+		$valuesByName = [];
+
+		foreach ($pairs as $pair) {
+			$valuesByName[$pair['attributeName']][] = $pair['attributeValue'];
+		}
+
+		$registry = Plugin::getInstance()->getVariantAttributes()->getRegistry($valuesByName);
+		$price = (string) $defaultVariant->basePrice;
+
+		$options = $this->combinationOptions($pairs, $registry);
+
+		foreach ($options as $option) {
+			if ($option->priceModifier !== null) {
+				$price = $teller->subtract($price, $option->priceModifier);
+			}
+		}
+
+		return $price;
 	}
 
 	/**
@@ -775,7 +918,7 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * Marks the rows Commerce would reject, since one failure rolls the whole run back.
+	 * Marks the rows whose SKU the run refuses, since saveVariants() skips validation and one failure rolls the whole run back.
 	 *
 	 * @param list<VariantMakerPlanRow> $rows
 	 */
@@ -789,20 +932,28 @@ class VariantMaker extends Component
 			}
 		}
 
-		$plannedIds = array_filter(array_map(static fn (VariantMakerPlanRow $row): ?int => $row->variantId, $rows));
-		$keptSkus = $this->keptSkus($product, $plannedIds);
-		$takenElsewhere = $this->skusTakenElsewhere(array_keys($rowsByLowercasedSku), $plannedIds);
+		// Count a variant's SKU as freed only where the run deletes the variant or writes its SKU
+		$freedIds = [];
+
+		foreach ($rows as $row) {
+			if ($row->variantId !== null && ($row->status === VariantMakerPlanRow::STATUS_DELETE || $row->sku !== null)) {
+				$freedIds[] = $row->variantId;
+			}
+		}
+
+		$keptSkus = $this->keptSkus($product, $freedIds);
+		$takenElsewhere = $this->skusTakenElsewhere(array_keys($rowsByLowercasedSku), $freedIds);
 
 		foreach ($rowsByLowercasedSku as $lowercasedSku => $sharingRows) {
-			$isDuplicate = count($sharingRows) > 1 || isset($keptSkus[$lowercasedSku]);
-
-			foreach ($sharingRows as $row) {
-				if ($isDuplicate) {
-					$row->skuIssue = Craft::t('variant-manager', 'variantMaker.skuDuplicate');
+			foreach ($sharingRows as $sharingRow) {
+				if (count($sharingRows) > 1) {
+					$sharingRow->skuIssue = Craft::t('variant-manager', 'variantMaker.skuDuplicate');
+				} elseif (isset($keptSkus[$lowercasedSku])) {
+					$sharingRow->skuIssue = Craft::t('variant-manager', 'variantMaker.skuKept');
 				} elseif (isset($takenElsewhere[$lowercasedSku])) {
-					$row->skuIssue = Craft::t('variant-manager', 'variantMaker.skuTaken');
-				} elseif (mb_strlen((string) $row->sku) > self::SKU_MAX_LENGTH) {
-					$row->skuIssue = Craft::t('variant-manager', 'variantMaker.skuTooLong', [
+					$sharingRow->skuIssue = Craft::t('variant-manager', 'variantMaker.skuTaken');
+				} elseif (mb_strlen((string) $sharingRow->sku) > self::SKU_MAX_LENGTH) {
+					$sharingRow->skuIssue = Craft::t('variant-manager', 'variantMaker.skuTooLong', [
 						'max' => self::SKU_MAX_LENGTH,
 					]);
 				}
@@ -811,18 +962,18 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * The SKUs of the product's own variants no plan row covers, since Commerce rejects a repeat within one product.
+	 * The SKUs the product's own variants still hold after the run, since a product can't repeat a SKU.
 	 *
-	 * @param list<int> $plannedIds
+	 * @param list<int> $freedIds
 	 * @return array<string, true>
 	 */
-	private function keptSkus(Product $product, array $plannedIds): array
+	private function keptSkus(Product $product, array $freedIds): array
 	{
-		$planned = array_flip($plannedIds);
+		$freed = array_flip($freedIds);
 		$keptSkus = [];
 
 		foreach (Variant::find()->product($product)->status(null)->all() as $variant) {
-			if (! isset($planned[(int) $variant->id])) {
+			if (! isset($freed[(int) $variant->id])) {
 				$keptSkus[mb_strtolower((string) $variant->sku)] = true;
 			}
 		}
@@ -832,10 +983,10 @@ class VariantMaker extends Component
 
 	/**
 	 * @param list<string> $lowercasedSkus lowercased, since Commerce compares SKUs case insensitively
-	 * @param list<int> $plannedIds
+	 * @param list<int> $freedIds
 	 * @return array<string, true>
 	 */
-	private function skusTakenElsewhere(array $lowercasedSkus, array $plannedIds): array
+	private function skusTakenElsewhere(array $lowercasedSkus, array $freedIds): array
 	{
 		if ($lowercasedSkus === []) {
 			return [];
@@ -861,12 +1012,12 @@ class VariantMaker extends Component
 				$lowercasedSkus,
 			]);
 
-		// A plan row rewrites its own variant, so that variant's current SKU is not taken
-		if ($plannedIds !== []) {
+		// A freed variant's current SKU is not taken
+		if ($freedIds !== []) {
 			$query->andWhere([
 				'not',
 				[
-					'[[purchasables.id]]' => $plannedIds,
+					'[[purchasables.id]]' => $freedIds,
 				],
 			]);
 		}
@@ -903,7 +1054,7 @@ class VariantMaker extends Component
 
 		foreach ($options as $option) {
 			if ($option->priceModifier !== null) {
-				$price = $teller->add($price, $this->amount($option->priceModifier));
+				$price = $teller->add($price, $option->priceModifier);
 			}
 		}
 
@@ -924,10 +1075,10 @@ class VariantMaker extends Component
 			$extended = [];
 
 			foreach ($combinations as $combination) {
-				foreach ($values as $attributeValue) {
+				foreach ($values as $value) {
 					$extended[] = [...$combination, [
 						'attributeName' => (string) $attributeName,
-						'attributeValue' => $attributeValue,
+						'attributeValue' => $value,
 					]];
 				}
 			}
@@ -939,22 +1090,28 @@ class VariantMaker extends Component
 	}
 
 	/**
-	 * @return array<string, Variant>
+	 * The product's variants by combination, and the later variants that repeat a combination.
+	 *
+	 * @return array{0: array<string, Variant>, 1: list<Variant>}
 	 */
 	private function existingVariantsByCombination(Product $product): array
 	{
 		$variants = [];
+		$duplicates = [];
 
 		foreach (Variant::find()->product($product)->status(null)->all() as $variant) {
 			$combinationKey = self::combinationKey($this->variantPairs($variant));
 
 			// Two variants can share a combination, and only the first is the one a row updates
-			if (! isset($variants[$combinationKey])) {
-				$variants[$combinationKey] = $variant;
+			if (isset($variants[$combinationKey])) {
+				$duplicates[] = $variant;
+				continue;
 			}
+
+			$variants[$combinationKey] = $variant;
 		}
 
-		return $variants;
+		return [$variants, $duplicates];
 	}
 
 	/**
@@ -968,20 +1125,20 @@ class VariantMaker extends Component
 			return [];
 		}
 
-		$storedAttributes = $variant->{$fieldHandle};
+		$storedPairs = $variant->{$fieldHandle};
 
 		// Treat an unparseable value as empty. The field stores JSON.
-		if (! is_array($storedAttributes)) {
+		if (! is_array($storedPairs)) {
 			return [];
 		}
 
 		$pairs = [];
 
-		foreach ($storedAttributes as $pair) {
-			if (is_string($pair['attributeName'] ?? null) && is_string($pair['attributeValue'] ?? null)) {
+		foreach ($storedPairs as $storedPair) {
+			if (is_string($storedPair['attributeName'] ?? null) && is_string($storedPair['attributeValue'] ?? null)) {
 				$pairs[] = [
-					'attributeName' => $pair['attributeName'],
-					'attributeValue' => $pair['attributeValue'],
+					'attributeName' => $storedPair['attributeName'],
+					'attributeValue' => $storedPair['attributeValue'],
 				];
 			}
 		}

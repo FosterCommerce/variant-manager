@@ -25,7 +25,7 @@ A Craft CMS plugin for managing Craft Commerce variants as combinations of **att
 
 ## Requirements
 
-- Craft CMS `^5.0`
+- Craft CMS `^5.10.0`
 - Craft Commerce `^5.7.0`
 - PHP `>=8.2.0`
 
@@ -52,9 +52,9 @@ For managing attributes and options, see [variant attributes](./docs/user-guide/
 
 Create or update a product and all of its variants from a spreadsheet.
 
-Upload a CSV (or a zip of CSVs) from **Variant Manager -> Dashboard**. Each file in a zip runs as its own queue job, so a file that fails does not stop the other files. A filename starting with a product ID (`42__classic-tee.csv`, the shape every export uses) updates that product; any other filename creates a new product. Columns map to product fields, variant fields, per-site Commerce fields, inventory levels, and variant attributes. Every run writes to an activity log with its outcome and, on failure, the reason.
+Upload a CSV (or a zip of CSVs) from **Variant Manager -> Dashboard**. A filename starting with a product ID and two underscores (`42__classic-tee.csv`, the shape every export uses) updates that product; any other filename creates a new product. Columns map to product fields, variant fields, per-site Commerce fields, inventory levels, and variant attributes. Every run writes to an activity log with its outcome and, on failure, the reason.
 
-Uploading needs Commerce's `commerce-saveProductType` on the product type being written, the same permission every tool that changes catalog data uses.
+Uploading needs Commerce's `commerce-saveProductType` on the product type being written, and `commerce-createProductType` when the file creates a product.
 
 For the upload steps, the column set, and what to do when a run fails, see [importing](./docs/user-guide/importing.md), [CSV format](./docs/user-guide/csv-format.md), [bulk import](./docs/user-guide/bulk-import.md), [the activity log](./docs/user-guide/activity-log.md), [choosing what to grant](./docs/user-guide/permissions.md), and [troubleshooting](./docs/user-guide/troubleshooting.md).
 
@@ -74,7 +74,7 @@ Get a product's variants out as a CSV you can edit and reimport.
 
 Export one product from the **Export Product** button in its edit page sidebar, or several products with the **Export Variant Data** action on a selection at **Commerce -> Products**. A single product downloads as one CSV; multiple products download as a zip. The column headers need no editing before the file is reimported.
 
-Exporting uses the plugin's own `variant-manager:export`, not the Commerce permission importing needs.
+Exporting needs the plugin's own `variant-manager:export`, plus Commerce's `commerce-viewProductType` for the product's type.
 
 For the column set and the reimport path, see [exporting](./docs/user-guide/exporting.md).
 

@@ -40,13 +40,13 @@ class Import extends BaseJob
 		]);
 	}
 
-	public static function fromFilename(string $filename, ?string $productTypeHandle, bool $refreshVariants = false): self
+	public static function fromCsvData(string $filename, string $csvData, ?string $productTypeHandle, bool $refreshVariants = false): self
 	{
 		return new self([
 			'importByUserId' => self::currentUserId(),
 			'filename' => basename($filename),
 			'productTypeHandle' => $productTypeHandle,
-			'csvData' => file_get_contents($filename),
+			'csvData' => $csvData,
 			'refreshVariants' => $refreshVariants,
 		]);
 	}

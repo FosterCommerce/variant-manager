@@ -20,6 +20,11 @@ class GenerateVariants extends BaseJob
 
 	public int $generatedByUserId;
 
+	/**
+	 * The settings Generate checked, or null for a job queued before 4.3.0.
+	 */
+	public ?string $settings = null;
+
 	public function execute($queue): void
 	{
 		$user = Craft::$app->getUsers()->getUserById($this->generatedByUserId);
@@ -27,14 +32,19 @@ class GenerateVariants extends BaseJob
 		$commerce = Commerce::getInstance();
 		$product = $commerce->getProducts()->getProductById($this->productId);
 
+		// Log the missing product, since the run otherwise ends without an activity entry
 		if (! $product instanceof Product) {
+			Activity::log($user, Craft::t('variant-manager', 'variantMaker.productMissing', [
+				'id' => $this->productId,
+			]), 'error');
 			return;
 		}
 
 		$variantMaker = Plugin::getInstance()->getVariantMaker();
 
 		try {
-			$counts = $variantMaker->generate($product, $variantMaker->getSettings($product));
+			$settings = $this->settings === null ? $variantMaker->getSettings($product) : $variantMaker->settingsFromJson($this->settings);
+			$counts = $variantMaker->generate($product, $settings);
 
 			$link = Html::a(Html::encode((string) $product->title), (string) $product->getCpEditUrl(), [
 				'class' => 'go',

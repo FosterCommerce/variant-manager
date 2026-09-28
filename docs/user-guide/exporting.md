@@ -35,7 +35,7 @@ Column order:
 
 1. Product fields from `productFieldMap` (title, slug, status, plus any custom fields).
 2. Variant fields from `variantFieldMap` (sku, height, width, length, weight, and so on).
-3. Per-site Commerce variant fields suffixed with `[siteHandle]` (`basePrice[default]`, `inventoryTracked[default]`, `availableForPurchase[default]`, `freeShipping[default]`, `promotable[default]`, `minQty[default]`, `maxQty[default]`), one column per site in the Craft install, not only the sites in this product's store.
+3. Per-site Commerce variant fields suffixed with `[siteHandle]` (`basePrice[default]`, `inventoryTracked[default]`, `availableForPurchase[default]`, `freeShipping[default]`, `promotable[default]`, `minQty[default]`, `maxQty[default]`), one column per site in the Craft install, not only the sites in this product's store. A site the product doesn't exist on gets empty cells.
 4. Inventory columns for each inventory location, all six totals per location (`Inventory[location]: reserved`, `damaged`, `safety`, `qualityControl`, `committed`, `available`).
 5. Variant Attribute columns prefixed with `Attribute: `, one per attribute name any of the product's variants stores. A variant that does not store a given attribute gets an empty cell in that column.
 
@@ -73,6 +73,6 @@ For the difference between the two, see [importing](./importing.md#existing-prod
 - **Editing column headers**: do not rename the column headers. The plugin maps columns by header text; changing `basePrice[default]` to `Price` leaves prices unchanged on reimport.
 - **Reordering columns**: safe for every column except the first. The plugin matches columns by header, but the product title is read from the first cell of row 2 whatever its header says, so moving another column in front of `title` renames the product on reimport.
 - **Adding new attribute columns**: safe. Add a new `Attribute: Material` column with values and reimport.
-- **Removing attribute columns**: removes that attribute from every variant.
+- **Removing attribute columns**: leaves those attributes on existing variants. **Replace all variants** creates the variants again without them.
 - **Adding a row with a new SKU**: creates a new variant on reimport.
 - **Removing a row**: deletes that variant on reimport, under the default variant-handling choice.

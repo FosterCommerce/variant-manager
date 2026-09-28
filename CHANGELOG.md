@@ -1,21 +1,64 @@
 # Release Notes for Variant Manager
 
-## 4.2.3 - 2026-09-25
+## 4.3.0 - 2026-09-28
+
+### Added
+
+- Added current stock to the Variant Maker preview.
+- Added `Csv::productIdFromFilename()`, `Import::fromCsvData()`, `VariantAttribute::cleanName()`, `VariantAttributes::getVariantAttributesFields()`, `VariantAttributes::pairKey()`, `VariantAttributesField::pairConditionIgnoringCase()`, `VariantMaker::inventoryLocationIssue()`, `VariantMaker::planIssue()`, `VariantMaker::settingsFromJson()`, `VariantMaker::variantLimitIssue()`, and `VariantMakerSettings::isPlainDecimal()`.
 
 ### Changed
 
-- `availableDisplayTypes` now defaults to `['*']`, and an empty list now offers only Dropdown.
-- `defaultDisplayType` now falls back to the first offered type when `availableDisplayTypes` doesn't offer it.
-- The Variant Attributes field on a variant now says where to manage its values, including when the variant has no attributes.
-- Variant and per-site CSV column headers now match regardless of letter case, so a `Title` column now sets variant titles.
+- Variant Manager now requires Craft CMS 5.10 or later, which Commerce 5.7 already requires.
+- CSV imports now fail when a SKU or price is empty, a price isn't a number, a CSV that creates variants has no price column, two columns map to one field, or two sites in one store have different per-site values.
+- An empty CSV cell now clears its value or restores its default, a missing column now leaves existing values alone, and Lightswitch cells now accept `true`, `yes`, and `on`.
+- CSV column headers and SKUs now match regardless of letter case.
+- The upload modal's “Product Type” menu now lists only the product types the user can create products in, and a zip upload now fails before queueing any file when one names a product that doesn't exist or that the user can't save.
+- Imports and Variant Maker runs now write one at a time.
+- The `variantAttributes()` filter now matches letter case exactly on MySQL, as it does on Postgres, and the Variant Attribute condition rule now ignores letter case.
+- Attribute and option names, and the names and values saved on variants, are now trimmed, with tabs, line breaks, and special spaces replaced by plain spaces.
+- `availableDisplayTypes` now defaults to `['*']`, an empty list offers only Dropdown, and `defaultDisplayType` falls back to the first offered type.
+- The Variant Attributes field now says where to manage its values.
+- “Generate variants” is now disabled while the builder has unsaved edits and on a named product draft, and a run now uses the settings saved when it was clicked.
+- The Variant Maker's Replace mode now also deletes extra variants that share a combination, and the Variant Maker now requires an inventory location for stock when the store has more than one.
+- `Csv::export()` now takes a `Product` and no longer returns `false`.
 
 ### Fixed
 
-- Fixed an issue where the Variant Maker's SKU summary didn't mention SKUs another product already uses. ([#53](https://github.com/FosterCommerce/variant-manager/issues/53))
+- Fixed a bug where importing a CSV without attribute columns removed every variant's attributes.
+- Fixed a bug where a failed import could leave variants written or deleted.
+- Fixed bugs where CSV imports read uppercase `.CSV` extensions, blank rows, thousands separators, currency symbols, and values containing `*` or a comma incorrectly.
+- Fixed errors that occurred when an import named an unknown product type, had an invalid inventory quantity, inventory total, or Money value, wasn't UTF-8, or was larger than the server accepts.
+- Fixed bugs where a zip import applied its product type to existing products of other types, and a zip with more than one period in its name showed the options for a single CSV.
+- Fixed bugs where exporting a product that doesn't exist on every site failed, and reimporting an export could rename the product.
+- Fixed bugs where imports and the Variant Maker could write a SKU another variant already uses.
+- Fixed a bug where an import or Variant Maker error was replaced by a database error when its message was longer than 255 characters.
+- Fixed a bug where the `variantAttributes()` filter on MySQL missed matching variants, treated `%` and `_` as wildcards, and failed on MariaDB.
+- Fixed bugs where an attribute or option still in use could be deleted or pruned, and a Variant Attribute condition rule whose option was deleted matched every element.
+- Fixed bugs where attribute and option names with commas, accents, numbers, or the words “And”, “Or”, and “Not” weren't found, were treated as one, or were renumbered.
+- Fixed errors that could occur when a variant stored a malformed attribute pair or a name longer than 255 characters, or an option price modifier was typed in the user's number format.
+- Fixed bugs on the Variant Attributes index where a restored record was missing, deleting an attribute could move an option to the top level, and “New option” reported no attribute while the listing was sorted.
+- Fixed bugs where Variant Maker prices could be saved as `0`, read in the wrong number format, or have option price modifiers added again on each run.
+- Fixed an issue where the Variant Maker's SKU summary didn't mention SKUs other products use. ([#53](https://github.com/FosterCommerce/variant-manager/issues/53))
+- Fixed bugs where the Variant Maker queued runs over the product type's variant limit, set stock at every inventory location when none was chosen, and set no stock when the chosen location had been removed.
+- Fixed bugs where the Variant Maker marked unchanged variants as updates, dropped a repeated row's options, and blocked saving a product whose row lost every option.
+- Fixed bugs where the Variant Maker didn't work in a product slideout, editing another element in a slideout disabled “Generate variants”, a run for a deleted product wasn't logged, and the `plan` command dropped a `0` from `--select`.
+- Fixed an error that occurred when the field sets migration ran again after failing partway.
 
 ### Removed
 
 - Removed the ability to move an option to another variant attribute. ([#51](https://github.com/FosterCommerce/variant-manager/issues/51))
+- Removed `Import::fromFilename()`. Use `Import::fromCsvData()` instead.
+- Removed `VariantAttributes::getAllAttributesWithOptions()`, `VariantAttribute::setOptions()`, and `VariantAttribute::nameTakenUnder()`.
+
+### Security
+
+- Fixed a stored XSS vulnerability in the upload modal.
+- Fixed a vulnerability where a zip entry's name could read and delete a CSV file outside the temporary folder.
+- Fixed a vulnerability where a CSV named with only a product ID, such as `42.csv`, could update a product the user couldn't save.
+- Fixed a vulnerability where the Variant Maker didn't apply site permissions or other plugins' save checks.
+- Fixed a vulnerability where importing didn't apply Commerce's create permission, site permissions, or other plugins' save checks.
+- Fixed a vulnerability where a user with `variant-manager:export` could export products they couldn't view.
 
 ## 4.2.2 - 2026-09-22
 

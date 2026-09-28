@@ -58,10 +58,10 @@
 		instructions: 'settings.defaultDisplayTypeIntro'|t('variant-manager'),
 		name: 'settings[defaultDisplayType]',
 		options: defaultDisplayTypeOptions,
-		value: defaultDisplayType,
+		value: settings.defaultDisplayType,
 		disabled: readOnly,
 		errors: settings.getErrors('defaultDisplayType'),
-		warning: configWarning('defaultDisplayType'),
+		warning: configWarning('defaultDisplayType') ?: defaultDisplayTypeWarning,
 	}) }}
 
 	<hr>

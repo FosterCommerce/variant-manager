@@ -4,7 +4,7 @@ A Craft CMS plugin for managing Craft Commerce variants as combinations of **att
 
 ## Requirements
 
-- Craft CMS `^5.0`
+- Craft CMS `^5.10.0`
 - Craft Commerce `^5.7.0`
 - PHP `>=8.2.0`
 
@@ -81,7 +81,7 @@ For how the field stores data, see [Variant Attributes field reference](./refere
 
 ## Permissions
 
-Grant `accessPlugin-variant-manager` to any group that needs the **Variant Manager** section. Everything that changes catalog data uses Commerce's `commerce-saveProductType`, granted per product type.
+Grant `accessPlugin-variant-manager` to any group that needs the **Variant Manager** section. Everything that changes catalog data uses Commerce's `commerce-saveProductType`, granted per product type. Creating a product from a CSV also needs `commerce-createProductType`.
 
 For the full list, see [permissions reference](./reference/permissions.md).
 

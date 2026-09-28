@@ -12,6 +12,8 @@ The Variant Attributes field accepts:
 2. An associative array. Returns variants that match **every** name/value pair.
 3. A list of strings, associative arrays, or both. Returns variants that match **any** of the entries.
 
+Names and values match exactly, including letter case, and `%` and `_` are literal characters.
+
 ## Filter by an option value
 
 Find variants whose Variant Attributes contains the value `Red` under any attribute name.
@@ -86,7 +88,7 @@ Twig:
 
 The field stores attributes as JSON. The query builder generates database conditions tailored to your database:
 
-- MySQL: `json_search()` against the field's JSON path, with one condition per name/value pair.
+- MySQL and MariaDB: `JSON_CONTAINS()` against the field's JSON path, with one condition per name/value pair.
 - PostgreSQL: `@>` containment against the JSON column.
 
 ## Errors

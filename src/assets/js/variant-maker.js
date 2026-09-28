@@ -7,6 +7,8 @@
 		preview: null,
 		tokens: null,
 		productId: null,
+		canonicalId: null,
+		generating: false,
 		nextRowId: 1,
 		pending: null,
 		requestId: 0,
@@ -17,10 +19,11 @@
 			this.preview = container.querySelector('[data-vm-preview]');
 			this.tokens = container.querySelector('[data-vm-tokens]');
 			this.productId = container.dataset.vmProductId;
+			this.canonicalId = container.dataset.vmCanonicalId;
 			this.nextRowId = this.rows.querySelectorAll('[data-vm-row]').length + 1;
 
 			this.addListener(container, 'click', 'onClick');
-			this.addListener(container, 'input', 'scheduleRefresh');
+			this.addListener(container, 'input', 'onInput');
 			// Craft's lightswitch is a button and fires its change through jQuery, so bind with jQuery
 			$(container).on('change', this.onChange.bind(this));
 
@@ -46,7 +49,17 @@
 			});
 		},
 
+		/**
+		 * Generate reads the saved settings, and Craft reports the unsaved change only after its draft save returns.
+		 */
+		onInput: function () {
+			this.disableGenerate();
+			this.scheduleRefresh();
+		},
+
 		onChange: function (event) {
+			this.disableGenerate();
+
 			const row = event.target.closest('[data-vm-row]');
 
 			if (row) {
@@ -85,11 +98,22 @@
 		 */
 		watchUnsavedChanges: function () {
 			// Garnish matches the class, so this needs no reference to an editor the tab cannot reach
-			Garnish.on(Craft.ElementEditor, 'createProvisionalDraft', this.disableGenerate.bind(this));
+			Garnish.on(Craft.ElementEditor, 'createProvisionalDraft', (event) => {
+				// Skip other editors on the page, such as a variant slideout, which draft their own element
+				if (String(event.target.settings.canonicalId) === this.canonicalId) {
+					this.disableGenerate();
+				}
+			});
 		},
 
 		disableGenerate: function () {
 			const generate = this.container.querySelector('[data-vm-generate]');
+
+			// Keep the draft's own note, where the tab rendered the button disabled
+			if (generate.disabled) {
+				return;
+			}
+
 			generate.classList.add('disabled');
 			generate.disabled = true;
 
@@ -173,6 +197,7 @@
 			});
 
 			row.remove();
+			this.disableGenerate();
 			this.scheduleRefresh();
 		},
 
@@ -192,6 +217,7 @@
 				Craft.appendBodyHtml(response.data.bodyHtml),
 			]).then(() => {
 				rows.forEach((row) => Craft.initUiElements($(row)));
+				this.disableGenerate();
 				this.scheduleRefresh();
 			});
 		},
@@ -257,6 +283,13 @@
 		},
 
 		generate: function () {
+			// A second click before the first request returns would queue a second run
+			if (this.generating) {
+				return;
+			}
+
+			this.generating = true;
+
 			const data = new FormData();
 			data.append('productId', this.productId);
 
@@ -266,6 +299,8 @@
 				Craft.cp.displayNotice(response.data.message);
 			}).catch((error) => {
 				Craft.cp.displayError(error?.response?.data?.message);
+			}).finally(() => {
+				this.generating = false;
 			});
 		},
 
@@ -317,10 +352,4 @@
 		},
 	});
 
-	// jQuery ready fires immediately on an already loaded document, where a late DOMContentLoaded listener never runs
-	$(function () {
-		document.querySelectorAll('[data-vm-variant-maker]').forEach(function (container) {
-			new Craft.VariantManager.VariantMaker(container);
-		});
-	});
 })(jQuery);

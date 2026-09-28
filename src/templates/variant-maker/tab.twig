@@ -9,7 +9,8 @@
 		{% do view.registerAssetBundle('fostercommerce\\variantmanager\\VariantMakerAssetBundle') %}
 	{% endif %}
 
-	<div {{ static ? '' : 'data-vm-variant-maker' }} data-vm-product-id="{{ product.id }}">
+	{% set containerId = 'vm-variant-maker-' ~ random() %}
+	<div id="{{ containerId }}" data-vm-product-id="{{ product.id }}" data-vm-canonical-id="{{ product.canonicalId }}">
 		{% set rowBuilder %}
 			{% if not static %}
 				<button type="button" class="btn vm-autofill" data-vm-autofill-rows>{{ 'variantMaker.autofillRows'|t('variant-manager') }}</button>
@@ -82,10 +83,15 @@
 								}) }}
 							</td>
 							<td data-vm-value>
+								{# Show a stored price in the merchant's number format with every decimal, and anything else as typed #}
+								{% set priceInputValue = property.value %}
+								{% if propertyName == 'price' and property.value is not null and property.value matches '/^-?\\d+(\\.\\d+)?$/' %}
+									{% set priceInputValue = craft.app.formatter.asDecimal(property.value, '.' in property.value ? property.value|split('.')|last|length : 0) %}
+								{% endif %}
 								{% if propertyName in ['title', 'sku', 'price'] %}
 									{{ forms.text({
 										name: 'variantMaker[properties][' ~ propertyName ~ '][value]',
-										value: property.value,
+										value: propertyName == 'price' ? priceInputValue : property.value,
 										placeholder: propertyName == 'price' ? 'variantMaker.placeholder.price'|t('variant-manager') : null,
 										labelledBy: 'vm-property-' ~ propertyName,
 									}) }}
@@ -136,14 +142,25 @@
 
 		{% if not static %}
 			{% set unsaved = product.isProvisionalDraft %}
+			{% set namedDraft = product.isDraft and not unsaved %}
 
 			<div class="vm-generate">
-				<button type="button" class="btn submit{{ unsaved ? ' disabled' }}"{{ unsaved ? ' disabled' }} data-vm-generate>{{ 'variantMaker.generate'|t('variant-manager') }}</button>
-				<span class="light{{ unsaved ? ' hidden' }}" data-vm-generate-instructions>{{ 'variantMaker.generateInstructions'|t('variant-manager', {
+				<button type="button" class="btn submit{{ product.isDraft ? ' disabled' }}"{{ product.isDraft ? ' disabled' }} data-vm-generate>{{ 'variantMaker.generate'|t('variant-manager') }}</button>
+				<span class="light{{ product.isDraft ? ' hidden' }}" data-vm-generate-instructions>{{ 'variantMaker.generateInstructions'|t('variant-manager', {
 					activity: '<a href="' ~ url('variant-manager/dashboard') ~ '">' ~ 'variantMaker.results'|t('variant-manager') ~ '</a>',
 				})|raw }}</span>
 				<span class="light{{ unsaved ? '' : ' hidden' }}" data-vm-generate-save-first>{{ 'variantMaker.generateSaveFirst'|t('variant-manager') }}</span>
+				{% if namedDraft %}
+					<span class="light">{{ 'variantMaker.generateApplyDraftFirst'|t('variant-manager') }}</span>
+				{% endif %}
 			</div>
 		{% endif %}
 	</div>
+
+	{% if not static %}
+		{# Start each rendered tab, since a product opened in a slideout renders after the page loaded #}
+		{% js %}
+			new Craft.VariantManager.VariantMaker(document.getElementById('{{ containerId|namespaceInputId }}'));
+		{% endjs %}
+	{% endif %}
 {% endif %}

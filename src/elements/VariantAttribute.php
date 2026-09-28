@@ -11,9 +11,9 @@ use craft\elements\ElementCollection;
 use craft\elements\User;
 use craft\helpers\ArrayHelper;
 use craft\helpers\Cp;
-use craft\helpers\Db;
 use craft\helpers\ElementHelper;
 use craft\helpers\Html;
+use craft\helpers\Localization;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
 use craft\models\FieldLayout;
@@ -53,6 +53,11 @@ class VariantAttribute extends Element
 	public ?string $fieldSetUid = null;
 
 	private ?VariantAttribute $parentAttribute = null;
+
+	/**
+	 * A posted price modifier that doesn't parse as a number, kept for the validation error.
+	 */
+	private ?string $invalidPriceModifier = null;
 
 	/**
 	 * @var list<self>|null
@@ -126,7 +131,17 @@ class VariantAttribute extends Element
 
 	public static function normalizeName(string $name): string
 	{
-		return StringHelper::toLowerCase(trim($name));
+		// Fold the dotted capital I's lowercase to a plain i, so keys agree with the SQL lowercasing in the in-use and condition queries
+		return str_replace("i\u{0307}", 'i', StringHelper::toLowerCase(self::cleanName($name)));
+	}
+
+	/**
+	 * A system name with tabs, line breaks and special spaces turned into plain spaces, and trimmed.
+	 */
+	public static function cleanName(string $name): string
+	{
+		// Keep text that isn't valid UTF-8, so saving it fails rather than storing a blank name
+		return trim(preg_replace('/(?! )[\p{Cc}\p{Z}\x{200B}\x{FEFF}]/u', ' ', $name) ?? $name);
 	}
 
 	public function isOption(): bool
@@ -146,14 +161,6 @@ class VariantAttribute extends Element
 		return $this->options ??= self::find()
 			->attributeId($this->id)
 			->all();
-	}
-
-	/**
-	 * @param list<self> $options
-	 */
-	public function setOptions(array $options): void
-	{
-		$this->options = $options;
 	}
 
 	public function getParentAttribute(): ?self
@@ -225,36 +232,18 @@ class VariantAttribute extends Element
 		}
 	}
 
-	/**
-	 * The registry's attributeId and nameKey index is unique, so a duplicate fails on insert.
-	 */
-	public function nameTakenUnder(int $attributeId): bool
+	public function validatePostedPriceModifier(string $attribute): void
 	{
-		$nameKey = self::normalizeName($this->resolvedName());
-
-		if ($nameKey === '') {
-			return false;
+		if ($this->invalidPriceModifier !== null) {
+			$this->addError($attribute, Craft::t('variant-manager', 'options.priceModifierNotNumber', [
+				'price' => $this->invalidPriceModifier,
+			]));
 		}
-
-		$query = self::find()
-			->attributeId($attributeId)
-			->nameKey(Db::escapeParam($nameKey))
-			->status(null)
-			// A trashed record keeps its nameKey, so the unique index still rejects a duplicate
-			->trashed(null);
-
-		$canonicalId = $this->getCanonicalId();
-
-		if ($canonicalId !== null) {
-			$query->id("not {$canonicalId}");
-		}
-
-		return $query->exists();
 	}
 
 	public function validateNameNotTaken(): void
 	{
-		if (! $this->nameTakenUnder($this->attributeId)) {
+		if (! $this->nameTaken()) {
 			return;
 		}
 
@@ -273,9 +262,7 @@ class VariantAttribute extends Element
 	/**
 	 * Run the in-use check in beforeDelete(), because a variant query per record would slow the element index.
 	 *
-	 * VariantsInUseBlocker repeats it for the confirm modal, which Craft calls only from 5.10.
-	 *
-	 * TODO: drop this check when Craft 5.10 becomes the floor.
+	 * VariantsInUseBlocker repeats it for the confirm modal. Keep beforeDelete() for deletes from code and the console.
 	 */
 	public function canDelete(User $user): bool
 	{
@@ -287,9 +274,23 @@ class VariantAttribute extends Element
 	 */
 	public function setAttributesFromRequest(array $values): void
 	{
-		// Keep a saved option under its attribute, because variants store each option under its attribute's name
-		if ($this->id !== null && ! $this->getIsUnpublishedDraft()) {
+		$postedAttributeId = $values['attributeId'] ?? null;
+
+		// Let only a new option change its attribute, because variants store each option under its attribute's name
+		$picksAttribute = $this->id === null
+			|| ($this->getIsUnpublishedDraft() && $this->isOption() && is_numeric($postedAttributeId) && (int) $postedAttributeId !== 0);
+
+		if (! $picksAttribute) {
 			unset($values['attributeId']);
+		}
+
+		// Keep a saved record's system name, because variants store their pairs by it
+		if ($this->id !== null && ! $this->getIsUnpublishedDraft()) {
+			unset($values['name']);
+		}
+
+		if (array_key_exists('priceModifier', $values)) {
+			$values['priceModifier'] = $this->parsePostedPriceModifier($values['priceModifier']);
 		}
 
 		parent::setAttributesFromRequest($values);
@@ -328,7 +329,7 @@ class VariantAttribute extends Element
 
 			// Re-place a new option whose attribute was changed in the sidebar before it was created
 			if (! $isNew && $this->getIsUnpublishedDraft() && $this->isOption()) {
-				$placedUnder = self::find()->ancestorOf($this)->ancestorDist(1)->status(null)->one();
+				$placedUnder = self::find()->ancestorOf($this)->ancestorDist(1)->one();
 
 				if (! $placedUnder instanceof self || (int) $placedUnder->id !== $this->attributeId) {
 					$this->parentAttribute = null;
@@ -343,6 +344,14 @@ class VariantAttribute extends Element
 		}
 
 		parent::afterSave($isNew);
+	}
+
+	public function afterRestore(): void
+	{
+		// Place the record again, because trashing it removed its structure node
+		$this->placeInStructure();
+
+		parent::afterRestore();
 	}
 
 	public function beforeDelete(): bool
@@ -383,9 +392,18 @@ class VariantAttribute extends Element
 
 		$elementsService = Craft::$app->getElements();
 
+		// Keep the attribute and all its options where one option delete fails, because Craft would move that option to the top level
+		$transaction = Craft::$app->getDb()->beginTransaction();
+
 		foreach ($options as $option) {
-			$elementsService->deleteElement($option, true);
+			if (! $elementsService->deleteElement($option, true)) {
+				$transaction->rollBack();
+				$this->addError('name', $option->getFirstError('name') ?? Craft::t('variant-manager', 'attributes.deleteInUse'));
+				return false;
+			}
 		}
+
+		$transaction->commit();
 
 		return true;
 	}
@@ -585,6 +603,9 @@ class VariantAttribute extends Element
 			'string',
 			'max' => 255];
 		$rules[] = [['priceModifier'], 'number'];
+		$rules[] = [['priceModifier'],
+			'validatePostedPriceModifier',
+			'skipOnEmpty' => false];
 		// A select posts '' for None, and the column distinguishes unassigned from a uid
 		$rules[] = [['fieldSetUid'],
 			'filter',
@@ -605,9 +626,9 @@ class VariantAttribute extends Element
 
 	private function resolvedName(): string
 	{
-		$name = trim($this->name);
+		$name = self::cleanName($this->name);
 
-		return $name === '' ? trim((string) $this->title) : $name;
+		return $name === '' ? self::cleanName((string) $this->title) : $name;
 	}
 
 	/**
@@ -622,6 +643,32 @@ class VariantAttribute extends Element
 		return Cp::fieldHtml(Html::encode($this->name), [
 			'label' => Craft::t('variant-manager', 'attributes.name'),
 		]);
+	}
+
+	/**
+	 * The registry's attributeId and nameKey index is unique, so a duplicate fails on insert.
+	 */
+	private function nameTaken(): bool
+	{
+		$nameKey = self::normalizeName($this->resolvedName());
+
+		if ($nameKey === '') {
+			return false;
+		}
+
+		$query = self::find()
+			->attributeId($this->attributeId)
+			->nameKey($nameKey)
+			// A trashed record keeps its nameKey, so the unique index still rejects a duplicate
+			->trashed(null);
+
+		$canonicalId = $this->getCanonicalId();
+
+		if ($canonicalId !== null) {
+			$query->id("not {$canonicalId}");
+		}
+
+		return $query->exists();
 	}
 
 	private function placeInStructure(): void
@@ -700,7 +747,7 @@ class VariantAttribute extends Element
 			'label' => Craft::t('variant-manager', 'options.usedBy'),
 		]);
 
-		// Offer the attribute only before the option is created, because no variant stores it yet
+		// Offer the attribute only before the option is created, because no variant stores the option yet
 		if ($this->getIsUnpublishedDraft()) {
 			$fields .= Cp::selectFieldHtml([
 				'label' => Craft::t('variant-manager', 'attributes.attribute'),
@@ -728,9 +775,32 @@ class VariantAttribute extends Element
 			'label' => Craft::t('variant-manager', 'options.priceModifier'),
 			'id' => 'priceModifier',
 			'name' => 'priceModifier',
-			'value' => $this->priceModifier,
+			'value' => $this->invalidPriceModifier ?? ($this->priceModifier === null ? null : Craft::$app->getFormatter()->asDecimal($this->priceModifier)),
 			'disabled' => $static,
 			'errors' => $this->getErrors('priceModifier'),
 		]);
+	}
+
+	/**
+	 * Parse the modifier in the editor's formatting locale, which the input displays it in.
+	 */
+	private function parsePostedPriceModifier(mixed $postedPriceModifier): ?float
+	{
+		$this->invalidPriceModifier = null;
+
+		if (! is_string($postedPriceModifier) || trim($postedPriceModifier) === '') {
+			return null;
+		}
+
+		/** @var string $normalizedPriceModifier */
+		$normalizedPriceModifier = Localization::normalizeNumber(trim($postedPriceModifier));
+
+		if (! is_numeric($normalizedPriceModifier)) {
+			$this->invalidPriceModifier = $postedPriceModifier;
+
+			return null;
+		}
+
+		return (float) $normalizedPriceModifier;
 	}
 }

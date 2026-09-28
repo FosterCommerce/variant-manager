@@ -28,8 +28,8 @@ class FieldSets extends Component
 	 */
 	public function registerOverriddenFieldHandles(): void
 	{
-		foreach ($this->getAllLayouts() as $layout) {
-			foreach ($layout->getCustomFieldElements() as $layoutElement) {
+		foreach ($this->getAllLayouts() as $fieldLayout) {
+			foreach ($fieldLayout->getCustomFieldElements() as $layoutElement) {
 				if ($layoutElement->handle !== null) {
 					CustomFieldBehavior::$fieldHandles[$layoutElement->handle] = true;
 				}

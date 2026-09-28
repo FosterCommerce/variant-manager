@@ -37,7 +37,7 @@ The modal asks one of three sets of questions, depending on the filename.
 
 "Are you sure you want to create a new product?"
 
-- **Product Type** dropdown: pick the Commerce product type the new product should belong to. Required.
+- **Product Type** dropdown: pick the Commerce product type the new product should belong to. Required. It lists only the product types you can create products in.
 - **Create Product** button: starts the import.
 - **Cancel** button: abandons the upload.
 
@@ -89,6 +89,6 @@ If a value is wrong, edit the source CSV and re-upload it, which writes the corr
 
 Failed imports show their error in the activity log. Two common reasons: a missing `{id}__` prefix on a file meant to update, and a SKU that already exists on a different product. See [troubleshooting](./troubleshooting.md).
 
-**A failed import undoes only part of its work.** It deletes a product it created and restores variants it replaced. Variants it had already updated keep their new values, and its product field and inventory writes stand. Upload the corrected CSV to write every value from the file again.
+**A failed import does not change the product.** A product it created, variants it deleted or updated, and its inventory writes all roll back.
 
 A CSV the import rejects ends its job, so the queue holds no failed job. Fix the CSV and upload it again. See [an import failed](./troubleshooting.md#an-import-failed).

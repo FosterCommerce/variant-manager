@@ -117,6 +117,14 @@ $handle = FieldHelper::getFirstVariantAttributesField(
 
 A variant resolves its field layout through its owner, and a `new Variant()` has no owner until it is saved against a product.
 
+### getVariantAttributesFields
+
+```php
+$fields = $variantAttributes->getVariantAttributesFields();
+```
+
+Returns every Variant Attributes field on every variant field layout, as that layout's instance, so a field on two product types appears twice. Use it to cover every handle at once. For one product's handle, use `FieldHelper::getFirstVariantAttributesField()` as shown above.
+
 ## Generating from PHP
 
 Call [Variant Maker](../user-guide/variant-maker.md) from code. Register the values first. Variant Maker combines only values that already have a record.

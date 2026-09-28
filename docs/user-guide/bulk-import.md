@@ -14,8 +14,8 @@ For one or two products, use the [single-product upload](./importing.md).
 Variant Manager extracts every `.csv` file from the zip and queues one import job per CSV. Each CSV is imported independently:
 
 - Each CSV's filename determines create-vs-update for its product (see [filename rules](./csv-format.md#the-filename-matters)).
-- All CSVs in the zip use the same **Product Type** and the same variant-handling choice you pick in the modal.
-- One CSV failing does not stop the others. Each failure is logged separately in the dashboard activity log.
+- New products in the zip are created under the **Product Type** you pick, and every CSV uses the variant-handling choice you pick in the modal. A file that updates an existing product keeps that product's type.
+- One CSV failing does not stop the others. Each failure is logged separately in the dashboard activity log. A file naming a product ID that doesn't exist, or a product you can't save, stops the whole zip before any file is queued.
 
 The plugin ignores:
 
@@ -62,7 +62,7 @@ A big zip can generate hundreds or thousands of queue jobs. If your site has oth
 
 The most common failures in a bulk import:
 
-- **Wrong product type for some files**: every CSV in the zip uses the same product type. If some products belong to a different product type, split them into separate zips.
+- **New products of different types**: every new product in a zip is created under the one **Product Type** you pick. To create products of several types, use one zip per type.
 - **Some files have SKUs that already belong to other products**: each failing file logs its own error. Fix those CSVs and reupload them individually or in a smaller zip.
 - **Missing ID prefix**: the file creates a new product instead of updating one. Re-export the product to get the right filename.
 - **Queue stalled mid-batch**: the unprocessed jobs stay pending until the queue runs. `./craft queue/run` resumes.

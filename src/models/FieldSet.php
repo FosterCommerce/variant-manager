@@ -109,8 +109,8 @@ class FieldSet extends Model
 			],
 		]);
 
-		foreach ($fieldLayout->getTabs() as $tab) {
-			foreach ($tab->getElements() as $layoutElement) {
+		foreach ($fieldLayout->getTabs() as $fieldLayoutTab) {
+			foreach ($fieldLayoutTab->getElements() as $layoutElement) {
 				$layoutElement->uid = $this->derivedUid($layoutKey . '.' . $layoutElement::class);
 			}
 		}

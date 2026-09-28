@@ -25,7 +25,7 @@ class ProductVariants extends Component
 
 		foreach ($this->valuesByName($product, $only) as $name => $values) {
 			$attributeOptions[] = [
-				'name' => $name,
+				'name' => (string) $name,
 				'values' => $values,
 			];
 		}
@@ -50,7 +50,7 @@ class ProductVariants extends Component
 
 		foreach ($valuesByName as $name => $values) {
 			$attributeOptions[] = [
-				'name' => $name,
+				'name' => (string) $name,
 				'values' => $values,
 				'attribute' => $registry[$name]['attribute'] ?? null,
 				'options' => $registry[$name]['options'] ?? [],
@@ -80,31 +80,34 @@ class ProductVariants extends Component
 		}
 
 		$fieldHandle = FieldHelper::getFirstVariantAttributesField($product->type->getVariantFieldLayout())?->handle;
-		$variants = [];
-		foreach ($product->variants as $variant) {
-			// Turn the attributes into associative arrays
-			$variants[] = array_reduce(
-				$variant->{$fieldHandle} ?? [],
-				static function (array $valuesByName, array $pair) use ($only): array {
-					$attributeName = $pair['attributeName'];
-					if ($only === null || $only === [] || in_array($attributeName, $only, true)) {
-						$valuesByName[$attributeName] = $pair['attributeValue'];
-					}
-
-					return $valuesByName;
-				},
-				[]
-			);
-		}
-
-		$merged = array_merge_recursive(...$variants);
-
 		$valuesByName = [];
-		foreach ($merged as $name => $values) {
-			// Wrap a lone value. array_merge_recursive nests only on a repeated name.
-			$valuesByName[$name] = array_values(array_unique(is_array($values) ? $values : [$values]));
+
+		foreach ($product->variants as $variant) {
+			$storedPairs = $variant->{$fieldHandle} ?? [];
+
+			// An unparseable JSON field value is the raw string
+			if (! is_array($storedPairs)) {
+				continue;
+			}
+
+			foreach ($storedPairs as $storedPair) {
+				if (! is_string($storedPair['attributeName'] ?? null)) {
+					continue;
+				}
+
+				if (! is_string($storedPair['attributeValue'] ?? null)) {
+					continue;
+				}
+
+				if ($only !== null && $only !== [] && ! in_array($storedPair['attributeName'], $only, true)) {
+					continue;
+				}
+
+				$valuesByName[$storedPair['attributeName']][] = $storedPair['attributeValue'];
+			}
 		}
 
-		return $valuesByName;
+		// Key by name without merging arrays, so a numeric name such as "12" keeps its values
+		return array_map(static fn (array $values): array => array_values(array_unique($values)), $valuesByName);
 	}
 }

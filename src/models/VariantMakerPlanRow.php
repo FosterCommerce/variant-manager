@@ -36,7 +36,7 @@ class VariantMakerPlanRow extends Model
 	public ?string $currentSku = null;
 
 	/**
-	 * @var string|null Why Commerce would reject this row's SKU, since it validates the whole run as one save
+	 * @var string|null Why the run refuses this row's SKU, since one refused row stops the whole run
 	 */
 	public ?string $skuIssue = null;
 
@@ -50,6 +50,11 @@ class VariantMakerPlanRow extends Model
 	public ?string $price = null;
 
 	public ?string $currentPrice = null;
+
+	/**
+	 * @var int|null On hand at the maker's inventory location, or null where the run doesn't set stock, the variant is new, or locations differ
+	 */
+	public ?int $currentStock = null;
 
 	/**
 	 * @var array<string, bool|int|null> purchasable properties this row would write, by the maker's apply rules

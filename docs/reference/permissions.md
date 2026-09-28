@@ -4,8 +4,9 @@
 |--------|-------------|
 | `accessPlugin-variant-manager` | Standard Craft permission. Required to see the **Variant Manager** CP section. |
 | `variant-manager:manage` | Clear the activity log from the dashboard. |
-| `variant-manager:export` | Export products from the product edit page sidebar and from the **Export Variant Data** action at **Commerce -> Products**. |
+| `variant-manager:export` | Export products from the product edit page sidebar and from the **Export Variant Data** action at **Commerce -> Products**. Each exported product also needs Commerce's `commerce-viewProductType:{uid}`. |
 | `commerce-saveProductType:{uid}` | Commerce's own permission. Everything that changes catalog data: uploading CSVs, Variant Maker, **Bulk edit field**, the **Variant Attributes** section, creating, editing, and deleting attributes and options, the prune, and the backfill. Variant Maker and each uploaded CSV check the product type being written. The rest accept any product type the user can save. |
+| `commerce-createProductType:{uid}` | Commerce's own permission. Uploading a CSV that creates a new product. |
 | `utility:variant-manager-attributes` | Standard Craft permission. Controls whether the **Variant Attributes** utility is listed under **Utilities**. |
 | An admin account | The plugin settings screen at **Variant Manager -> Settings**: field sets and their field layouts, Available Display Types, Default Display Type, and Variant Maker Product Types. An attribute's own display type and field set are not covered; you choose both on the attribute itself. |
 

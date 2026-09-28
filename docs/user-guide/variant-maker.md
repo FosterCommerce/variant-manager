@@ -4,7 +4,7 @@ Generate a product's variants in the control panel, one for every combination of
 
 ## Permissions
 
-The preview, **Generate variants**, **New attribute**, and **New option** all require Commerce's `commerce-saveProductType` permission for the product's type.
+The preview, **Generate variants**, **New attribute**, and **New option** all require Commerce's `commerce-saveProductType` permission for the product's type and, on a multi-site install, permission to edit the product's site.
 
 ## Turning it on
 
@@ -34,6 +34,8 @@ Every row needs both an attribute and at least one option. If either is empty, t
 
 Row order sets the order the Variant Maker assembles SKU partials in, for the default SKU format below.
 
+Two rows can't use the same attribute. The Variant Maker drops a row whose attribute, or every option, has been deleted.
+
 ## What to do with existing variants
 
 The mode sets whether existing variants are rewritten.
@@ -42,7 +44,7 @@ The mode sets whether existing variants are rewritten.
 |------|--------------|
 | **Add missing only** | Creates the combinations that do not exist yet. Leaves every existing variant unchanged. |
 | **Add and update existing** | Also rewrites existing variants with every included property. |
-| **Replace: add, update, and delete** | Does both, and deletes any variant whose combination is not in the generated set. |
+| **Replace: add, update, and delete** | Does both, and deletes any variant whose combination is not in the generated set, or that repeats another variant's combination. |
 
 Replace deletes variants. The preview lists each one as **Delete** before you generate.
 
@@ -59,7 +61,7 @@ SKU and price are always included, so their switches are on and disabled. Commer
 |----------|-------|
 | Title | Format. Hidden where the product type builds variant titles from its own format. |
 | SKU | Format. |
-| Price | The price each combination starts from, before its options' price modifiers. |
+| Price | The price each combination starts from, before its options' price modifiers. A number in your **Formatting Locale**, such as `1299.00`, or `1299,00` in a locale with a decimal comma, where a period is read as a thousands separator. No currency symbol. Left blank, it's the default variant's price less its own options' modifiers. |
 | Track inventory | Switch. |
 | Stock | Number. Shown only while **Track inventory** is included and on. |
 | Allow out of stock purchases | Switch. Shown on the same condition as Stock. |
@@ -69,7 +71,7 @@ SKU and price are always included, so their switches are on and disabled. Commer
 
 The Variant Maker does not set dimensions, weight, tax and shipping categories, minimum and maximum quantity, promotional price, or custom fields. Edit those on the Variants tab after generating.
 
-Where the store has more than one inventory location, an **Inventory location** menu appears under the table. Stock is written to the location you pick.
+Where the store has more than one inventory location, an **Inventory location** menu appears under the table. Stock is written to the location you pick. While Stock is set and the product isn't saved with a location the store has, **Generate variants** does not run. This includes after a location is removed or a second one is added.
 
 ### Title and SKU formats
 
@@ -94,7 +96,7 @@ A SKU format collapses spaces and dash runs in each token's value to a single da
 
 ### Price modifiers
 
-Each option can have a **Price Modifier**, set in the same place as its SKU partial. A combination's price is the base price plus the modifier of every option in it. The modifier is a decimal amount in the store's primary currency, to two decimal places.
+Each option can have a **Price Modifier**, set in the same place as its SKU partial. A combination's price is the base price plus the modifier of every option in it. The modifier is a decimal amount in the store's primary currency, to two decimal places, typed in your **Formatting Locale**.
 
 ## Preview
 
@@ -103,11 +105,11 @@ The table below the form updates as you change the rows. It lists every combinat
 | Status | Meaning |
 |--------|---------|
 | **Create** | No variant has this combination yet. |
-| **Update** | A variant exists, the mode allows updates, and at least one included property would change it. A changed stock count on its own is enough. |
+| **Update** | A variant exists, the mode allows updates, and at least one included property would change it. A stock count that differs from the on hand quantity at the inventory location is enough on its own. A blank Stock value leaves stock alone. |
 | **Unchanged** | A variant exists and no field the Variant Maker manages would change. |
-| **Delete** | Replace mode only. The variant's combination is not in the generated set. |
+| **Delete** | Replace mode only. The variant's combination is not in the generated set, or another variant already has it. |
 
-A column shows `old -> new` only where the run would write that value. An excluded property shows **Commerce default** on a Create row, and **Kept** on every other row. The Stock column instead shows **Unlimited** where inventory is not tracked. On a Create row it shows **None** where inventory is tracked with no count set; every other row shows **Kept**.
+A column shows `old -> new` only where the run would write that value. An excluded property shows **Commerce default** on a Create row, and **Kept** on every other row. The Stock column instead shows **Unlimited** where the Variant Maker's **Track inventory** is not included and on, even for a variant that tracks stock. On a Create row it shows **None** where inventory is tracked with no count set. Where Stock is included and **Track inventory** is on, an Update or Unchanged row shows the variant's on hand quantity at the inventory location. Every other row shows **Kept**.
 
 The preview reads the rows as they stand on screen, not what was last saved.
 
@@ -117,8 +119,9 @@ Each SKU must be unique across the store and no longer than 255 characters. A ro
 
 | Warning | Cause |
 |---------|-------|
-| Another row builds this same SKU | Two combinations resolve to the same SKU, or one matches a variant on this product the run leaves alone. Usually a format with no `{Attribute Name}` token, or two options sharing a SKU partial. |
-| A variant on another product already uses this SKU | The SKU is taken elsewhere in the store. Comparison ignores case. |
+| Another row builds this same SKU | Two combinations resolve to the same SKU. Usually a format with no `{Attribute Name}` token, or two options sharing a SKU partial. |
+| A variant this run keeps already uses this SKU | A variant on this product that the run leaves alone, or updates without changing its SKU, has this SKU. |
+| This SKU is already used elsewhere in the store | Another product, or another kind of purchasable, has the SKU. Comparison ignores case. |
 | Longer than 255 characters | The assembled SKU is over the limit Commerce enforces. |
 
 ## Saving and generating
@@ -129,7 +132,11 @@ The settings are stored per product, so each product keeps its own attributes, m
 
 **Generate variants** runs the job in the background and returns you to the page. Watch **Variant Manager -> Dashboard** for the result. It records how many variants were created, updated, and deleted, or the error if the run failed.
 
-Generating uses the saved settings, so **Generate variants** stays disabled while the product has unsaved changes.
+Generating uses the saved settings, so **Generate variants** is disabled as soon as you edit the builder or another field on the product, and stays disabled until the product is saved. It is also disabled on a named draft, because the run reads the published product. Apply the draft first.
+
+The run uses the settings as they were when you clicked **Generate variants**, even if the product is saved again before the job runs. Imports and Variant Maker runs write one at a time. A run that waits more than a minute for another fails, and the activity log records why.
+
+Where the product type sets a maximum number of variants, the preview shows an error for a run that would leave more than that, and **Generate variants** does not run.
 
 The whole run is one transaction, including the stock writes. If any variant fails to save, no variant is written, no stock level changes, and the activity log records why.
 

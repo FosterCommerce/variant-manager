@@ -20,6 +20,8 @@ class SettingsController extends Controller
 		$this->requireAdmin(false);
 
 		$settings = Plugin::getInstance()->getSettings();
+		$storedDisplayType = DisplayType::tryFrom($settings->defaultDisplayType);
+		$defaultDisplayType = $settings->getDefaultDisplayType();
 
 		/** @var Commerce $commerce */
 		$commerce = Commerce::getInstance();
@@ -28,8 +30,11 @@ class SettingsController extends Controller
 			'fieldSets' => Plugin::getInstance()->getFieldSets()->getAllFieldSets(),
 			'settings' => $settings,
 			'displayTypeOptions' => DisplayType::options(DisplayType::cases()),
-			'defaultDisplayTypeOptions' => DisplayType::options($settings->getAvailableDisplayTypes()),
-			'defaultDisplayType' => $settings->getDefaultDisplayType()->value,
+			'defaultDisplayTypeOptions' => DisplayType::options($settings->getAvailableDisplayTypes($settings->defaultDisplayType)),
+			'defaultDisplayTypeWarning' => $storedDisplayType === $defaultDisplayType ? null : Craft::t('variant-manager', 'settings.defaultDisplayTypeUnavailable', [
+				'stored' => $storedDisplayType?->label() ?? $settings->defaultDisplayType,
+				'effective' => $defaultDisplayType->label(),
+			]),
 			'productTypeOptions' => array_map(
 				static fn (ProductType $productType): array => [
 					'label' => $productType->name,

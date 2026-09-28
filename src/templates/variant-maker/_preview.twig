@@ -10,6 +10,10 @@
 		{% endfor %}
 	</p>
 
+	{% if variantLimitIssue %}
+		<p class="vm-variant-limit-issue error">{{ variantLimitIssue }}</p>
+	{% endif %}
+
 	{% set skuIssueCount = rows|filter(row => row.skuIssue is not null)|length %}
 	{% if skuIssueCount %}
 		<p class="vm-sku-issues error">{{ 'variantMaker.skuIssues'|t('variant-manager', { count: skuIssueCount }) }}</p>
@@ -51,7 +55,7 @@
 						{%- if not tracksInventory -%}
 							<span class="light">{{ 'variantMaker.valueUnlimited'|t('variant-manager') }}</span>
 						{%- else -%}
-							{{ include('variant-manager/variant-maker/_change', { current: null, proposed: row.property('stock'), status: row.status, emptyLabel: 'variantMaker.valueNone' }) }}
+							{{ include('variant-manager/variant-maker/_change', { current: row.currentStock, proposed: row.property('stock'), status: row.status, emptyLabel: 'variantMaker.valueNone' }) }}
 						{%- endif -%}
 					</td>
 				</tr>

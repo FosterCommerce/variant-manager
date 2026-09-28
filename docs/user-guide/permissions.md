@@ -7,8 +7,8 @@ For the full list, see [permissions reference](../reference/permissions.md).
 ## Choosing what to grant
 
 - **Read-only**: `accessPlugin-variant-manager` alone. The dashboard and the activity log are visible, with no upload, export, or edit.
-- **Reporting**: read-only, plus `variant-manager:export` to take data out without changing it.
-- **Product team**: read-only, plus `variant-manager:export`, plus Commerce's `commerce-saveProductType` for each product type they work on. `commerce-saveProductType` covers importing, the Variant Maker, and creating, editing, and deleting attributes and options.
+- **Reporting**: read-only, plus `variant-manager:export` and Commerce's `commerce-viewProductType` for each product type they export, to take data out without changing it.
+- **Product team**: read-only, plus `variant-manager:export`, plus Commerce's `commerce-viewProductType` and `commerce-saveProductType` for each product type they work on. `commerce-saveProductType` covers importing, the Variant Maker, and creating, editing, and deleting attributes and options. Add `commerce-createProductType` to create products from a CSV.
 - **Operations**: any of the above, plus `variant-manager:manage` to clear the activity log.
 
 ## Before you grant catalog access

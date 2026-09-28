@@ -101,7 +101,8 @@
 		/**
 		 * The attribute a new option opens under, until its sidebar select names a different attribute.
 		 *
-		 * Read data-level off the element row, which the index sets only while the listing is sorted by structure.
+		 * Read data-level off the element row, which the index sets only while the listing is sorted by structure,
+		 * and fall back to the first attribute the page loaded with.
 		 */
 		firstAttributeId: function () {
 			const attributeId = this.view.$elementContainer
@@ -109,7 +110,7 @@
 				.first()
 				.data('id');
 
-			return attributeId === undefined ? null : Number(attributeId);
+			return attributeId === undefined ? Craft.VariantManager.firstAttributeId : Number(attributeId);
 		},
 
 		onNewElementBtn: function () {

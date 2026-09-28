@@ -91,8 +91,8 @@ The selection is read from `--select` rather than the product's saved Variant Ma
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--select` | `''` | Attributes and values to combine, as `Name=A,B;Other Name=C`. |
-| `--mode` | `add` | One of `add`, `update`, or `replace`. `add` reports every existing combination as unchanged. `update` reports one as an update where the built title, SKU, or price differs. `replace` does that and adds a delete row for each variant the set does not cover. |
+| `--mode` | `add` | One of `add`, `update`, or `replace`. `add` reports every existing combination as unchanged. `update` reports one as an update where the built title, SKU, or price differs. `replace` does that and adds a delete row for each variant the set does not cover, and for each extra variant that repeats a combination. |
 | `--skuFormat` | `''` | SKU format, using `{Attribute Name}` tokens that resolve to each option's SKU partial, or to the option value where no partial is set. Blank uses the product slug followed by each option. |
-| `--basePrice` | `''` | Price each combination starts from. Blank uses the product's default variant price. |
+| `--basePrice` | `''` | Price each combination starts from, as a plain number such as `1299.00`. Blank uses the default variant's price minus its own options' price modifiers. |
 
 See [Variant Maker](../user-guide/variant-maker.md).
