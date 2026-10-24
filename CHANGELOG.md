@@ -1,5 +1,11 @@
 # Release Notes for Variant Manager
 
+## Unreleased
+
+### Changed
+
+- The attribute backfill job now runs batches of 100 instead of 500, the size Craft's own element jobs use.
+
 ## 4.3.2 - 2026-09-28
 
 ### Fixed

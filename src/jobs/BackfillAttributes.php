@@ -11,8 +11,6 @@ use fostercommerce\variantmanager\Plugin;
 
 class BackfillAttributes extends BaseBatchedElementJob
 {
-	public int $batchSize = 500;
-
 	/**
 	 * @var array<string, array{attributeName: string, attributeValue: string}>
 	 */
