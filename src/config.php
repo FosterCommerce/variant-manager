@@ -24,6 +24,7 @@ return [
 	'availableDisplayTypes' => ['*'],
 	'defaultDisplayType' => 'dropdown',
 	'variantMakerProductTypes' => [],
+	'enableCsvImport' => true,
 	'productFieldMap' => [
 		'*' => [
 			'title' => 'title',

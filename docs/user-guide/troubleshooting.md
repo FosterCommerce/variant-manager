@@ -142,6 +142,8 @@ Each control appears only for a user with its permission.
 
 **Bulk edit field** also needs a matching handle in `bulkEditableVariantFields`.
 
+**Upload Product** also needs [`enableCsvImport`](../reference/configuration.md#enablecsvimport) set to `true`.
+
 Set permissions at **Users -> {group} -> Permissions** or on an individual user.
 
 ## "That field cannot be bulk edited."

@@ -63,8 +63,8 @@ return [
 	'field.multipleFieldsWarning' => 'This field layout has more than one Variant Attributes field.',
 	'field.multipleFieldsFirstWritten' => 'Imports and the Variant Maker write only the first one. Values stored here still count as in use, so those options can’t be deleted.',
 	'field.noAttributes' => 'This {type} has no attributes.',
-	'field.manageAttributes' => 'Manage them with the product’s Variant Maker{variantMaker, select, disabled{ (currently disabled)} other{}} or a CSV import.',
-	'field.editElsewhere' => 'Manage these values with the product’s Variant Maker{variantMaker, select, disabled{ (currently disabled)} other{}} or a CSV import.',
+	'field.manageAttributes' => 'Manage them with the product’s Variant Maker{variantMaker, select, disabled{ (currently disabled)} other{}}{csvImport, select, disabled{.} other{ or a CSV import.}}',
+	'field.editElsewhere' => 'Manage these values with the product’s Variant Maker{variantMaker, select, disabled{ (currently disabled)} other{}}{csvImport, select, disabled{.} other{ or a CSV import.}}',
 
 	// Variant attributes
 	'attributes.attribute' => 'Variant Attribute',
@@ -152,6 +152,10 @@ return [
 	// Variant maker
 	'settings.variantMakerProductTypes' => 'Variant Maker Product Types',
 	'settings.variantMakerProductTypesIntro' => 'Product types whose products offer the Variant Maker tab. A product type also needs a Variant Attributes field in its variant field layout. No product type is selected by default.',
+
+	// CSV import
+	'settings.enableCsvImport' => 'Enable CSV Import',
+	'settings.enableCsvImportIntro' => 'Shows the “Upload Product” button on the dashboard. Turn this setting off when another system supplies the products; export is unaffected.',
 	'variantMaker.name' => 'Variant Maker',
 	'variantMaker.saveFirst' => 'Save the product before generating variants.',
 	'variantMaker.options' => 'Options',

@@ -47,7 +47,7 @@ class DashboardController extends Controller
 
 		return $this->renderTemplate('variant-manager/dashboard', [
 			'activities' => $activityQuery->limit(self::ACTIVITIES_PER_PAGE)->offset($offset)->all(),
-			'canManageVariants' => PermissionHelper::canSaveAnyProductType(),
+			'canImport' => Plugin::getInstance()->getSettings()->enableCsvImport && PermissionHelper::canSaveAnyProductType(),
 			'logStatus' => $status,
 			'pagination' => Craft::createObject([
 				'class' => Paginate::class,
