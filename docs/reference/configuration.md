@@ -13,6 +13,7 @@ return [
     'inventoryPrefix' => 'Inventory',
     'activityLogRetention' => '30 days',
     'variantMakerProductTypes' => [],
+    'enableCsvImport' => true,
     'productFieldMap' => [
         '*' => [
             'title' => 'title',
@@ -206,6 +207,23 @@ return [
 ```
 
 A product type also needs a Variant Attributes field in its variant field layout, because that is where a generated variant stores its combination. Listing a product type without one leaves the tab hidden.
+
+This setting is also editable at **Variant Manager -> Settings**. A value here overrides what that screen saves, and the control shows a warning saying so.
+
+### `enableCsvImport`
+
+- Type: `bool`
+- Default: `true`
+
+Whether the dashboard shows the **Upload Product** button. While `enableCsvImport` is `false`, the dashboard hides the button and the `variant-manager/product-variants/upload` action returns a 404 error. [Exporting](../user-guide/exporting.md) is unaffected.
+
+Set it to `false` when another system, such as an ERP, supplies the products and variants, so a CSV cannot overwrite them.
+
+```php
+return [
+    'enableCsvImport' => false,
+];
+```
 
 This setting is also editable at **Variant Manager -> Settings**. A value here overrides what that screen saves, and the control shows a warning saying so.
 

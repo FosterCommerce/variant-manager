@@ -6,6 +6,8 @@ If you have not built the CSV yet, start with [CSV format](./csv-format.md).
 
 To update an existing product rather than create one, export it first and edit that file, so the filename keeps the `{id}__` prefix the import matches on. For the naming rules, see [CSV format](./csv-format.md#the-filename-matters).
 
+If the dashboard has no **Upload Product** button, see [a Variant Manager button or section is missing](./troubleshooting.md#a-variant-manager-button-or-section-is-missing).
+
 ## 1. Save as CSV from your spreadsheet
 
 In Excel: **File -> Save As -> CSV UTF-8 (Comma delimited)**. In Numbers or Google Sheets: **File -> Export -> CSV**.

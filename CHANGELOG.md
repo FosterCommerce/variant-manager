@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Added the “Enable CSV Import” setting (`enableCsvImport`), for turning off CSV import.
+
 ### Changed
 
+- The Variant Attributes field no longer shows its note about managing values when neither the Variant Maker nor CSV import is available for the product.
 - The attribute backfill job now runs batches of 100 instead of 500, the size Craft's own element jobs use.
 
 ## 4.3.2 - 2026-09-28

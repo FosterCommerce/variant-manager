@@ -81,11 +81,16 @@ class ProductVariantsController extends Controller
 	/**
 	 * @throws BadRequestHttpException
 	 * @throws ForbiddenHttpException
+	 * @throws NotFoundHttpException
 	 * @throws ServerErrorHttpException
 	 */
 	public function actionUpload(): void
 	{
 		$this->requirePostRequest();
+
+		if (! Plugin::getInstance()->getSettings()->enableCsvImport) {
+			throw new NotFoundHttpException(Craft::t('yii', 'Page not found.'));
+		}
 
 		PermissionHelper::requireSaveAnyProductType();
 

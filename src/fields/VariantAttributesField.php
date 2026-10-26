@@ -81,13 +81,17 @@ class VariantAttributesField extends Field implements PreviewableFieldInterface
 
 		$namespacedId = $view->namespaceInputId(Html::id((string) $this->handle));
 
+		$offersVariantMaker = $this->offersVariantMaker($element);
+		$enableCsvImport = Plugin::getInstance()->getSettings()->enableCsvImport;
+
 		return $view->renderTemplate('variant-manager/fields/variant_attributes', [
 			'namespacedId' => $namespacedId,
 			'rows' => $this->registryRows($value),
 			'multipleFieldsExist' => ! FieldHelper::isFirstVariantAttributesField($this, $element),
-			'variantMaker' => $this->offersVariantMaker($element) ? 'enabled' : 'disabled',
-			// Name the Variant Maker only on a variant that isn't a revision, because revisions can't be edited
-			'showManageNote' => $element instanceof Variant && ! $element->getIsRevision(),
+			'variantMaker' => $offersVariantMaker ? 'enabled' : 'disabled',
+			'csvImport' => $enableCsvImport ? 'enabled' : 'disabled',
+			// Skip revisions, which can't be edited, and products with no tool to point to
+			'showManageNote' => $element instanceof Variant && ! $element->getIsRevision() && ($offersVariantMaker || $enableCsvImport),
 			'elementType' => $element instanceof ElementInterface ? $element::lowerDisplayName() : Variant::lowerDisplayName(),
 		]);
 	}

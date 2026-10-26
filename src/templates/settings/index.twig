@@ -53,6 +53,16 @@
 		warning: configWarning('variantMakerProductTypes'),
 	}) }}
 
+	{{ forms.lightswitchField({
+		label: 'settings.enableCsvImport'|t('variant-manager'),
+		instructions: 'settings.enableCsvImportIntro'|t('variant-manager'),
+		name: 'settings[enableCsvImport]',
+		on: settings.enableCsvImport,
+		disabled: readOnly,
+		errors: settings.getErrors('enableCsvImport'),
+		warning: configWarning('enableCsvImport'),
+	}) }}
+
 	{{ forms.selectField({
 		label: 'settings.defaultDisplayType'|t('variant-manager'),
 		instructions: 'settings.defaultDisplayTypeIntro'|t('variant-manager'),

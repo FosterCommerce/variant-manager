@@ -8,7 +8,7 @@
 {% if rows is empty %}
 	<div class="pane no-border zilch small">
 		{{- 'field.noAttributes'|t('variant-manager', { type: elementType }) -}}
-		{%- if showManageNote %} {{ 'field.manageAttributes'|t('variant-manager', { variantMaker }) }}{% endif -%}
+		{%- if showManageNote %} {{ 'field.manageAttributes'|t('variant-manager', { variantMaker, csvImport }) }}{% endif -%}
 	</div>
 {% else %}
 	<div class="variant-attributes-container">
@@ -42,7 +42,7 @@
 			</tbody>
 		</table>
 		{% if showManageNote %}
-			<p class="light">{{ 'field.editElsewhere'|t('variant-manager', { variantMaker }) }}</p>
+			<p class="light">{{ 'field.editElsewhere'|t('variant-manager', { variantMaker, csvImport }) }}</p>
 		{% endif %}
 	</div>
 

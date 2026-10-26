@@ -69,6 +69,11 @@ class Settings extends Model
 	 */
 	public array $variantMakerProductTypes = [];
 
+	/**
+	 * @var bool Whether `variant-manager/product-variants/upload` accepts a file
+	 */
+	public bool $enableCsvImport = true;
+
 	public string $defaultDisplayType = DisplayType::Dropdown->value;
 
 	/**
