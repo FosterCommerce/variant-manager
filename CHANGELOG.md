@@ -1,6 +1,6 @@
 # Release Notes for Variant Manager
 
-## Unreleased
+## 4.4.0 - 2026-11-06
 
 ### Added
 
